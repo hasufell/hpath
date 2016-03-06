@@ -1,5 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
+-- TODO: - remove undefined in Ord instance
+--       - use viewpatterns/patternsynonyms so we don't need to
+--         export the constructors
+
 -- | Internal types and functions.
 
 module Path.Internal
