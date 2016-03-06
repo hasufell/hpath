@@ -18,7 +18,8 @@ import Data.Data
 --
 -- All directories end in a trailing separator. There are no duplicate
 -- path separators @\/\/@, no @..@, no @.\/@, no @~\/@, etc.
-newtype Path b t = Path FilePath
+data Path b = FPath FilePath
+            | DPath FilePath
   deriving (Typeable)
 
 -- | String equality.
@@ -26,24 +27,31 @@ newtype Path b t = Path FilePath
 -- The following property holds:
 --
 -- @show x == show y ≡ x == y@
-instance Eq (Path b t) where
-  (==) (Path x) (Path y) = x == y
+instance Eq (Path b) where
+  (==) (FPath x) (FPath y) = x == y
+  (==) (DPath x) (DPath y) = x == y
+  (==) _         _         = False
 
 -- | String ordering.
 --
 -- The following property holds:
 --
 -- @show x \`compare\` show y ≡ x \`compare\` y@
-instance Ord (Path b t) where
-  compare (Path x) (Path y) = compare x y
+instance Ord (Path b) where
+  compare (FPath x) (FPath y) = compare x y
+  compare (DPath x) (DPath y) = compare x y
+  compare _         _         = undefined
 
 -- | Same as 'Path.toFilePath'.
 --
 -- The following property holds:
 --
 -- @x == y ≡ show x == show y@
-instance Show (Path b t) where
-  show (Path x) = show x
+instance Show (Path b) where
+  show (FPath x) = show x
+  show (DPath x) = show x
 
-instance NFData (Path b t) where
-  rnf (Path x) = rnf x
+instance NFData (Path b) where
+  rnf (FPath x) = rnf x
+  rnf (DPath x) = rnf x
+

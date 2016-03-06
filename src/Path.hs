@@ -18,8 +18,6 @@ module Path
    Path
   ,Abs
   ,Rel
-  ,File
-  ,Dir
    -- * Parsing
   ,parseAbsDir
   ,parseRelDir
@@ -37,13 +35,8 @@ module Path
   ,isParentOf
   ,parent
   ,filename
-  ,dirname
   -- * Conversion
   ,toFilePath
-  ,fromAbsDir
-  ,fromRelDir
-  ,fromAbsFile
-  ,fromRelFile
   )
   where
 
@@ -65,11 +58,6 @@ data Abs deriving (Typeable)
 -- | A relative path; one without a root.
 data Rel deriving (Typeable)
 
--- | A file path.
-data File deriving (Typeable)
-
--- | A directory path.
-data Dir deriving (Typeable)
 
 -- | Exception when parsing a location.
 data PathParseException
@@ -78,6 +66,7 @@ data PathParseException
   | InvalidAbsFile FilePath
   | InvalidRelFile FilePath
   | Couldn'tStripPrefixDir FilePath FilePath
+  | InvalidTypeCombination
   deriving (Show,Typeable)
 instance Exception PathParseException
 
@@ -90,14 +79,14 @@ instance Exception PathParseException
 -- Throws: 'PathParseException'
 --
 parseAbsDir :: MonadThrow m
-            => FilePath -> m (Path Abs Dir)
+            => FilePath -> m (Path Abs)
 parseAbsDir filepath =
   if FilePath.isAbsolute filepath &&
      not (null (normalizeDir filepath)) &&
      not ("~/" `isPrefixOf` filepath) &&
      not (hasParentDir filepath) &&
      FilePath.isValid filepath
-     then return (Path (normalizeDir filepath))
+     then return (DPath (normalizeDir filepath))
      else throwM (InvalidAbsDir filepath)
 
 -- | Get a location for a relative directory. Produces a normalized
@@ -108,7 +97,7 @@ parseAbsDir filepath =
 -- Throws: 'PathParseException'
 --
 parseRelDir :: MonadThrow m
-            => FilePath -> m (Path Rel Dir)
+            => FilePath -> m (Path Rel)
 parseRelDir filepath =
   if not (FilePath.isAbsolute filepath) &&
      not (null filepath) &&
@@ -117,7 +106,7 @@ parseRelDir filepath =
      not (null (normalizeDir filepath)) &&
      filepath /= "." && filepath /= ".." &&
      FilePath.isValid filepath
-     then return (Path (normalizeDir filepath))
+     then return (DPath (normalizeDir filepath))
      else throwM (InvalidRelDir filepath)
 
 -- | Get a location for an absolute file.
@@ -125,7 +114,7 @@ parseRelDir filepath =
 -- Throws: 'PathParseException'
 --
 parseAbsFile :: MonadThrow m
-             => FilePath -> m (Path Abs File)
+             => FilePath -> m (Path Abs)
 parseAbsFile filepath =
   if FilePath.isAbsolute filepath &&
      not (FilePath.hasTrailingPathSeparator filepath) &&
@@ -133,7 +122,7 @@ parseAbsFile filepath =
      not (hasParentDir filepath) &&
      not (null (normalizeFile filepath)) &&
      FilePath.isValid filepath
-     then return (Path (normalizeFile filepath))
+     then return (FPath (normalizeFile filepath))
      else throwM (InvalidAbsFile filepath)
 
 -- | Get a location for a relative file.
@@ -143,7 +132,7 @@ parseAbsFile filepath =
 -- Throws: 'PathParseException'
 --
 parseRelFile :: MonadThrow m
-             => FilePath -> m (Path Rel File)
+             => FilePath -> m (Path Rel)
 parseRelFile filepath =
   if not (FilePath.isAbsolute filepath ||
           FilePath.hasTrailingPathSeparator filepath) &&
@@ -153,7 +142,7 @@ parseRelFile filepath =
      not (null (normalizeFile filepath)) &&
      filepath /= "." && filepath /= ".." &&
      FilePath.isValid filepath
-     then return (Path (normalizeFile filepath))
+     then return (FPath (normalizeFile filepath))
      else throwM (InvalidRelFile filepath)
 
 -- | Helper function: check if the filepath has any parent directories in it.
@@ -181,16 +170,18 @@ mkAbsDir :: FilePath -> Q Exp
 mkAbsDir s =
   case parseAbsDir s of
     Left err -> error (show err)
-    Right (Path str) ->
-      [|Path $(return (LitE (StringL str))) :: Path Abs Dir|]
+    Right (DPath str) ->
+      [|DPath $(return (LitE (StringL str))) :: Path Abs|]
+    _ -> error "Invalid Type"
 
 -- | Make a 'Path Rel Dir'.
 mkRelDir :: FilePath -> Q Exp
 mkRelDir s =
   case parseRelDir s of
     Left err -> error (show err)
-    Right (Path str) ->
-      [|Path $(return (LitE (StringL str))) :: Path Rel Dir|]
+    Right (DPath str) ->
+      [|DPath $(return (LitE (StringL str))) :: Path Rel|]
+    _ -> error "Invalid Type"
 
 -- | Make a 'Path Abs File'.
 --
@@ -201,16 +192,18 @@ mkAbsFile :: FilePath -> Q Exp
 mkAbsFile s =
   case parseAbsFile s of
     Left err -> error (show err)
-    Right (Path str) ->
-      [|Path $(return (LitE (StringL str))) :: Path Abs File|]
+    Right (FPath str) ->
+      [|FPath $(return (LitE (StringL str))) :: Path Abs|]
+    _ -> error "Invalid Type"
 
 -- | Make a 'Path Rel File'.
 mkRelFile :: FilePath -> Q Exp
 mkRelFile s =
   case parseRelFile s of
     Left err -> error (show err)
-    Right (Path str) ->
-      [|Path $(return (LitE (StringL str))) :: Path Rel File|]
+    Right (FPath str) ->
+      [|FPath $(return (LitE (StringL str))) :: Path Rel|]
+    _ -> error "Invalid Type"
 
 --------------------------------------------------------------------------------
 -- Conversion
@@ -220,24 +213,10 @@ mkRelFile s =
 -- All directories have a trailing slash, so if you want no trailing
 -- slash, you can use 'System.FilePath.dropTrailingPathSeparator' from
 -- the filepath package.
-toFilePath :: Path b t -> FilePath
-toFilePath (Path l) = l
+toFilePath :: Path b -> FilePath
+toFilePath (FPath l) = l
+toFilePath (DPath l) = l
 
--- | Convert absolute path to directory to 'FilePath' type.
-fromAbsDir :: Path Abs Dir -> FilePath
-fromAbsDir = toFilePath
-
--- | Convert relative path to directory to 'FilePath' type.
-fromRelDir :: Path Rel Dir -> FilePath
-fromRelDir = toFilePath
-
--- | Convert absolute path to file to 'FilePath' type.
-fromAbsFile :: Path Abs File -> FilePath
-fromAbsFile = toFilePath
-
--- | Convert relative path to file to 'FilePath' type.
-fromRelFile :: Path Rel File -> FilePath
-fromRelFile = toFilePath
 
 --------------------------------------------------------------------------------
 -- Operations
@@ -264,8 +243,10 @@ fromRelFile = toFilePath
 --
 -- @x \<\/> $(mkAbsDir …)@
 --
-(</>) :: Path b Dir -> Path Rel t -> Path b t
-(</>) (Path a) (Path b) = Path (a ++ b)
+(</>) :: MonadThrow m => Path b -> Path Rel -> m (Path b)
+(</>) (DPath a) (FPath b) = return $ FPath (a ++ b)
+(</>) (DPath a) (DPath b) = return $ DPath (a ++ b)
+(</>) _         _         = throwM InvalidTypeCombination
 
 -- | Strip directory from path, making it relative to that directory.
 -- Throws 'Couldn'tStripPrefixDir' if directory is not a parent of the path.
@@ -283,18 +264,27 @@ fromRelFile = toFilePath
 -- In other words the bases must match.
 --
 stripDir :: MonadThrow m
-         => Path b Dir -> Path b t -> m (Path Rel t)
-stripDir (Path p) (Path l) =
+         => Path b -> Path b -> m (Path Rel)
+stripDir (DPath p) (FPath l) =
   case stripPrefix p l of
     Nothing -> throwM (Couldn'tStripPrefixDir p l)
     Just "" -> throwM (Couldn'tStripPrefixDir p l)
-    Just ok -> return (Path ok)
+    Just ok -> return (FPath ok)
+stripDir (DPath p) (DPath l) =
+  case stripPrefix p l of
+    Nothing -> throwM (Couldn'tStripPrefixDir p l)
+    Just "" -> throwM (Couldn'tStripPrefixDir p l)
+    Just ok -> return (DPath ok)
+stripDir _ _ = throwM InvalidTypeCombination
+
 
 -- | Is p a parent of the given location? Implemented in terms of
 -- 'stripDir'. The bases must match.
-isParentOf :: Path b Dir -> Path b t -> Bool
-isParentOf p l =
-  isJust (stripDir p l)
+-- Returns False if the first argument is not a directory path.
+isParentOf :: Path b -> Path b -> Bool
+isParentOf p@(DPath _) l@(DPath _) = isJust (stripDir p l)
+isParentOf p@(DPath _) l@(FPath _) = isJust (stripDir p l)
+isParentOf _         _         = False
 
 -- | Take the absolute parent directory from the absolute path.
 --
@@ -306,29 +296,24 @@ isParentOf p l =
 --
 -- @parent (parent \"\/\") = \"\/\"@
 --
-parent :: Path Abs t -> Path Abs Dir
-parent (Path fp) =
-  Path (normalizeDir (FilePath.takeDirectory (FilePath.dropTrailingPathSeparator fp)))
+parent :: Path Abs -> Path Abs
+parent (DPath fp) =
+  DPath (normalizeDir (FilePath.takeDirectory (FilePath.dropTrailingPathSeparator fp)))
+parent (FPath fp) =
+  DPath (normalizeDir (FilePath.takeDirectory (FilePath.dropTrailingPathSeparator fp)))
 
--- | Extract the file part of a path.
+-- | Extract the file/directory part of a path.
 --
 -- The following properties hold:
 --
 -- @filename (p \<\/> a) == filename a@
 --
-filename :: Path b File -> Path Rel File
-filename (Path l) =
-  Path (normalizeFile (FilePath.takeFileName l))
+filename :: Path b -> Path Rel
+filename (FPath l) =
+  FPath (normalizeFile (FilePath.takeFileName l))
+filename (DPath l) =
+  DPath (last (FilePath.splitPath l))
 
--- | Extract the last directory name of a path.
---
--- The following properties hold:
---
--- @dirname (p \<\/> a) == dirname a@
---
-dirname :: Path b Dir -> Path Rel Dir
-dirname (Path l) =
-  Path (last (FilePath.splitPath l))
 
 --------------------------------------------------------------------------------
 -- Internal functions
@@ -348,3 +333,4 @@ normalizeFile =
   where clean "./" = ""
         clean ('/':'/':xs) = clean ('/':xs)
         clean x = x
+
