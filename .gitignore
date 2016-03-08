@@ -8,3 +8,5 @@ TAGS
 tags
 *.tag
 .stack-work/
+.cabal-sandbox/
+cabal.sandbox.config

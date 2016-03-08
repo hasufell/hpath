@@ -8,8 +8,8 @@ import Control.Applicative
 import Control.Monad
 import Data.Maybe
 import Data.Monoid
-import Path
-import Path.Internal
+import HPath
+import HPath.Internal
 import Test.Hspec
 
 -- | Test suite entry point, returns exit failure if any test fails.
@@ -19,15 +19,15 @@ main = hspec spec
 -- | Test suite.
 spec :: Spec
 spec =
-  do describe "Parsing: Path Abs Dir" parseAbsDirSpec
-     describe "Parsing: Path Rel Dir" parseRelDirSpec
-     describe "Parsing: Path Abs File" parseAbsFileSpec
-     describe "Parsing: Path Rel File" parseRelFileSpec
+  do describe "Parsing: Path Abs Dir" parseAbsTPSSpec
+     describe "Parsing: Path Rel Dir" parseRelTPSSpec
+     describe "Parsing: Path Abs File" parseAbsNoTPSSpec
+     describe "Parsing: Path Rel File" parseRelNoTPSSpec
      describe "Operations: (</>)" operationAppend
      describe "Operations: stripDir" operationStripDir
      describe "Operations: isParentOf" operationIsParentOf
-     describe "Operations: parent" operationParent
-     describe "Operations: filename" operationFilename
+     describe "Operations: dirname" operationDirname
+     describe "Operations: basename" operationBasename
      describe "Restrictions" restrictions
 
 -- | Restricting the input of any tricks.
@@ -44,107 +44,107 @@ restrictions =
      parseFails "/foo/bar/.."
   where parseFails x =
           it (show x ++ " should be rejected")
-             (isNothing (void (parseAbsDir x) <|>
-                         void (parseRelDir x) <|>
-                         void (parseAbsFile x) <|>
-                         void (parseRelFile x)))
+             (isNothing (void (parseAbsTPS x) <|>
+                         void (parseRelTPS x) <|>
+                         void (parseAbsNoTPS x) <|>
+                         void (parseRelNoTPS x)))
 
--- | The 'filename' operation.
-operationFilename :: Spec
-operationFilename =
-  do it "filename ($(mkAbsDir parent) </> filename $(mkRelFile filename)) == $(mkRelFile filename)"
-        (filename ($(mkAbsDir "/home/chris/") </>
-                   filename $(mkRelFile "bar.txt")) ==
-         $(mkRelFile "bar.txt"))
-     it "filename ($(mkRelDir parent) </> filename $(mkRelFile filename)) == $(mkRelFile filename)"
-        (filename ($(mkRelDir "home/chris/") </>
-                   filename $(mkRelFile "bar.txt")) ==
-         $(mkRelFile "bar.txt"))
+-- | The 'basename' operation.
+operationBasename :: Spec
+operationBasename =
+  do it "basename ($(mkAbsTPS parent) </> basename $(mkRelNoTPS filename)) == $(mkRelNoTPS filename)"
+        ((basename =<< ($(mkAbsTPS "/home/hasufell/") </>)
+                        <$> basename $(mkRelNoTPS "bar.txt")) ==
+         Just $(mkRelNoTPS "bar.txt"))
+     it "basename ($(mkRelTPS parent) </> basename $(mkRelNoTPS filename)) == $(mkRelNoTPS filename)"
+        ((basename =<< ($(mkRelTPS "home/hasufell/") </>)
+                        <$> basename $(mkRelNoTPS "bar.txt")) ==
+         Just $(mkRelNoTPS "bar.txt"))
 
--- | The 'parent' operation.
-operationParent :: Spec
-operationParent =
-  do it "parent (parent </> child) == parent"
-        (parent ($(mkAbsDir "/foo") </>
-                    $(mkRelDir "bar")) ==
-         $(mkAbsDir "/foo"))
-     it "parent \"\" == \"\""
-        (parent $(mkAbsDir "/") ==
-         $(mkAbsDir "/"))
-     it "parent (parent \"\") == \"\""
-        (parent (parent $(mkAbsDir "/")) ==
-         $(mkAbsDir "/"))
+-- | The 'dirname' operation.
+operationDirname :: Spec
+operationDirname =
+  do it "dirname (parent </> child) == parent"
+        (dirname ($(mkAbsTPS "/foo") </>
+                    $(mkRelTPS "bar")) ==
+         $(mkAbsTPS "/foo"))
+     it "dirname \"\" == \"\""
+        (dirname $(mkAbsTPS "/") ==
+         $(mkAbsTPS "/"))
+     it "dirname (parent \"\") == \"\""
+        (dirname (dirname $(mkAbsTPS "/")) ==
+         $(mkAbsTPS "/"))
 
 -- | The 'isParentOf' operation.
 operationIsParentOf :: Spec
 operationIsParentOf =
   do it "isParentOf parent (parent </> child)"
         (isParentOf
-           $(mkAbsDir "///bar/")
-           ($(mkAbsDir "///bar/") </>
-            $(mkRelFile "bar/foo.txt")))
+           $(mkAbsTPS "///bar/")
+           ($(mkAbsTPS "///bar/") </>
+            $(mkRelNoTPS "bar/foo.txt")))
      it "isParentOf parent (parent </> child)"
         (isParentOf
-           $(mkRelDir "bar/")
-           ($(mkRelDir "bar/") </>
-            $(mkRelFile "bob/foo.txt")))
+           $(mkRelTPS "bar/")
+           ($(mkRelTPS "bar/") </>
+            $(mkRelNoTPS "bob/foo.txt")))
 
 -- | The 'stripDir' operation.
 operationStripDir :: Spec
 operationStripDir =
   do it "stripDir parent (parent </> child) = child"
-        (stripDir $(mkAbsDir "///bar/")
-                  ($(mkAbsDir "///bar/") </>
-                   $(mkRelFile "bar/foo.txt")) ==
-         Just $(mkRelFile "bar/foo.txt"))
+        (stripDir $(mkAbsTPS "///bar/")
+                  ($(mkAbsTPS "///bar/") </>
+                   $(mkRelNoTPS "bar/foo.txt")) ==
+         Just $(mkRelNoTPS "bar/foo.txt"))
      it "stripDir parent (parent </> child) = child"
-        (stripDir $(mkRelDir "bar/")
-                  ($(mkRelDir "bar/") </>
-                   $(mkRelFile "bob/foo.txt")) ==
-         Just $(mkRelFile "bob/foo.txt"))
+        (stripDir $(mkRelTPS "bar/")
+                  ($(mkRelTPS "bar/") </>
+                   $(mkRelNoTPS "bob/foo.txt")) ==
+         Just $(mkRelNoTPS "bob/foo.txt"))
      it "stripDir parent parent = _|_"
-        (stripDir $(mkAbsDir "/home/chris/foo")
-                  $(mkAbsDir "/home/chris/foo") ==
+        (stripDir $(mkAbsTPS "/home/hasufell/foo")
+                  $(mkAbsTPS "/home/hasufell/foo") ==
          Nothing)
 
 -- | The '</>' operation.
 operationAppend :: Spec
 operationAppend =
   do it "AbsDir + RelDir = AbsDir"
-        ($(mkAbsDir "/home/") </>
-         $(mkRelDir "chris") ==
-         $(mkAbsDir "/home/chris/"))
+        ($(mkAbsTPS "/home/") </>
+         $(mkRelTPS "hasufell") ==
+         $(mkAbsTPS "/home/hasufell/"))
      it "AbsDir + RelFile = AbsFile"
-        ($(mkAbsDir "/home/") </>
-         $(mkRelFile "chris/test.txt") ==
-         $(mkAbsFile "/home/chris/test.txt"))
+        ($(mkAbsTPS "/home/") </>
+         $(mkRelNoTPS "hasufell/test.txt") ==
+         $(mkAbsNoTPS "/home/hasufell/test.txt"))
      it "RelDir + RelDir = RelDir"
-        ($(mkRelDir "home/") </>
-         $(mkRelDir "chris") ==
-         $(mkRelDir "home/chris"))
+        ($(mkRelTPS "home/") </>
+         $(mkRelTPS "hasufell") ==
+         $(mkRelTPS "home/hasufell"))
      it "RelDir + RelFile = RelFile"
-        ($(mkRelDir "home/") </>
-         $(mkRelFile "chris/test.txt") ==
-         $(mkRelFile "home/chris/test.txt"))
+        ($(mkRelTPS "home/") </>
+         $(mkRelNoTPS "hasufell/test.txt") ==
+         $(mkRelNoTPS "home/hasufell/test.txt"))
 
 -- | Tests for the tokenizer.
-parseAbsDirSpec :: Spec
-parseAbsDirSpec =
+parseAbsTPSSpec :: Spec
+parseAbsTPSSpec =
   do failing ""
      failing "./"
      failing "~/"
      failing "foo.txt"
-     succeeding "/" (Path "/")
-     succeeding "//" (Path "/")
-     succeeding "///foo//bar//mu/" (Path "/foo/bar/mu/")
-     succeeding "///foo//bar////mu" (Path "/foo/bar/mu/")
-     succeeding "///foo//bar/.//mu" (Path "/foo/bar/mu/")
-  where failing x = parserTest parseAbsDir x Nothing
-        succeeding x with = parserTest parseAbsDir x (Just with)
+     succeeding "/" (MkPath "/")
+     succeeding "//" (MkPath "/")
+     succeeding "///foo//bar//mu/" (MkPath "/foo/bar/mu/")
+     succeeding "///foo//bar////mu" (MkPath "/foo/bar/mu/")
+     succeeding "///foo//bar/.//mu" (MkPath "/foo/bar/mu/")
+  where failing x = parserTest parseAbsTPS x Nothing
+        succeeding x with = parserTest parseAbsTPS x (Just with)
 
 -- | Tests for the tokenizer.
-parseRelDirSpec :: Spec
-parseRelDirSpec =
+parseRelTPSSpec :: Spec
+parseRelTPSSpec =
   do failing ""
      failing "/"
      failing "//"
@@ -156,20 +156,20 @@ parseRelDirSpec =
      failing "///foo//bar//mu/"
      failing "///foo//bar////mu"
      failing "///foo//bar/.//mu"
-     succeeding "..." (Path ".../")
-     succeeding "foo.bak" (Path "foo.bak/")
-     succeeding "./foo" (Path "foo/")
-     succeeding "././foo" (Path "foo/")
-     succeeding "./foo/./bar" (Path "foo/bar/")
-     succeeding "foo//bar//mu//" (Path "foo/bar/mu/")
-     succeeding "foo//bar////mu" (Path "foo/bar/mu/")
-     succeeding "foo//bar/.//mu" (Path "foo/bar/mu/")
-  where failing x = parserTest parseRelDir x Nothing
-        succeeding x with = parserTest parseRelDir x (Just with)
+     succeeding "..." (MkPath ".../")
+     succeeding "foo.bak" (MkPath "foo.bak/")
+     succeeding "./foo" (MkPath "foo/")
+     succeeding "././foo" (MkPath "foo/")
+     succeeding "./foo/./bar" (MkPath "foo/bar/")
+     succeeding "foo//bar//mu//" (MkPath "foo/bar/mu/")
+     succeeding "foo//bar////mu" (MkPath "foo/bar/mu/")
+     succeeding "foo//bar/.//mu" (MkPath "foo/bar/mu/")
+  where failing x = parserTest parseRelTPS x Nothing
+        succeeding x with = parserTest parseRelTPS x (Just with)
 
 -- | Tests for the tokenizer.
-parseAbsFileSpec :: Spec
-parseAbsFileSpec =
+parseAbsNoTPSSpec :: Spec
+parseAbsNoTPSSpec =
   do failing ""
      failing "./"
      failing "~/"
@@ -177,16 +177,16 @@ parseAbsFileSpec =
      failing "/"
      failing "//"
      failing "///foo//bar//mu/"
-     succeeding "/..." (Path "/...")
-     succeeding "/foo.txt" (Path "/foo.txt")
-     succeeding "///foo//bar////mu.txt" (Path "/foo/bar/mu.txt")
-     succeeding "///foo//bar/.//mu.txt" (Path "/foo/bar/mu.txt")
-  where failing x = parserTest parseAbsFile x Nothing
-        succeeding x with = parserTest parseAbsFile x (Just with)
+     succeeding "/..." (MkPath "/...")
+     succeeding "/foo.txt" (MkPath "/foo.txt")
+     succeeding "///foo//bar////mu.txt" (MkPath "/foo/bar/mu.txt")
+     succeeding "///foo//bar/.//mu.txt" (MkPath "/foo/bar/mu.txt")
+  where failing x = parserTest parseAbsNoTPS x Nothing
+        succeeding x with = parserTest parseAbsNoTPS x (Just with)
 
 -- | Tests for the tokenizer.
-parseRelFileSpec :: Spec
-parseRelFileSpec =
+parseRelNoTPSSpec :: Spec
+parseRelNoTPSSpec =
   do failing ""
      failing "/"
      failing "//"
@@ -197,16 +197,16 @@ parseRelFileSpec =
      failing "///foo//bar//mu/"
      failing "///foo//bar////mu"
      failing "///foo//bar/.//mu"
-     succeeding "..." (Path "...")
-     succeeding "foo.txt" (Path "foo.txt")
-     succeeding "./foo.txt" (Path "foo.txt")
-     succeeding "././foo.txt" (Path "foo.txt")
-     succeeding "./foo/./bar.txt" (Path "foo/bar.txt")
-     succeeding "foo//bar//mu.txt" (Path "foo/bar/mu.txt")
-     succeeding "foo//bar////mu.txt" (Path "foo/bar/mu.txt")
-     succeeding "foo//bar/.//mu.txt" (Path "foo/bar/mu.txt")
-  where failing x = parserTest parseRelFile x Nothing
-        succeeding x with = parserTest parseRelFile x (Just with)
+     succeeding "..." (MkPath "...")
+     succeeding "foo.txt" (MkPath "foo.txt")
+     succeeding "./foo.txt" (MkPath "foo.txt")
+     succeeding "././foo.txt" (MkPath "foo.txt")
+     succeeding "./foo/./bar.txt" (MkPath "foo/bar.txt")
+     succeeding "foo//bar//mu.txt" (MkPath "foo/bar/mu.txt")
+     succeeding "foo//bar////mu.txt" (MkPath "foo/bar/mu.txt")
+     succeeding "foo//bar/.//mu.txt" (MkPath "foo/bar/mu.txt")
+  where failing x = parserTest parseRelNoTPS x Nothing
+        succeeding x with = parserTest parseRelNoTPS x (Just with)
 
 -- | Parser test.
 parserTest :: (Show a1,Show a,Eq a1)

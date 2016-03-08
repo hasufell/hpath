@@ -1,12 +1,12 @@
-name:                path
-version:             0.5.7
+name:                hpath
+version:             0.5.8
 synopsis:            Support for well-typed paths
 description:         Support for will-typed paths.
 license:             BSD3
 license-file:        LICENSE
-author:              Chris Done <chrisdone@fpcomplete.com>
-maintainer:          Chris Done <chrisdone@fpcomplete.com>
-copyright:           2015–2016 FP Complete
+author:              Julian Ospald <hasufell@posteo.de>
+maintainer:          Julian Ospald <hasufell@posteo.de>
+copyright:           2015–2016 FP Complete, Julian Ospald 2016
 category:            Filesystem
 build-type:          Simple
 cabal-version:       >=1.8
@@ -15,7 +15,7 @@ extra-source-files:  README.md, CHANGELOG
 library
   hs-source-dirs:    src/
   ghc-options:       -Wall -O2
-  exposed-modules:   Path, Path.Internal
+  exposed-modules:   HPath, HPath.Internal
   build-depends:     base >= 4 && <5
                    , exceptions
                    , filepath
@@ -30,8 +30,8 @@ test-suite test
                  , base
                  , hspec
                  , mtl
-                 , path
+                 , hpath
 
 source-repository head
     type:     git
-    location: https://github.com/chrisdone/path.git
+    location: https://github.com/hasufell/hpath

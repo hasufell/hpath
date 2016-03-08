@@ -2,7 +2,7 @@
 
 -- | Internal types and functions.
 
-module Path.Internal
+module HPath.Internal
   (Path(..))
   where
 
@@ -13,12 +13,12 @@ import Data.Data
 --
 -- Internally is a string. The string can be of two formats only:
 --
--- 1. File format: @file.txt@, @foo\/bar.txt@, @\/foo\/bar.txt@
--- 2. Directory format: @foo\/@, @\/foo\/bar\/@
+-- 1. without trailing path separator: @file.txt@, @foo\/bar.txt@, @\/foo\/bar.txt@
+-- 2. with trailing path separator: @foo\/@, @\/foo\/bar\/@
 --
--- All directories end in a trailing separator. There are no duplicate
+-- There are no duplicate
 -- path separators @\/\/@, no @..@, no @.\/@, no @~\/@, etc.
-newtype Path b t = Path FilePath
+data Path b t = MkPath FilePath
   deriving (Typeable)
 
 -- | String equality.
@@ -27,7 +27,7 @@ newtype Path b t = Path FilePath
 --
 -- @show x == show y ≡ x == y@
 instance Eq (Path b t) where
-  (==) (Path x) (Path y) = x == y
+  (==) (MkPath x) (MkPath y) = x == y
 
 -- | String ordering.
 --
@@ -35,7 +35,7 @@ instance Eq (Path b t) where
 --
 -- @show x \`compare\` show y ≡ x \`compare\` y@
 instance Ord (Path b t) where
-  compare (Path x) (Path y) = compare x y
+  compare (MkPath x) (MkPath y) = compare x y
 
 -- | Same as 'Path.toFilePath'.
 --
@@ -43,7 +43,8 @@ instance Ord (Path b t) where
 --
 -- @x == y ≡ show x == show y@
 instance Show (Path b t) where
-  show (Path x) = show x
+  show (MkPath x) = show x
 
 instance NFData (Path b t) where
-  rnf (Path x) = rnf x
+  rnf (MkPath x) = rnf x
+
