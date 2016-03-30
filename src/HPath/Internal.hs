@@ -3,7 +3,8 @@
 -- | Internal types and functions.
 
 module HPath.Internal
-  (Path(..))
+  (Path(..)
+  ,RelC)
   where
 
 import Control.DeepSeq (NFData (..))
@@ -18,7 +19,7 @@ import Data.Data
 --
 -- There are no duplicate
 -- path separators @\/\/@, no @..@, no @.\/@, no @~\/@, etc.
-data Path b t = MkPath FilePath
+data Path b = MkPath FilePath
   deriving (Typeable)
 
 -- | String equality.
@@ -26,7 +27,7 @@ data Path b t = MkPath FilePath
 -- The following property holds:
 --
 -- @show x == show y ≡ x == y@
-instance Eq (Path b t) where
+instance Eq (Path b) where
   (==) (MkPath x) (MkPath y) = x == y
 
 -- | String ordering.
@@ -34,7 +35,7 @@ instance Eq (Path b t) where
 -- The following property holds:
 --
 -- @show x \`compare\` show y ≡ x \`compare\` y@
-instance Ord (Path b t) where
+instance Ord (Path b) where
   compare (MkPath x) (MkPath y) = compare x y
 
 -- | Same as 'Path.toFilePath'.
@@ -42,9 +43,12 @@ instance Ord (Path b t) where
 -- The following property holds:
 --
 -- @x == y ≡ show x == show y@
-instance Show (Path b t) where
+instance Show (Path b) where
   show (MkPath x) = show x
 
-instance NFData (Path b t) where
+instance NFData (Path b) where
   rnf (MkPath x) = rnf x
+
+
+class RelC m
 
