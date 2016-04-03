@@ -39,6 +39,7 @@ module HPath
   ,basename
   ,dirname
   ,isParentOf
+  ,getAllParents
   ,stripDir
   -- * Conversion
   ,canonicalizePath
@@ -235,6 +236,16 @@ stripDir (MkPath p) (MkPath l) =
 isParentOf :: Path b -> Path b -> Bool
 isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
 
+
+getAllParents :: Path Abs -> [Path Abs]
+getAllParents (MkPath p) =
+  case np of
+    (MkPath "/") -> []
+    _            -> dirname np : getAllParents (dirname np)
+  where
+    np = MkPath . FilePath.dropTrailingPathSeparator . FilePath.normalise $ p
+
+
 -- | Extract the directory name of a path.
 --
 -- The following properties hold:
@@ -258,6 +269,7 @@ basename (MkPath l)
   | otherwise                    = MkPath "."
   where
     rl = last . FilePath.splitPath . FilePath.dropTrailingPathSeparator $ l
+
 
 --------------------------------------------------------------------------------
 -- Query functions
