@@ -63,6 +63,7 @@ module HPath
   ,dropTrailingPathSeparator
   ,dropWhileEnd
   ,equalFilePath
+  ,fpToString
   ,joinPath
   ,normalise
   ,splitDirectories
@@ -70,6 +71,7 @@ module HPath
   ,splitPath
   ,stripPrefix
   ,takeDirectory
+  ,userStringToFP
   -- * Queries
   ,hasDot
   ,hasDoublePS
@@ -91,6 +93,8 @@ import           Control.Monad.Catch (MonadThrow(..))
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as B
 import           Data.Data
+import Data.Encoding(decodeStrictByteString, encodeStrictByteString)
+import Data.Encoding.UTF8(UTF8(..))
 import qualified Data.List as L
 import           Data.Maybe
 import           Data.Word8
@@ -439,6 +443,17 @@ splitFileName filepath = (if B.null dir then "./" else dir, name)
 
 stripPrefix :: ByteString -> ByteString -> Maybe ByteString
 stripPrefix a b = B.pack `fmap` L.stripPrefix (B.unpack a) (B.unpack b)
+
+
+-- |Uses UTF-8 decoding to convert the bytestring into a String.
+fpToString :: ByteString -> String
+fpToString = decodeStrictByteString UTF8
+
+
+-- |Uses UTF-8 encoding to convert a user provides String into
+-- a ByteString, which represents a filepath.
+userStringToFP :: String -> ByteString
+userStringToFP = encodeStrictByteString UTF8
 
 
 --------------------------------------------------------------------------------

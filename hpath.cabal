@@ -18,6 +18,7 @@ library
   exposed-modules:   HPath, HPath.Foreign, HPath.Internal
   build-depends:     base >= 4 && <5
                    , bytestring
+                   , encoding
                    , exceptions
                    , deepseq
                    , word8
