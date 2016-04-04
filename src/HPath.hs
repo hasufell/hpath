@@ -9,11 +9,13 @@
 --
 -- Support for well-typed paths.
 
-{-# LANGUAGE TemplateHaskell #-}
+
+
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_HADDOCK ignore-exports #-}
 
 module HPath
@@ -23,35 +25,55 @@ module HPath
   ,Path
   ,Rel
   ,Fn
+  ,PathParseException
   -- * PatternSynonyms/ViewPatterns
   ,pattern Path
-   -- * Parsing
-  ,PathParseException
+   -- * Path Parsing
   ,parseAbs
   ,parseFn
   ,parseRel
-  -- * Constructors
-  ,mkAbs
-  ,mkFn
-  ,mkRel
-  -- * Operations
+  -- * Path Conversion
+  ,canonicalizePath
+  ,fromAbs
+  ,fromRel
+  ,normalize
+  ,toFilePath
+  -- * Path Operations
   ,(</>)
   ,basename
   ,dirname
   ,isParentOf
   ,getAllParents
   ,stripDir
-  -- * Conversion
-  ,canonicalizePath
-  ,fromAbs
-  ,fromRel
-  ,normalize
-  ,toFilePath
+  -- * ByteString/Word8 constants
+  ,nullByte
+  ,pathDot
+  ,pathDot'
+  ,pathSeparator
+  ,pathSeparator'
+  -- * ByteString operations
+  ,addTrailingPathSeparator
+  ,combine
+  ,dropFileName
+  ,dropTrailingPathSeparator
+  ,dropWhileEnd
+  ,joinPath
+  ,normalise
+  ,splitDirectories
+  ,splitFileName
+  ,splitPath
+  ,stripPrefix
+  ,takeDirectory
   -- * Queries
   ,hasDot
   ,hasDoublePS
+  ,hasLeadingPathSeparator
   ,hasParentDir
+  ,hasTrailingPathSeparator
+  ,isAbsolute
   ,isFileName
+  ,isRelative
+  ,isValid
   -- * String based functions
   ,realPath
   )
@@ -60,18 +82,18 @@ module HPath
 import           Control.Exception (Exception)
 import           Control.Monad(void)
 import           Control.Monad.Catch (MonadThrow(..))
+import           Data.ByteString(ByteString)
+import qualified Data.ByteString as B
+import           Data.Char(ord)
 import           Data.Data
-import           Data.List
+import qualified Data.List as L
 import           Data.Maybe
+import           Data.Word(Word8)
 import           Foreign.C.Error
 import           Foreign.C.String
-import           GHC.Foreign as GHC
-import           GHC.IO.Encoding (getFileSystemEncoding)
 import           Foreign.Marshal.Alloc(allocaBytes)
-import           Language.Haskell.TH
 import           HPath.Foreign
 import           HPath.Internal
-import qualified System.FilePath as FilePath
 
 --------------------------------------------------------------------------------
 -- Types
@@ -87,10 +109,10 @@ data Fn deriving (Typeable)
 
 -- | Exception when parsing a location.
 data PathParseException
-  = InvalidAbs FilePath
-  | InvalidRel FilePath
-  | InvalidFn FilePath
-  | Couldn'tStripPrefixTPS FilePath FilePath
+  = InvalidAbs ByteString
+  | InvalidRel ByteString
+  | InvalidFn ByteString
+  | Couldn'tStripPrefixTPS ByteString ByteString
   deriving (Show,Typeable)
 instance Exception PathParseException
 
@@ -103,18 +125,18 @@ instance RelC Fn
 pattern Path x <- (MkPath x)
 
 --------------------------------------------------------------------------------
--- Parsers
+-- Path Parsers
 
 -- | Get a location for an absolute path.
 --
 -- Throws: 'PathParseException'
 --
 parseAbs :: MonadThrow m
-         => FilePath -> m (Path Abs)
+         => ByteString -> m (Path Abs)
 parseAbs filepath =
-  if FilePath.isAbsolute filepath &&
-     not (null filepath) &&
-     FilePath.isValid filepath
+  if isAbsolute filepath &&
+     not (B.null filepath) &&
+     isValid filepath
      then return (MkPath filepath)
      else throwM (InvalidAbs filepath)
 
@@ -127,74 +149,44 @@ parseAbs filepath =
 -- Throws: 'PathParseException'
 --
 parseRel :: MonadThrow m
-         => FilePath -> m (Path Rel)
+         => ByteString -> m (Path Rel)
 parseRel filepath =
-  if not (FilePath.isAbsolute filepath) &&
-     not (null filepath) &&
-     FilePath.isValid filepath
+  if not (isAbsolute filepath) &&
+     not (B.null filepath) &&
+     isValid filepath
      then return (MkPath filepath)
      else throwM (InvalidRel filepath)
 
 parseFn :: MonadThrow m
-        => FilePath -> m (Path Fn)
+        => ByteString -> m (Path Fn)
 parseFn filepath =
-  if not (FilePath.isAbsolute filepath) &&
-     not (null filepath) &&
+  if not (isAbsolute filepath) &&
+     not (B.null filepath) &&
      isFileName filepath &&
-     FilePath.isValid filepath
+     isValid filepath
      then return (MkPath filepath)
      else throwM (InvalidFn filepath)
 
---------------------------------------------------------------------------------
--- Constructors
-
--- | Make a 'Path Abs TPS'.
---
--- Remember: due to the nature of absolute paths this (e.g. @\/home\/foo@)
--- may compile on your platform, but it may not compile on another
--- platform (Windows).
-mkAbs :: FilePath -> Q Exp
-mkAbs s =
-  case parseAbs s of
-    Left err -> error (show err)
-    Right (MkPath str) ->
-      [|MkPath $(return (LitE (StringL str))) :: Path Abs|]
-
--- | Make a 'Path Rel TPS'.
-mkRel :: FilePath -> Q Exp
-mkRel s =
-  case parseRel s of
-    Left err -> error (show err)
-    Right (MkPath str) ->
-      [|MkPath $(return (LitE (StringL str))) :: Path Rel|]
-
--- | Make a 'Path Rel TPS'.
-mkFn :: FilePath -> Q Exp
-mkFn s =
-  case parseFn s of
-    Left err -> error (show err)
-    Right (MkPath str) ->
-      [|MkPath $(return (LitE (StringL str))) :: Path Fn|]
 
 --------------------------------------------------------------------------------
--- Conversion
+-- Path Conversion
 
--- | Convert to a 'FilePath' type.
+-- | Convert to a ByteString type.
 --
 -- All TPS data types have a trailing slash, so if you want no trailing
 -- slash, you can use 'System.FilePath.dropTrailingPathSeparator' from
 -- the filepath package.
-toFilePath :: Path b -> FilePath
+toFilePath :: Path b -> ByteString
 toFilePath (MkPath l) = l
 
-fromAbs :: Path Abs -> FilePath
+fromAbs :: Path Abs -> ByteString
 fromAbs = toFilePath
 
-fromRel :: RelC r => Path r -> FilePath
+fromRel :: RelC r => Path r -> ByteString
 fromRel = toFilePath
 
 normalize :: Path t -> Path t
-normalize (MkPath l) = MkPath $ FilePath.normalise l
+normalize (MkPath l) = MkPath $ normalise l
 
 -- | May fail on `realPath`.
 canonicalizePath :: Path Abs -> IO (Path Abs)
@@ -203,7 +195,7 @@ canonicalizePath (MkPath l) = do
   return $ MkPath nl
 
 --------------------------------------------------------------------------------
--- Operations
+-- Path Operations
 
 -- | Append two paths.
 --
@@ -214,9 +206,9 @@ canonicalizePath (MkPath l) = do
 -- because this library is IO-agnostic and makes no assumptions about
 -- file types.
 (</>) :: RelC r => Path b -> Path r -> Path b
-(</>) (MkPath a) (MkPath b) = MkPath (a' ++ b)
+(</>) (MkPath a) (MkPath b) = MkPath (a' `B.append` b)
   where
-    a' = FilePath.addTrailingPathSeparator a
+    a' = addTrailingPathSeparator a
 
 -- | Strip directory from path, making it relative to that directory.
 -- Throws 'Couldn'tStripPrefixDir' if directory is not a parent of the path.
@@ -231,7 +223,7 @@ stripDir (MkPath p) (MkPath l) =
     Just "" -> throwM (Couldn'tStripPrefixTPS p' l)
     Just ok -> return (MkPath ok)
   where
-    p' = FilePath.addTrailingPathSeparator p
+    p' = addTrailingPathSeparator p
 
 -- | Is p a parent of the given location? Implemented in terms of
 -- 'stripDir'. The bases must match.
@@ -245,7 +237,7 @@ getAllParents (MkPath p) =
     (MkPath "/") -> []
     _            -> dirname np : getAllParents (dirname np)
   where
-    np = MkPath . FilePath.dropTrailingPathSeparator . FilePath.normalise $ p
+    np = MkPath . dropTrailingPathSeparator . normalise $ p
 
 
 -- | Extract the directory name of a path.
@@ -255,7 +247,7 @@ getAllParents (MkPath p) =
 -- @dirname (p \<\/> a) == dirname p@
 --
 dirname :: Path Abs -> Path Abs
-dirname (MkPath fp) = MkPath (FilePath.takeDirectory $ FilePath.dropTrailingPathSeparator fp)
+dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 
 -- | Extract the file part of a path.
 --
@@ -267,35 +259,206 @@ dirname (MkPath fp) = MkPath (FilePath.takeDirectory $ FilePath.dropTrailingPath
 -- Except when "/" is passed in which case the filename "." is returned.
 basename :: Path b -> Path Fn
 basename (MkPath l)
-  | not (FilePath.isAbsolute rl) = MkPath rl
+  | not (isAbsolute rl) = MkPath rl
   | otherwise                    = MkPath "."
   where
-    rl = last . FilePath.splitPath . FilePath.dropTrailingPathSeparator $ l
+    rl = last . splitPath . dropTrailingPathSeparator $ l
 
 
 --------------------------------------------------------------------------------
--- Query functions
+-- ByteString/Word8 constants
+
+pathSeparator :: Word8
+pathSeparator = fromIntegral (ord '/')
+
+pathSeparator' :: ByteString
+pathSeparator' = "/"
+
+
+pathDot :: Word8
+pathDot = fromIntegral (ord '.')
+
+
+pathDot' :: ByteString
+pathDot' = "."
+
+
+nullByte :: Word8
+nullByte = fromIntegral (ord '\0')
+
+
+--------------------------------------------------------------------------------
+-- ByteString Operations
+
+
+dropWhileEnd :: (Word8 -> Bool) -> ByteString -> ByteString
+dropWhileEnd p = B.reverse . B.dropWhile p . B.reverse
+
+
+dropTrailingPathSeparator :: ByteString -> ByteString
+dropTrailingPathSeparator filepath =
+  if hasTrailingPathSeparator filepath
+  then let filepath' = dropWhileEnd (== pathSeparator) filepath
+    in if B.null filepath' then B.singleton . B.last $ filepath else filepath'
+  else filepath
+
+
+addTrailingPathSeparator :: ByteString -> ByteString
+addTrailingPathSeparator filepath
+  | B.null filepath            = filepath
+  | filepath == pathSeparator' = filepath
+  | not (hasTrailingPathSeparator filepath)
+                               = filepath `B.append` pathSeparator'
+  | otherwise                  = filepath
+
+
+normalise :: ByteString -> ByteString
+normalise filepath = result `B.append`
+                     (if addPathSeparator then pathSeparator' else B.empty)
+  where
+    (drv, pth) = splitDrive filepath
+    result = joinDrive' (normaliseDrive drv) (f pth)
+    joinDrive' d p
+      | d == "" && p == "" = B.singleton pathDot
+      | otherwise          = joinDrive d p
+    addPathSeparator = isDirPath pth && not (hasTrailingPathSeparator result)
+    isDirPath xs = hasTrailingPathSeparator xs
+        || not (B.null xs) && B.last xs == pathDot
+           && hasTrailingPathSeparator (B.init xs)
+    normaliseDrive p
+      | p == ""   = ""
+      | otherwise = B.singleton pathSeparator
+    f = joinPath . dropDots . propSep . splitDirectories
+    propSep :: [ByteString] -> [ByteString]
+    propSep (x:xs)
+      | B.all (== pathSeparator) x = pathSeparator' : xs
+      | otherwise = x : xs
+    propSep [] = []
+    dropDots = filter (pathDot' /=)
+
+
+splitPath :: ByteString -> [ByteString]
+splitPath filepath = [drv | drv /= ""] ++ f pth
+  where
+    (drv, pth) = splitDrive filepath
+    f p
+      | p == ""   = []
+      | otherwise = (a `B.append` c) : f d
+        where
+          (a, b) = B.break (== pathSeparator) p
+          (c, d) = splitDrive b
+
+
+joinPath :: [ByteString] -> ByteString
+joinPath = foldr combine ""
+
+
+splitDrive :: ByteString -> (ByteString, ByteString)
+splitDrive = B.span (== pathSeparator)
+
+
+joinDrive :: ByteString -> ByteString -> ByteString
+joinDrive = combineAlways
+
+
+splitDirectories :: ByteString -> [ByteString]
+splitDirectories = map dropTrailingPathSeparator . splitPath
+
+
+combine :: ByteString -> ByteString -> ByteString
+combine d p
+  | hasLeadingPathSeparator p = p
+  | otherwise                 = combineAlways d p
+
+
+combineAlways :: ByteString -> ByteString -> ByteString
+combineAlways d p
+  | B.null d = p
+  | B.null p = d
+  | hasTrailingPathSeparator d = d `B.append` p
+  | otherwise = d `B.append` B.singleton pathSeparator `B.append` p
+
+
+takeDirectory :: ByteString -> ByteString
+takeDirectory = dropTrailingPathSeparator . dropFileName
+
+
+dropFileName :: ByteString -> ByteString
+dropFileName = fst . splitFileName
+
+
+splitFileName :: ByteString -> (ByteString, ByteString)
+splitFileName filepath = (if B.null dir then "./" else dir, name)
+  where
+    (dir, name) = splitFileName_ filepath
+    splitFileName_ p = (drv `B.append` dir', file)
+      where
+        (drv, pth)  = splitDrive p
+        (dir', file) = B.breakEnd (== pathSeparator) pth
+
+
+stripPrefix :: ByteString -> ByteString -> Maybe ByteString
+stripPrefix a b = B.pack `fmap` L.stripPrefix (B.unpack a) (B.unpack b)
+
+
+--------------------------------------------------------------------------------
+-- ByteString Query functions
 
 -- | Helper function: check if the filepath has any parent directories in it.
-hasParentDir :: FilePath -> Bool
+hasParentDir :: ByteString -> Bool
 hasParentDir filepath =
-     ("/.." `isSuffixOf` filepath) ||
-     ("/../" `isInfixOf` filepath) ||
-     ("../" `isPrefixOf` filepath)
+     ("/.."  `B.isSuffixOf` filepath) ||
+     ("/../" `B.isInfixOf`  filepath) ||
+     ("../"  `B.isPrefixOf` filepath)
 
-hasDot :: FilePath -> Bool
+hasDot :: ByteString -> Bool
 hasDot filepath =
-     ("/." `isSuffixOf` filepath) ||
-     ("/./" `isInfixOf` filepath) ||
-     ("./" `isPrefixOf` filepath)
+     ("/."  `B.isSuffixOf` filepath) ||
+     ("/./" `B.isInfixOf`  filepath) ||
+     ("./"  `B.isPrefixOf` filepath)
 
-hasDoublePS :: FilePath -> Bool
+hasDoublePS :: ByteString -> Bool
 hasDoublePS filepath =
-     ("//" `isInfixOf` filepath)
+     ("//" `B.isInfixOf` filepath)
 
-isFileName :: FilePath -> Bool
+
+hasTrailingPathSeparator :: ByteString -> Bool
+hasTrailingPathSeparator filepath
+  | B.null filepath                  = False
+  | B.last filepath == pathSeparator = True
+  | otherwise                        = False
+
+
+hasLeadingPathSeparator :: ByteString -> Bool
+hasLeadingPathSeparator filepath
+  | B.null filepath                  = False
+  | B.head filepath == pathSeparator = True
+  | otherwise                        = False
+
+
+isFileName :: ByteString -> Bool
 isFileName filepath =
-     not ("/" `isInfixOf` filepath)
+     not ("/" `B.isInfixOf` filepath)
+
+
+isAbsolute :: ByteString -> Bool
+isAbsolute filepath
+  | B.null filepath                  = False
+  | B.head filepath == pathSeparator = True
+  | otherwise                        = False
+
+
+isRelative :: ByteString -> Bool
+isRelative = not . isAbsolute
+
+
+isValid :: ByteString -> Bool
+isValid filepath
+  | B.null filepath            = False
+  | filepath ==  ""            = False
+  | nullByte `B.elem` filepath = False
+  | otherwise                  = True
+
 
 
 --------------------------------------------------------------------------------
@@ -307,12 +470,11 @@ foreign import ccall "realpath"
 -- | return the canonicalized absolute pathname
 --
 -- like canonicalizePath, but uses realpath(3)
-realPath :: String -> IO String
-realPath inp = do
-  encoding <- getFileSystemEncoding
+realPath :: ByteString -> IO ByteString
+realPath inp =
   allocaBytes pathMax $ \tmp -> do
-      void $ GHC.withCString encoding inp
+      void $ B.useAsCString inp
            $ \cstr -> throwErrnoIfNull "realpath"
            $ c_realpath cstr tmp
-      GHC.peekCString encoding tmp
+      B.packCString tmp
 

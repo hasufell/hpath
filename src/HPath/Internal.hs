@@ -8,6 +8,7 @@ module HPath.Internal
   where
 
 import Control.DeepSeq (NFData (..))
+import Data.ByteString (ByteString)
 import Data.Data
 
 -- | Path of some base and type.
@@ -19,7 +20,7 @@ import Data.Data
 --
 -- There are no duplicate
 -- path separators @\/\/@, no @..@, no @.\/@, no @~\/@, etc.
-data Path b = MkPath FilePath
+data Path b = MkPath ByteString
   deriving (Typeable)
 
 -- | String equality.
