@@ -84,11 +84,10 @@ import           Control.Monad(void)
 import           Control.Monad.Catch (MonadThrow(..))
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as B
-import           Data.Char(ord)
 import           Data.Data
 import qualified Data.List as L
 import           Data.Maybe
-import           Data.Word(Word8)
+import           Data.Word8
 import           Foreign.C.Error
 import           Foreign.C.String
 import           Foreign.Marshal.Alloc(allocaBytes)
@@ -269,22 +268,22 @@ basename (MkPath l)
 -- ByteString/Word8 constants
 
 pathSeparator :: Word8
-pathSeparator = fromIntegral (ord '/')
+pathSeparator = _slash
 
 pathSeparator' :: ByteString
-pathSeparator' = "/"
+pathSeparator' = B.singleton pathSeparator
 
 
 pathDot :: Word8
-pathDot = fromIntegral (ord '.')
+pathDot = _period
 
 
 pathDot' :: ByteString
-pathDot' = "."
+pathDot' = B.singleton pathDot
 
 
 nullByte :: Word8
-nullByte = fromIntegral (ord '\0')
+nullByte = _nul
 
 
 --------------------------------------------------------------------------------
