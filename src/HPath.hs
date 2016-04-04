@@ -65,6 +65,8 @@ import           Data.List
 import           Data.Maybe
 import           Foreign.C.Error
 import           Foreign.C.String
+import           GHC.Foreign as GHC
+import           GHC.IO.Encoding (getFileSystemEncoding)
 import           Foreign.Marshal.Alloc(allocaBytes)
 import           Language.Haskell.TH
 import           HPath.Foreign
@@ -307,9 +309,10 @@ foreign import ccall "realpath"
 -- like canonicalizePath, but uses realpath(3)
 realPath :: String -> IO String
 realPath inp = do
-    allocaBytes pathMax $ \tmp -> do
-        void $ withCString inp
-             $ \cstr -> throwErrnoIfNull "realpath"
-             $ c_realpath cstr tmp
-        peekCAString tmp
+  encoding <- getFileSystemEncoding
+  allocaBytes pathMax $ \tmp -> do
+      void $ GHC.withCString encoding inp
+           $ \cstr -> throwErrnoIfNull "realpath"
+           $ c_realpath cstr tmp
+      GHC.peekCString encoding tmp
 
