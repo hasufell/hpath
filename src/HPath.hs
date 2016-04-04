@@ -62,6 +62,7 @@ module HPath
   ,dropFileName
   ,dropTrailingPathSeparator
   ,dropWhileEnd
+  ,equalFilePath
   ,joinPath
   ,normalise
   ,splitDirectories
@@ -497,6 +498,12 @@ isValid filepath
   | filepath ==  ""            = False
   | nullByte `B.elem` filepath = False
   | otherwise                  = True
+
+
+equalFilePath :: ByteString -> ByteString -> Bool
+equalFilePath p1 p2 = f p1 == f p2
+  where
+    f x = dropTrailingPathSeparator $ normalise x
 
 
 
