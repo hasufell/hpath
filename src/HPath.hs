@@ -11,6 +11,7 @@
 
 
 
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -32,6 +33,10 @@ module HPath
   ,parseAbs
   ,parseFn
   ,parseRel
+  -- * Path Constructors
+  ,mkAbs
+  ,mkFn
+  ,mkRel
   -- * Path Conversion
   ,canonicalizePath
   ,fromAbs
@@ -93,6 +98,8 @@ import           Foreign.C.String
 import           Foreign.Marshal.Alloc(allocaBytes)
 import           HPath.Foreign
 import           HPath.Internal
+import           Language.Haskell.TH
+
 
 --------------------------------------------------------------------------------
 -- Types
@@ -165,6 +172,39 @@ parseFn filepath =
      isValid filepath
      then return (MkPath filepath)
      else throwM (InvalidFn filepath)
+
+
+
+--------------------------------------------------------------------------------
+-- Constructors
+
+-- | Make a 'Path Abs TPS'.
+--
+-- Remember: due to the nature of absolute paths this (e.g. @\/home\/foo@)
+-- may compile on your platform, but it may not compile on another
+-- platform (Windows).
+mkAbs :: ByteString -> Q Exp
+mkAbs s =
+  case parseAbs s of
+    Left err -> error (show err)
+    Right (MkPath str) ->
+      [|MkPath $(return (LitE (StringL (show str)))) :: Path Abs|]
+
+-- | Make a 'Path Rel TPS'.
+mkRel :: ByteString -> Q Exp
+mkRel s =
+  case parseRel s of
+    Left err -> error (show err)
+    Right (MkPath str) ->
+      [|MkPath $(return (LitE (StringL (show str)))) :: Path Rel|]
+
+-- | Make a 'Path Rel TPS'.
+mkFn :: ByteString -> Q Exp
+mkFn s =
+  case parseFn s of
+    Left err -> error (show err)
+    Right (MkPath str) ->
+      [|MkPath $(return (LitE (StringL (show str)))) :: Path Fn|]
 
 
 --------------------------------------------------------------------------------

@@ -21,6 +21,7 @@ library
                    , exceptions
                    , deepseq
                    , word8
+                   , template-haskell
 
 test-suite test
     type: exitcode-stdio-1.0
