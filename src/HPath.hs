@@ -72,6 +72,8 @@ module HPath
   ,stripPrefix
   ,takeDirectory
   ,userStringToFP
+  -- * ByteString Query functions
+  ,hiddenFile
   -- * Queries
   ,hasDot
   ,hasDoublePS
@@ -307,6 +309,15 @@ basename (MkPath l)
   | otherwise                    = MkPath "."
   where
     rl = last . splitPath . dropTrailingPathSeparator $ l
+
+
+--------------------------------------------------------------------------------
+-- ByteString Query functions
+
+hiddenFile :: Path Fn -> Bool
+hiddenFile (Path ".")  = False
+hiddenFile (Path "..") = False
+hiddenFile p           = "." `B.isPrefixOf` fromRel p
 
 
 --------------------------------------------------------------------------------
