@@ -16,7 +16,6 @@
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_HADDOCK ignore-exports #-}
 
 module HPath
@@ -129,6 +128,10 @@ data PathParseException
   deriving (Show,Typeable)
 instance Exception PathParseException
 
+data PathException = RootDirHasNoBasename
+  deriving (Show,Typeable)
+instance Exception PathException
+
 instance RelC Rel
 instance RelC Fn
 
@@ -140,6 +143,8 @@ pattern Path x <- (MkPath x)
 --------------------------------------------------------------------------------
 -- Path Parsers
 
+
+
 -- | Get a location for an absolute path.
 --
 -- Throws: 'PathParseException'
@@ -148,9 +153,9 @@ parseAbs :: MonadThrow m
          => ByteString -> m (Path Abs)
 parseAbs filepath =
   if isAbsolute filepath &&
-     not (B.null filepath) &&
-     isValid filepath
-     then return (MkPath filepath)
+     isValid filepath &&
+     not (hasParentDir filepath)
+     then return (MkPath $ normalise filepath)
      else throwM (InvalidAbs filepath)
 
 -- | Get a location for a relative path. Produces a normalized
@@ -165,17 +170,23 @@ parseRel :: MonadThrow m
          => ByteString -> m (Path Rel)
 parseRel filepath =
   if not (isAbsolute filepath) &&
-     not (B.null filepath) &&
+     filepath /= pathDot' && filepath /= pathDoubleDot &&
+     not (hasParentDir filepath) &&
      isValid filepath
-     then return (MkPath filepath)
+     then return (MkPath $ normalise filepath)
      else throwM (InvalidRel filepath)
 
+
+-- | Parses a filename. Filenames must not contain slashes.
+-- Excludes '.' and '..'.
+--
+-- Throws: 'PathParseException'
+--
 parseFn :: MonadThrow m
         => ByteString -> m (Path Fn)
 parseFn filepath =
-  if not (isAbsolute filepath) &&
-     not (B.null filepath) &&
-     isFileName filepath &&
+  if isFileName filepath &&
+     filepath /= pathDot' && filepath /= pathDoubleDot &&
      isValid filepath
      then return (MkPath filepath)
      else throwM (InvalidFn filepath)
@@ -266,8 +277,9 @@ stripDir :: MonadThrow m
 stripDir (MkPath p) (MkPath l) =
   case stripPrefix p' l of
     Nothing -> throwM (Couldn'tStripPrefixTPS p' l)
-    Just "" -> throwM (Couldn'tStripPrefixTPS p' l)
-    Just ok -> return (MkPath ok)
+    Just ok -> if B.null ok
+                 then throwM (Couldn'tStripPrefixTPS p' l)
+                 else return (MkPath ok)
   where
     p' = addTrailingPathSeparator p
 
@@ -278,12 +290,11 @@ isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
 
 
 getAllParents :: Path Abs -> [Path Abs]
-getAllParents (MkPath p) =
-  case np of
-    (MkPath "/") -> []
-    _            -> dirname np : getAllParents (dirname np)
+getAllParents (MkPath p)
+  | np == pathSeparator' = []
+  | otherwise = dirname (MkPath np) : getAllParents (dirname $ MkPath np)
   where
-    np = MkPath . dropTrailingPathSeparator . normalise $ p
+    np = dropTrailingPathSeparator . normalise $ p
 
 
 -- | Extract the directory name of a path.
@@ -302,11 +313,11 @@ dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 --
 -- @basename (p \<\/> a) == basename a@
 --
--- Except when "/" is passed in which case the filename "." is returned.
-basename :: Path b -> Path Fn
+-- Throws: `PathException` if given the root path "/"
+basename :: MonadThrow m => Path b -> m (Path Fn)
 basename (MkPath l)
-  | not (isAbsolute rl) = MkPath rl
-  | otherwise                    = MkPath "."
+  | not (isAbsolute rl) = return $ MkPath rl
+  | otherwise           = throwM RootDirHasNoBasename
   where
     rl = last . splitPath . dropTrailingPathSeparator $ l
 
@@ -315,10 +326,11 @@ basename (MkPath l)
 -- ByteString Query functions
 
 hiddenFile :: Path Fn -> Bool
-hiddenFile (Path ".")  = False
-hiddenFile (Path "..") = False
-hiddenFile p           = "." `B.isPrefixOf` fromRel p
-
+hiddenFile (MkPath fp)
+  | fp == pathDoubleDot = False
+  | fp == pathDot'      = False
+  | otherwise           = pathDot' `B.isPrefixOf` fp
+ 
 
 --------------------------------------------------------------------------------
 -- ByteString/Word8 constants
@@ -336,6 +348,10 @@ pathDot = _period
 
 pathDot' :: ByteString
 pathDot' = B.singleton pathDot
+
+
+pathDoubleDot :: ByteString
+pathDoubleDot = pathDot `B.cons` pathDot'
 
 
 nullByte :: Word8
@@ -374,30 +390,31 @@ normalise filepath = result `B.append`
     (drv, pth) = splitDrive filepath
     result = joinDrive' (normaliseDrive drv) (f pth)
     joinDrive' d p
-      | d == "" && p == "" = B.singleton pathDot
-      | otherwise          = joinDrive d p
+      | B.null d && B.null p = B.singleton pathDot
+      | otherwise                  = joinDrive d p
     addPathSeparator = isDirPath pth && not (hasTrailingPathSeparator result)
     isDirPath xs = hasTrailingPathSeparator xs
         || not (B.null xs) && B.last xs == pathDot
            && hasTrailingPathSeparator (B.init xs)
     normaliseDrive p
-      | p == ""   = ""
-      | otherwise = B.singleton pathSeparator
+      | B.null p = B.empty
+      | otherwise   = B.singleton pathSeparator
     f = joinPath . dropDots . propSep . splitDirectories
     propSep :: [ByteString] -> [ByteString]
     propSep (x:xs)
       | B.all (== pathSeparator) x = pathSeparator' : xs
-      | otherwise = x : xs
+      | otherwise                  = x : xs
     propSep [] = []
     dropDots = filter (pathDot' /=)
 
 
+
 splitPath :: ByteString -> [ByteString]
-splitPath filepath = [drv | drv /= ""] ++ f pth
+splitPath filepath = [drv | drv /= B.empty] ++ f pth
   where
     (drv, pth) = splitDrive filepath
     f p
-      | p == ""   = []
+      | B.null p  = []
       | otherwise = (a `B.append` c) : f d
         where
           (a, b) = B.break (== pathSeparator) p
@@ -405,7 +422,7 @@ splitPath filepath = [drv | drv /= ""] ++ f pth
 
 
 joinPath :: [ByteString] -> ByteString
-joinPath = foldr combine ""
+joinPath = foldr combine B.empty
 
 
 splitDrive :: ByteString -> (ByteString, ByteString)
@@ -443,7 +460,10 @@ dropFileName = fst . splitFileName
 
 
 splitFileName :: ByteString -> (ByteString, ByteString)
-splitFileName filepath = (if B.null dir then "./" else dir, name)
+splitFileName filepath = (if B.null dir
+                            then pathDot `B.cons` pathSeparator'
+                            else dir
+                          , name)
   where
     (dir, name) = splitFileName_ filepath
     splitFileName_ p = (drv `B.append` dir', file)
@@ -461,7 +481,7 @@ fpToString :: ByteString -> String
 fpToString = decodeStrictByteString UTF8
 
 
--- |Uses UTF-8 encoding to convert a user provides String into
+-- |Uses UTF-8 encoding to convert a user provided String into
 -- a ByteString, which represents a filepath.
 userStringToFP :: String -> ByteString
 userStringToFP = encodeStrictByteString UTF8
@@ -473,19 +493,21 @@ userStringToFP = encodeStrictByteString UTF8
 -- | Helper function: check if the filepath has any parent directories in it.
 hasParentDir :: ByteString -> Bool
 hasParentDir filepath =
-     ("/.."  `B.isSuffixOf` filepath) ||
-     ("/../" `B.isInfixOf`  filepath) ||
-     ("../"  `B.isPrefixOf` filepath)
+  ((pathSeparator `B.cons` pathDoubleDot)  `B.isSuffixOf` filepath) ||
+  ((pathSeparator' `B.append` pathDoubleDot `B.append` pathSeparator')
+      `B.isInfixOf`  filepath) ||
+  ((pathDoubleDot `B.append` pathSeparator') `B.isPrefixOf` filepath)
 
 hasDot :: ByteString -> Bool
 hasDot filepath =
-     ("/."  `B.isSuffixOf` filepath) ||
-     ("/./" `B.isInfixOf`  filepath) ||
-     ("./"  `B.isPrefixOf` filepath)
+  ((pathSeparator `B.cons` pathDot')  `B.isSuffixOf` filepath) ||
+  ((pathSeparator' `B.append` pathDot' `B.append` pathSeparator')
+      `B.isInfixOf`  filepath) ||
+  ((pathDot `B.cons` pathSeparator') `B.isPrefixOf` filepath)
 
 hasDoublePS :: ByteString -> Bool
 hasDoublePS filepath =
-     ("//" `B.isInfixOf` filepath)
+  ((pathSeparator `B.cons` pathSeparator') `B.isInfixOf` filepath)
 
 
 hasTrailingPathSeparator :: ByteString -> Bool
@@ -504,7 +526,9 @@ hasLeadingPathSeparator filepath
 
 isFileName :: ByteString -> Bool
 isFileName filepath =
-     not ("/" `B.isInfixOf` filepath)
+  not (pathSeparator' `B.isInfixOf` filepath) &&
+  not (B.null filepath) &&
+  not (nullByte `B.elem` filepath)
 
 
 isAbsolute :: ByteString -> Bool
@@ -521,7 +545,6 @@ isRelative = not . isAbsolute
 isValid :: ByteString -> Bool
 isValid filepath
   | B.null filepath            = False
-  | filepath ==  ""            = False
   | nullByte `B.elem` filepath = False
   | otherwise                  = True
 
