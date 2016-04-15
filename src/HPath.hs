@@ -41,6 +41,7 @@ module HPath
   ,fromAbs
   ,fromRel
   ,normalize
+  ,normalizeAbs
   ,toFilePath
   -- * Path Operations
   ,(</>)
@@ -105,6 +106,7 @@ import           Foreign.Marshal.Alloc(allocaBytes)
 import           HPath.Foreign
 import           HPath.Internal
 import           Language.Haskell.TH
+import           Safe(initDef)
 
 
 --------------------------------------------------------------------------------
@@ -244,6 +246,12 @@ fromRel = toFilePath
 
 normalize :: Path t -> Path t
 normalize (MkPath l) = MkPath $ normalise l
+
+-- | A variant for `normalize` for absolute paths which
+-- also removes occurences of '..', which may behave
+-- strange for symlinks though.
+normalizeAbs :: Path Abs -> Path Abs
+normalizeAbs (MkPath l) = MkPath . fromJust . normaliseAbs $ l
 
 -- | May fail on `realPath`.
 canonicalizePath :: Path Abs -> IO (Path Abs)
@@ -407,6 +415,20 @@ normalise filepath = result `B.append`
     propSep [] = []
     dropDots = filter (pathDot' /=)
 
+
+-- | A variant of `normalise` for absolute paths, which removes
+-- occurences of '..'. If a non-absolute path is passed, returns Nothing.
+normaliseAbs :: ByteString -> Maybe ByteString
+normaliseAbs filepath
+  | isRelative filepath = Nothing
+  | otherwise           =
+      let nfp = normalise filepath
+       in Just . joinPath . L.foldl' rmDbl [] . splitDirectories $ nfp
+  where
+    rmDbl x y
+      | x == [pathSeparator'] && y == pathDoubleDot = [pathSeparator']
+      | y == pathDoubleDot                          = initDef [] x
+      | otherwise                                   = x ++ [y]
 
 
 splitPath :: ByteString -> [ByteString]
