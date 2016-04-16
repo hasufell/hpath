@@ -47,19 +47,9 @@ module HPath
   ,nullByte
   ,pathDot
   ,pathDot'
-  ,pathSeparator
   ,pathSeparator'
   -- * ByteString operations
-  ,addTrailingPathSeparator
-  ,combine
-  ,dropFileName
-  ,dropTrailingPathSeparator
   ,fpToString
-  ,joinPath
-  ,splitDirectories
-  ,splitFileName
-  ,splitPath
-  ,takeDirectory
   ,userStringToFP
   -- * ByteString Query functions
   ,hiddenFile
