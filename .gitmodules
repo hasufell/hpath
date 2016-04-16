@@ -1,0 +1,3 @@
+[submodule "3rdparty/posix-paths"]
+	path = 3rdparty/posix-paths
+	url = https://github.com/hasufell/posix-paths.git

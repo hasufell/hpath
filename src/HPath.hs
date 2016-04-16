@@ -56,7 +56,6 @@ module HPath
   ,dropTrailingPathSeparator
   ,fpToString
   ,joinPath
-  ,normalise
   ,splitDirectories
   ,splitFileName
   ,splitPath
@@ -66,10 +65,7 @@ module HPath
   ,hiddenFile
   -- * Queries
   ,hasParentDir
-  ,isAbsolute
   ,isFileName
-  ,isRelative
-  ,isValid
   -- * String based functions
   )
   where
@@ -418,65 +414,6 @@ nullByte = _nul
 
 
 
--- |Normalise a file.
---
--- >>> normalise "/file/\\test////"
--- "/file/\\test/"
--- >>> normalise "/file/./test"
--- "/file/test"
--- >>> normalise "/test/file/../bob/fred/"
--- "/test/file/../bob/fred/"
--- >>> normalise "../bob/fred/"
--- "../bob/fred/"
--- >>> normalise "./bob/fred/"
--- "bob/fred/"
--- >>> normalise "./bob////.fred/./...///./..///#."
--- "bob/.fred/.../../#."
--- >>> normalise "."
--- "."
--- >>> normalise "./"
--- "./"
--- >>> normalise "./."
--- "./"
--- >>> normalise "/./"
--- "/"
--- >>> normalise "/"
--- "/"
--- >>> normalise "bob/fred/."
--- "bob/fred/"
--- >>> normalise "//home"
--- "/home"
-normalise :: ByteString -> ByteString
-normalise filepath =
-  result `BS.append`
-  (if addPathSeparator
-       then BS.singleton pathSeparator
-       else BS.empty)
-  where
-    result = let n = f filepath
-             in if BS.null n
-                then BS.singleton _period
-                else n
-    addPathSeparator = isDirPath filepath &&
-      not (hasTrailingPathSeparator' result)
-    isDirPath xs = hasTrailingPathSeparator' xs
-        || not (BS.null xs) && BS.last xs == _period
-           && hasTrailingPathSeparator' (BS.init xs)
-    f = joinPath . dropDots . propSep . splitDirectories
-    propSep :: [ByteString] -> [ByteString]
-    propSep (x:xs)
-      | BS.all (== pathSeparator) x = BS.singleton pathSeparator : xs
-      | otherwise                   = x : xs
-    propSep [] = []
-    dropDots :: [ByteString] -> [ByteString]
-    dropDots = filter (BS.singleton _period /=)
-    hasTrailingPathSeparator' :: RawFilePath -> Bool
-    hasTrailingPathSeparator' x
-        | BS.null x = False
-        | otherwise = isPathSeparator $ BS.last x
-
-
-
 -- |Uses UTF-8 decoding to convert the bytestring into a String.
 fpToString :: ByteString -> String
 fpToString = toString
@@ -540,19 +477,4 @@ isFileName filepath =
   not (pathSeparator' `BS.isInfixOf` filepath) &&
   not (BS.null filepath) &&
   not (nullByte `BS.elem` filepath)
-
-
--- | Is a FilePath valid, i.e. could you create a file like it?
---
--- >>> isValid ""
--- False
--- >>> isValid "\0"
--- False
--- >>> isValid "/random_ path:*"
--- True
-isValid :: RawFilePath -> Bool
-isValid filepath
-  | BS.null filepath        = False
-  | _nul `BS.elem` filepath = False
-  | otherwise               = True
 
