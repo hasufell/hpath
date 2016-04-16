@@ -10,12 +10,10 @@
 -- Support for well-typed paths.
 
 
-
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE ForeignFunctionInterface #-}
 {-# OPTIONS_HADDOCK ignore-exports #-}
 
 module HPath
@@ -32,16 +30,11 @@ module HPath
   ,parseAbs
   ,parseFn
   ,parseRel
-  -- * Path Constructors
-  ,mkAbs
-  ,mkFn
-  ,mkRel
   -- * Path Conversion
   ,canonicalizePath
   ,fromAbs
   ,fromRel
   ,normalize
-  ,normalizeAbs
   ,toFilePath
   -- * Path Operations
   ,(</>)
@@ -61,52 +54,38 @@ module HPath
   ,combine
   ,dropFileName
   ,dropTrailingPathSeparator
-  ,dropWhileEnd
-  ,equalFilePath
   ,fpToString
   ,joinPath
   ,normalise
   ,splitDirectories
   ,splitFileName
   ,splitPath
-  ,stripPrefix
   ,takeDirectory
   ,userStringToFP
   -- * ByteString Query functions
   ,hiddenFile
   -- * Queries
-  ,hasDot
-  ,hasDoublePS
-  ,hasLeadingPathSeparator
   ,hasParentDir
-  ,hasTrailingPathSeparator
   ,isAbsolute
   ,isFileName
   ,isRelative
   ,isValid
   -- * String based functions
-  ,realPath
   )
   where
 
 import           Control.Exception (Exception)
-import           Control.Monad(void)
 import           Control.Monad.Catch (MonadThrow(..))
 import           Data.ByteString(ByteString)
-import qualified Data.ByteString as B
+import qualified Data.ByteString as BS
+import           Data.ByteString.UTF8 (fromString, toString)
 import           Data.Data
-import Data.Encoding(decodeStrictByteString, encodeStrictByteString)
-import Data.Encoding.UTF8(UTF8(..))
 import qualified Data.List as L
 import           Data.Maybe
 import           Data.Word8
-import           Foreign.C.Error
-import           Foreign.C.String
-import           Foreign.Marshal.Alloc(allocaBytes)
-import           HPath.Foreign
 import           HPath.Internal
-import           Language.Haskell.TH
-import           Safe(initDef)
+import           System.Posix.FilePath hiding ((</>))
+import           System.Posix.Directory.Traversals(realpath)
 
 
 --------------------------------------------------------------------------------
@@ -147,10 +126,24 @@ pattern Path x <- (MkPath x)
 
 
 
--- | Get a location for an absolute path.
+-- | Get a location for an absolute path. Produces a normalised path.
 --
 -- Throws: 'PathParseException'
 --
+-- >>> parseAbs "/abc" :: Maybe (Path Abs)
+-- Just "/abc"
+-- >>> parseAbs "/" :: Maybe (Path Abs)
+-- Just "/"
+-- >>> parseAbs "/abc/def" :: Maybe (Path Abs)
+-- Just "/abc/def"
+-- >>> parseAbs "/abc/def/.///" :: Maybe (Path Abs)
+-- Just "/abc/def/"
+-- >>> parseAbs "abc" :: Maybe (Path Abs)
+-- Nothing
+-- >>> parseAbs "" :: Maybe (Path Abs)
+-- Nothing
+-- >>> parseAbs "/abc/../foo" :: Maybe (Path Abs)
+-- Nothing
 parseAbs :: MonadThrow m
          => ByteString -> m (Path Abs)
 parseAbs filepath =
@@ -160,14 +153,33 @@ parseAbs filepath =
      then return (MkPath $ normalise filepath)
      else throwM (InvalidAbs filepath)
 
--- | Get a location for a relative path. Produces a normalized
--- path which always ends in a path separator.
+
+-- | Get a location for a relative path. Produces a normalised
+-- path.
 --
 -- Note that @filepath@ may contain any number of @./@ but may not consist
 -- solely of @./@.  It also may not contain a single @..@ anywhere.
 --
 -- Throws: 'PathParseException'
 --
+-- >>> parseRel "abc" :: Maybe (Path Rel)
+-- Just "abc"
+-- >>> parseRel "def/" :: Maybe (Path Rel)
+-- Just "def/"
+-- >>> parseRel "abc/def" :: Maybe (Path Rel)
+-- Just "abc/def"
+-- >>> parseRel "abc/def/." :: Maybe (Path Rel)
+-- Just "abc/def/"
+-- >>> parseRel "/abc" :: Maybe (Path Rel)
+-- Nothing
+-- >>> parseRel "" :: Maybe (Path Rel)
+-- Nothing
+-- >>> parseRel "abc/../foo" :: Maybe (Path Rel)
+-- Nothing
+-- >>> parseRel "." :: Maybe (Path Rel)
+-- Nothing
+-- >>> parseRel ".." :: Maybe (Path Rel)
+-- Nothing
 parseRel :: MonadThrow m
          => ByteString -> m (Path Rel)
 parseRel filepath =
@@ -184,6 +196,26 @@ parseRel filepath =
 --
 -- Throws: 'PathParseException'
 --
+-- >>> parseFn "abc" :: Maybe (Path Fn)
+-- Just "abc"
+-- >>> parseFn "..." :: Maybe (Path Fn)
+-- Just "..."
+-- >>> parseFn "def/" :: Maybe (Path Fn)
+-- Nothing
+-- >>> parseFn "abc/def" :: Maybe (Path Fn)
+-- Nothing
+-- >>> parseFn "abc/def/." :: Maybe (Path Fn)
+-- Nothing
+-- >>> parseFn "/abc" :: Maybe (Path Fn)
+-- Nothing
+-- >>> parseFn "" :: Maybe (Path Fn)
+-- Nothing
+-- >>> parseFn "abc/../foo" :: Maybe (Path Fn)
+-- Nothing
+-- >>> parseFn "." :: Maybe (Path Fn)
+-- Nothing
+-- >>> parseFn ".." :: Maybe (Path Fn)
+-- Nothing
 parseFn :: MonadThrow m
         => ByteString -> m (Path Fn)
 parseFn filepath =
@@ -196,45 +228,9 @@ parseFn filepath =
 
 
 --------------------------------------------------------------------------------
--- Constructors
-
--- | Make a 'Path Abs TPS'.
---
--- Remember: due to the nature of absolute paths this (e.g. @\/home\/foo@)
--- may compile on your platform, but it may not compile on another
--- platform (Windows).
-mkAbs :: ByteString -> Q Exp
-mkAbs s =
-  case parseAbs s of
-    Left err -> error (show err)
-    Right (MkPath str) ->
-      [|MkPath $(return (LitE (StringL (show str)))) :: Path Abs|]
-
--- | Make a 'Path Rel TPS'.
-mkRel :: ByteString -> Q Exp
-mkRel s =
-  case parseRel s of
-    Left err -> error (show err)
-    Right (MkPath str) ->
-      [|MkPath $(return (LitE (StringL (show str)))) :: Path Rel|]
-
--- | Make a 'Path Rel TPS'.
-mkFn :: ByteString -> Q Exp
-mkFn s =
-  case parseFn s of
-    Left err -> error (show err)
-    Right (MkPath str) ->
-      [|MkPath $(return (LitE (StringL (show str)))) :: Path Fn|]
-
-
---------------------------------------------------------------------------------
 -- Path Conversion
 
 -- | Convert to a ByteString type.
---
--- All TPS data types have a trailing slash, so if you want no trailing
--- slash, you can use 'System.FilePath.dropTrailingPathSeparator' from
--- the filepath package.
 toFilePath :: Path b -> ByteString
 toFilePath (MkPath l) = l
 
@@ -247,16 +243,10 @@ fromRel = toFilePath
 normalize :: Path t -> Path t
 normalize (MkPath l) = MkPath $ normalise l
 
--- | A variant for `normalize` for absolute paths which
--- also removes occurences of '..', which may behave
--- strange for symlinks though.
-normalizeAbs :: Path Abs -> Path Abs
-normalizeAbs (MkPath l) = MkPath . fromJust . normaliseAbs $ l
-
--- | May fail on `realPath`.
+-- | May fail on `realpath`.
 canonicalizePath :: Path Abs -> IO (Path Abs)
 canonicalizePath (MkPath l) = do
-  nl <- realPath l
+  nl <- realpath l
   return $ MkPath nl
 
 --------------------------------------------------------------------------------
@@ -270,22 +260,43 @@ canonicalizePath (MkPath l) = do
 -- Technically, the first argument can be a path that points to a non-directory,
 -- because this library is IO-agnostic and makes no assumptions about
 -- file types.
+--
+-- >>> (MkPath "/") </> (MkPath "file" :: Path Rel)
+-- "/file"
+-- >>> (MkPath "/path/to") </> (MkPath "file" :: Path Rel)
+-- "/path/to/file"
+-- >>> (MkPath "/") </> (MkPath "file/lal" :: Path Rel)
+-- "/file/lal"
+-- >>> (MkPath "/") </> (MkPath "file/" :: Path Rel)
+-- "/file/"
 (</>) :: RelC r => Path b -> Path r -> Path b
-(</>) (MkPath a) (MkPath b) = MkPath (a' `B.append` b)
+(</>) (MkPath a) (MkPath b) = MkPath (a' `BS.append` b)
   where
-    a' = addTrailingPathSeparator a
+    a' = if BS.last a == pathSeparator
+         then a
+         else addTrailingPathSeparator a
 
 -- | Strip directory from path, making it relative to that directory.
 -- Throws 'Couldn'tStripPrefixDir' if directory is not a parent of the path.
 --
 -- The bases must match.
 --
+-- >>> (MkPath "/lal/lad") `stripDir` (MkPath "/lal/lad/fad") :: Maybe (Path Rel)
+-- Just "fad"
+-- >>> (MkPath "lal/lad") `stripDir` (MkPath "lal/lad/fad") :: Maybe (Path Rel)
+-- Just "fad"
+-- >>> (MkPath "/") `stripDir` (MkPath "/") :: Maybe (Path Rel)
+-- Nothing
+-- >>> (MkPath "/lal/lad/fad") `stripDir` (MkPath "/lal/lad") :: Maybe (Path Rel)
+-- Nothing
+-- >>> (MkPath "fad") `stripDir` (MkPath "fad") :: Maybe (Path Rel)
+-- Nothing
 stripDir :: MonadThrow m
          => Path b -> Path b -> m (Path Rel)
 stripDir (MkPath p) (MkPath l) =
   case stripPrefix p' l of
     Nothing -> throwM (Couldn'tStripPrefixTPS p' l)
-    Just ok -> if B.null ok
+    Just ok -> if BS.null ok
                  then throwM (Couldn'tStripPrefixTPS p' l)
                  else return (MkPath ok)
   where
@@ -293,10 +304,27 @@ stripDir (MkPath p) (MkPath l) =
 
 -- | Is p a parent of the given location? Implemented in terms of
 -- 'stripDir'. The bases must match.
+--
+-- >>> (MkPath "/lal/lad") `isParentOf` (MkPath "/lal/lad/fad")
+-- True
+-- >>> (MkPath "lal/lad") `isParentOf` (MkPath "lal/lad/fad")
+-- True
+-- >>> (MkPath "/") `isParentOf` (MkPath "/")
+-- False
+-- >>> (MkPath "/lal/lad/fad") `isParentOf` (MkPath "/lal/lad")
+-- False
+-- >>> (MkPath "fad") `isParentOf` (MkPath "fad")
+-- False
 isParentOf :: Path b -> Path b -> Bool
 isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
 
 
+-- |Get all parents of a path.
+--
+-- >>> getAllParents (MkPath "/abs/def/dod")
+-- ["/abs/def","/abs","/"]
+-- >>> getAllParents (MkPath "/")
+-- []
 getAllParents :: Path Abs -> [Path Abs]
 getAllParents (MkPath p)
   | np == pathSeparator' = []
@@ -311,6 +339,10 @@ getAllParents (MkPath p)
 --
 -- @dirname (p \<\/> a) == dirname p@
 --
+-- >>> dirname (MkPath "/abc/def/dod")
+-- "/abc/def"
+-- >>> dirname (MkPath "/")
+-- "/"
 dirname :: Path Abs -> Path Abs
 dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 
@@ -322,6 +354,11 @@ dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 -- @basename (p \<\/> a) == basename a@
 --
 -- Throws: `PathException` if given the root path "/"
+--
+-- >>> basename (MkPath "/abc/def/dod") :: Maybe (Path Fn)
+-- Just "dod"
+-- >>> basename (MkPath "/") :: Maybe (Path Fn)
+-- Nothing
 basename :: MonadThrow m => Path b -> m (Path Fn)
 basename (MkPath l)
   | not (isAbsolute rl) = return $ MkPath rl
@@ -333,21 +370,31 @@ basename (MkPath l)
 --------------------------------------------------------------------------------
 -- ByteString Query functions
 
+
+-- | Whether the file is a hidden file.
+--
+-- >>> hiddenFile (MkPath ".foo")
+-- True
+-- >>> hiddenFile (MkPath "..foo.bar")
+-- True
+-- >>> hiddenFile (MkPath "...")
+-- True
+-- >>> hiddenFile (MkPath "dod")
+-- False
+-- >>> hiddenFile (MkPath "dod.bar")
+-- False
 hiddenFile :: Path Fn -> Bool
 hiddenFile (MkPath fp)
   | fp == pathDoubleDot = False
   | fp == pathDot'      = False
-  | otherwise           = pathDot' `B.isPrefixOf` fp
+  | otherwise           = pathDot' `BS.isPrefixOf` fp
  
 
 --------------------------------------------------------------------------------
 -- ByteString/Word8 constants
 
-pathSeparator :: Word8
-pathSeparator = _slash
-
 pathSeparator' :: ByteString
-pathSeparator' = B.singleton pathSeparator
+pathSeparator' = BS.singleton pathSeparator
 
 
 pathDot :: Word8
@@ -355,11 +402,11 @@ pathDot = _period
 
 
 pathDot' :: ByteString
-pathDot' = B.singleton pathDot
+pathDot' = BS.singleton pathDot
 
 
 pathDoubleDot :: ByteString
-pathDoubleDot = pathDot `B.cons` pathDot'
+pathDoubleDot = pathDot `BS.cons` pathDot'
 
 
 nullByte :: Word8
@@ -370,228 +417,142 @@ nullByte = _nul
 -- ByteString Operations
 
 
-dropWhileEnd :: (Word8 -> Bool) -> ByteString -> ByteString
-dropWhileEnd p = B.reverse . B.dropWhile p . B.reverse
 
-
-dropTrailingPathSeparator :: ByteString -> ByteString
-dropTrailingPathSeparator filepath =
-  if hasTrailingPathSeparator filepath
-  then let filepath' = dropWhileEnd (== pathSeparator) filepath
-    in if B.null filepath' then B.singleton . B.last $ filepath else filepath'
-  else filepath
-
-
-addTrailingPathSeparator :: ByteString -> ByteString
-addTrailingPathSeparator filepath
-  | B.null filepath            = filepath
-  | filepath == pathSeparator' = filepath
-  | not (hasTrailingPathSeparator filepath)
-                               = filepath `B.append` pathSeparator'
-  | otherwise                  = filepath
-
-
+-- |Normalise a file.
+--
+-- >>> normalise "/file/\\test////"
+-- "/file/\\test/"
+-- >>> normalise "/file/./test"
+-- "/file/test"
+-- >>> normalise "/test/file/../bob/fred/"
+-- "/test/file/../bob/fred/"
+-- >>> normalise "../bob/fred/"
+-- "../bob/fred/"
+-- >>> normalise "./bob/fred/"
+-- "bob/fred/"
+-- >>> normalise "./bob////.fred/./...///./..///#."
+-- "bob/.fred/.../../#."
+-- >>> normalise "."
+-- "."
+-- >>> normalise "./"
+-- "./"
+-- >>> normalise "./."
+-- "./"
+-- >>> normalise "/./"
+-- "/"
+-- >>> normalise "/"
+-- "/"
+-- >>> normalise "bob/fred/."
+-- "bob/fred/"
+-- >>> normalise "//home"
+-- "/home"
 normalise :: ByteString -> ByteString
-normalise filepath = result `B.append`
-                     (if addPathSeparator then pathSeparator' else B.empty)
+normalise filepath =
+  result `BS.append`
+  (if addPathSeparator
+       then BS.singleton pathSeparator
+       else BS.empty)
   where
-    (drv, pth) = splitDrive filepath
-    result = joinDrive' (normaliseDrive drv) (f pth)
-    joinDrive' d p
-      | B.null d && B.null p = B.singleton pathDot
-      | otherwise                  = joinDrive d p
-    addPathSeparator = isDirPath pth && not (hasTrailingPathSeparator result)
-    isDirPath xs = hasTrailingPathSeparator xs
-        || not (B.null xs) && B.last xs == pathDot
-           && hasTrailingPathSeparator (B.init xs)
-    normaliseDrive p
-      | B.null p = B.empty
-      | otherwise   = B.singleton pathSeparator
+    result = let n = f filepath
+             in if BS.null n
+                then BS.singleton _period
+                else n
+    addPathSeparator = isDirPath filepath &&
+      not (hasTrailingPathSeparator' result)
+    isDirPath xs = hasTrailingPathSeparator' xs
+        || not (BS.null xs) && BS.last xs == _period
+           && hasTrailingPathSeparator' (BS.init xs)
     f = joinPath . dropDots . propSep . splitDirectories
     propSep :: [ByteString] -> [ByteString]
     propSep (x:xs)
-      | B.all (== pathSeparator) x = pathSeparator' : xs
-      | otherwise                  = x : xs
+      | BS.all (== pathSeparator) x = BS.singleton pathSeparator : xs
+      | otherwise                   = x : xs
     propSep [] = []
-    dropDots = filter (pathDot' /=)
+    dropDots :: [ByteString] -> [ByteString]
+    dropDots = filter (BS.singleton _period /=)
+    hasTrailingPathSeparator' :: RawFilePath -> Bool
+    hasTrailingPathSeparator' x
+        | BS.null x = False
+        | otherwise = isPathSeparator $ BS.last x
 
-
--- | A variant of `normalise` for absolute paths, which removes
--- occurences of '..'. If a non-absolute path is passed, returns Nothing.
-normaliseAbs :: ByteString -> Maybe ByteString
-normaliseAbs filepath
-  | isRelative filepath = Nothing
-  | otherwise           =
-      let nfp = normalise filepath
-       in Just . joinPath . L.foldl' rmDbl [] . splitDirectories $ nfp
-  where
-    rmDbl x y
-      | x == [pathSeparator'] && y == pathDoubleDot = [pathSeparator']
-      | y == pathDoubleDot                          = initDef [] x
-      | otherwise                                   = x ++ [y]
-
-
-splitPath :: ByteString -> [ByteString]
-splitPath filepath = [drv | drv /= B.empty] ++ f pth
-  where
-    (drv, pth) = splitDrive filepath
-    f p
-      | B.null p  = []
-      | otherwise = (a `B.append` c) : f d
-        where
-          (a, b) = B.break (== pathSeparator) p
-          (c, d) = splitDrive b
-
-
-joinPath :: [ByteString] -> ByteString
-joinPath = foldr combine B.empty
-
-
-splitDrive :: ByteString -> (ByteString, ByteString)
-splitDrive = B.span (== pathSeparator)
-
-
-joinDrive :: ByteString -> ByteString -> ByteString
-joinDrive = combineAlways
-
-
-splitDirectories :: ByteString -> [ByteString]
-splitDirectories = map dropTrailingPathSeparator . splitPath
-
-
-combine :: ByteString -> ByteString -> ByteString
-combine d p
-  | hasLeadingPathSeparator p = p
-  | otherwise                 = combineAlways d p
-
-
-combineAlways :: ByteString -> ByteString -> ByteString
-combineAlways d p
-  | B.null d = p
-  | B.null p = d
-  | hasTrailingPathSeparator d = d `B.append` p
-  | otherwise = d `B.append` B.singleton pathSeparator `B.append` p
-
-
-takeDirectory :: ByteString -> ByteString
-takeDirectory = dropTrailingPathSeparator . dropFileName
-
-
-dropFileName :: ByteString -> ByteString
-dropFileName = fst . splitFileName
-
-
-splitFileName :: ByteString -> (ByteString, ByteString)
-splitFileName filepath = (if B.null dir
-                            then pathDot `B.cons` pathSeparator'
-                            else dir
-                          , name)
-  where
-    (dir, name) = splitFileName_ filepath
-    splitFileName_ p = (drv `B.append` dir', file)
-      where
-        (drv, pth)  = splitDrive p
-        (dir', file) = B.breakEnd (== pathSeparator) pth
-
-
-stripPrefix :: ByteString -> ByteString -> Maybe ByteString
-stripPrefix a b = B.pack `fmap` L.stripPrefix (B.unpack a) (B.unpack b)
 
 
 -- |Uses UTF-8 decoding to convert the bytestring into a String.
 fpToString :: ByteString -> String
-fpToString = decodeStrictByteString UTF8
+fpToString = toString
 
 
 -- |Uses UTF-8 encoding to convert a user provided String into
 -- a ByteString, which represents a filepath.
 userStringToFP :: String -> ByteString
-userStringToFP = encodeStrictByteString UTF8
+userStringToFP = fromString
 
+
+#if MIN_VERSION_bytestring(0,10,8)
+#else
+stripPrefix :: ByteString -> ByteString -> Maybe ByteString
+stripPrefix a b = BS.pack `fmap` L.stripPrefix (BS.unpack a) (BS.unpack b)
+#endif
 
 --------------------------------------------------------------------------------
 -- ByteString Query functions
 
 -- | Helper function: check if the filepath has any parent directories in it.
+--
+-- >>> hasParentDir "/.."
+-- True
+-- >>> hasParentDir "foo/bar/.."
+-- True
+-- >>> hasParentDir "foo/../bar/."
+-- True
+-- >>> hasParentDir "foo/bar"
+-- False
+-- >>> hasParentDir "foo"
+-- False
+-- >>> hasParentDir ""
+-- False
+-- >>> hasParentDir ".."
+-- False
 hasParentDir :: ByteString -> Bool
 hasParentDir filepath =
-  ((pathSeparator `B.cons` pathDoubleDot)  `B.isSuffixOf` filepath) ||
-  ((pathSeparator' `B.append` pathDoubleDot `B.append` pathSeparator')
-      `B.isInfixOf`  filepath) ||
-  ((pathDoubleDot `B.append` pathSeparator') `B.isPrefixOf` filepath)
-
-hasDot :: ByteString -> Bool
-hasDot filepath =
-  ((pathSeparator `B.cons` pathDot')  `B.isSuffixOf` filepath) ||
-  ((pathSeparator' `B.append` pathDot' `B.append` pathSeparator')
-      `B.isInfixOf`  filepath) ||
-  ((pathDot `B.cons` pathSeparator') `B.isPrefixOf` filepath)
-
-hasDoublePS :: ByteString -> Bool
-hasDoublePS filepath =
-  ((pathSeparator `B.cons` pathSeparator') `B.isInfixOf` filepath)
+  ((pathSeparator `BS.cons` pathDoubleDot)  `BS.isSuffixOf` filepath) ||
+  ((pathSeparator' `BS.append` pathDoubleDot `BS.append` pathSeparator')
+      `BS.isInfixOf`  filepath) ||
+  ((pathDoubleDot `BS.append` pathSeparator') `BS.isPrefixOf` filepath)
 
 
-hasTrailingPathSeparator :: ByteString -> Bool
-hasTrailingPathSeparator filepath
-  | B.null filepath                  = False
-  | B.last filepath == pathSeparator = True
-  | otherwise                        = False
-
-
-hasLeadingPathSeparator :: ByteString -> Bool
-hasLeadingPathSeparator filepath
-  | B.null filepath                  = False
-  | B.head filepath == pathSeparator = True
-  | otherwise                        = False
-
-
+-- | Is the given filename a valid filename?
+--
+-- >>> isFileName "lal"
+-- True
+-- >>> isFileName "."
+-- True
+-- >>> isFileName ".."
+-- True
+-- >>> isFileName ""
+-- False
+-- >>> isFileName "\0"
+-- False
+-- >>> isFileName "/random_ path:*"
+-- False
 isFileName :: ByteString -> Bool
 isFileName filepath =
-  not (pathSeparator' `B.isInfixOf` filepath) &&
-  not (B.null filepath) &&
-  not (nullByte `B.elem` filepath)
+  not (pathSeparator' `BS.isInfixOf` filepath) &&
+  not (BS.null filepath) &&
+  not (nullByte `BS.elem` filepath)
 
 
-isAbsolute :: ByteString -> Bool
-isAbsolute filepath
-  | B.null filepath                  = False
-  | B.head filepath == pathSeparator = True
-  | otherwise                        = False
-
-
-isRelative :: ByteString -> Bool
-isRelative = not . isAbsolute
-
-
-isValid :: ByteString -> Bool
-isValid filepath
-  | B.null filepath            = False
-  | nullByte `B.elem` filepath = False
-  | otherwise                  = True
-
-
-equalFilePath :: ByteString -> ByteString -> Bool
-equalFilePath p1 p2 = f p1 == f p2
-  where
-    f x = dropTrailingPathSeparator $ normalise x
-
-
-
---------------------------------------------------------------------------------
--- String based path functions
-
-foreign import ccall "realpath"
-  c_realpath :: CString -> CString -> IO CString
-
--- | return the canonicalized absolute pathname
+-- | Is a FilePath valid, i.e. could you create a file like it?
 --
--- like canonicalizePath, but uses realpath(3)
-realPath :: ByteString -> IO ByteString
-realPath inp =
-  allocaBytes pathMax $ \tmp -> do
-      void $ B.useAsCString inp
-           $ \cstr -> throwErrnoIfNull "realpath"
-           $ c_realpath cstr tmp
-      B.packCString tmp
+-- >>> isValid ""
+-- False
+-- >>> isValid "\0"
+-- False
+-- >>> isValid "/random_ path:*"
+-- True
+isValid :: RawFilePath -> Bool
+isValid filepath
+  | BS.null filepath        = False
+  | _nul `BS.elem` filepath = False
+  | otherwise               = True
 
