@@ -43,6 +43,10 @@ module HPath
   ,isParentOf
   ,getAllParents
   ,stripDir
+  -- * Path IO helpers
+  ,withAbsPath
+  ,withRelPath
+  ,withFnPath
   -- * ByteString/Word8 constants
   ,nullByte
   ,pathDot
@@ -229,11 +233,6 @@ fromRel = toFilePath
 normalize :: Path t -> Path t
 normalize (MkPath l) = MkPath $ normalise l
 
--- | May fail on `realpath`.
-canonicalizePath :: Path Abs -> IO (Path Abs)
-canonicalizePath (MkPath l) = do
-  nl <- realpath l
-  return $ MkPath nl
 
 --------------------------------------------------------------------------------
 -- Path Operations
@@ -351,6 +350,29 @@ basename (MkPath l)
   | otherwise           = throwM RootDirHasNoBasename
   where
     rl = last . splitPath . dropTrailingPathSeparator $ l
+
+
+--------------------------------------------------------------------------------
+-- Path IO helpers
+
+
+-- | May fail on `realpath`.
+canonicalizePath :: Path Abs -> IO (Path Abs)
+canonicalizePath (MkPath l) = do
+  nl <- realpath l
+  return $ MkPath nl
+
+
+withAbsPath :: Path Abs -> (ByteString -> IO a) -> IO a
+withAbsPath (MkPath p) action = action p
+
+
+withRelPath :: Path Rel -> (ByteString -> IO a) -> IO a
+withRelPath (MkPath p) action = action p
+
+
+withFnPath :: Path Fn -> (ByteString -> IO a) -> IO a
+withFnPath (MkPath p) action = action p
 
 
 --------------------------------------------------------------------------------
