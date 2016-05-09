@@ -186,6 +186,11 @@ import System.Posix.Types
 
 
 
+    -------------
+    --[ Types ]--
+    -------------
+
+
 data FileType = Directory
               | RegularFile
               | SymbolicLink
