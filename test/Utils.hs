@@ -3,6 +3,10 @@
 module Utils where
 
 
+import Control.Applicative
+  (
+    (<$>)
+  )
 import HPath.IO
 import HPath.IO.Errors
 import HPath.IO.Utils

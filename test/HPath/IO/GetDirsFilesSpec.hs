@@ -3,6 +3,10 @@
 module HPath.IO.GetDirsFilesSpec where
 
 
+import Control.Applicative
+  (
+    (<$>)
+  )
 import Data.List
   (
     sort

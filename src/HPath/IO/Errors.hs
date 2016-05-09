@@ -15,6 +15,10 @@
 module HPath.IO.Errors where
 
 
+import Control.Applicative
+  (
+    (<$>)
+  )
 import Control.Exception
 import Control.Monad
   (
