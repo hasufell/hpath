@@ -52,7 +52,11 @@ module HPath
 
 import           Control.Exception (Exception)
 import           Control.Monad.Catch (MonadThrow(..))
+#if MIN_VERSION_bytestring(0,10,8)
+import           Data.ByteString(ByteString, stripPrefix)
+#else
 import           Data.ByteString(ByteString)
+#endif
 import qualified Data.ByteString as BS
 import           Data.Data
 import qualified Data.List as L
