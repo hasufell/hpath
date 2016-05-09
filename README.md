@@ -1,6 +1,7 @@
 # HPath
 
-Support for well-typed paths in Haskell.
+Support for well-typed paths in Haskell. Also provides ByteString based filepath
+manipulation.
 
 ## Motivation
 
@@ -14,9 +15,13 @@ The library that came closest to my needs was
 but the API turned out to be oddly complicated for my use case, so I
 decided to fork it.
 
+Similarly, [posix-paths](https://github.com/JohnLato/posix-paths)
+was exactly what I wanted for the low-level operations, but upstream seems dead,
+so it is forked as well and merged into this library.
+
 ## Differences to 'path'
 
-* doesn't attempt to fake IO-related types into the path, so whether a path points to a file or directory is up to your IO-code to decide... this should be a library that is used _with_ a proper IO File Type
+* doesn't attempt to fake IO-related information into the path, so whether a path points to a file or directory is up to your IO-code to decide...
 * trailing path separators will be preserved if they exist, no messing with that
 * uses safe ByteString for filepaths under the hood instead of unsafe String
 * fixes broken [dirname](https://github.com/chrisdone/path/issues/18)
@@ -27,3 +32,7 @@ decided to fork it.
 * allows `~/` as relative path, because on posix level `~` is just a regular filename that does _NOT_ point to `$HOME`
 * remove TH, it sucks
 
+## Differences to 'posix-paths'
+
+* `hasTrailingPathSeparator` behaves in the same way as `System.FilePath`
+* `dropTrailingPathSeparator` behaves in the same way as `System.FilePath`

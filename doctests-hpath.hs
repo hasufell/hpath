@@ -2,12 +2,14 @@
 
 module Main where
 
+import Control.Applicative
+
 import Test.DocTest
 import Test.HUnit
 
 main =
     doctest
-      [ "-isrc"
+      ["-isrc"
       , "-XOverloadedStrings"
       , "src/HPath.hs"
       ]
