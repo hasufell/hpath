@@ -33,7 +33,6 @@ module HPath
   -- * Path Conversion
   ,fromAbs
   ,fromRel
-  ,normalize
   ,toFilePath
   -- * Path Operations
   ,(</>)
@@ -224,8 +223,6 @@ fromAbs = toFilePath
 fromRel :: RelC r => Path r -> ByteString
 fromRel = toFilePath
 
-normalize :: Path t -> Path t
-normalize (MkPath l) = MkPath $ normalise l
 
 
 --------------------------------------------------------------------------------
