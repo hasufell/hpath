@@ -27,7 +27,8 @@
 --
 -- Note: `BlockDevice`, `CharacterDevice`, `NamedPipe` and `Socket`
 -- are not explicitly supported right now. Calling any of these
--- functions on such a file may throw an exception.
+-- functions on such a file may throw an exception or just do
+-- nothing.
 
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -252,8 +253,7 @@ copyDirRecursive fromp destdirp
           SymbolicLink -> recreateSymlink f newdest
           Directory    -> go f newdest
           RegularFile  -> copyFile f newdest
-          _            -> ioError $ userError $ "No idea what to do with the" ++
-                                                "given filetype: " ++ show ftype
+          _            -> return ()
 
 
 -- |Like `copyDirRecursive` except it overwrites contents of directories
@@ -298,9 +298,7 @@ copyDirRecursiveOverwrite fromp destdirp
                           >> recreateSymlink f newdest
           Directory    -> go f newdest
           RegularFile  -> copyFileOverwrite f newdest
-          _            -> ioError $ userError $ "No idea what to do with the" ++
-                                                "given filetype: " ++ show ftype
-
+          _            -> return ()
 
 -- |Recreate a symlink.
 --
@@ -442,8 +440,7 @@ easyCopy from to = do
        SymbolicLink -> recreateSymlink from to
        RegularFile  -> copyFile from to
        Directory    -> copyDirRecursive from to
-       _            -> ioError $ userError $ "No idea what to do with the" ++
-                                             "given filetype: " ++ show ftype
+       _            -> return ()
 
 
 -- |Like `easyCopy` except it overwrites the destination if it already exists.
@@ -459,8 +456,7 @@ easyCopyOverwrite from to = do
                        >> recreateSymlink from to
        RegularFile  -> copyFileOverwrite from to
        Directory    -> copyDirRecursiveOverwrite from to
-       _            -> ioError $ userError $ "No idea what to do with the" ++
-                                             "given filetype: " ++ show ftype
+       _            -> return ()
 
 
 
@@ -526,8 +522,7 @@ deleteDirRecursive p =
           SymbolicLink -> deleteFile file
           Directory    -> deleteDirRecursive file
           RegularFile  -> deleteFile file
-          _            -> ioError $ userError $ "No idea what to do with the" ++
-                                                "given filetype: " ++ show ftype
+          _            -> return ()
       removeDirectory . toFilePath $ p
 
 
@@ -546,8 +541,7 @@ easyDelete p = do
     SymbolicLink -> deleteFile p
     Directory    -> deleteDirRecursive p
     RegularFile  -> deleteFile p
-    _            -> ioError $ userError $ "No idea what to do with the" ++
-                                          "given filetype: " ++ show ftype
+    _            -> return ()
 
 
 
@@ -705,8 +699,7 @@ moveFileOverwrite from to = do
     Directory -> do
       exists <- doesDirectoryExist to
       when (exists && writable) (deleteDir to)
-    _ -> ioError $ userError $ "Don't know how to handle filetype " ++
-                               show ft
+    _ -> return ()
   moveFile from to
 
 
