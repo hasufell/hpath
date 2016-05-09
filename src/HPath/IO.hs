@@ -72,6 +72,10 @@ module HPath.IO
   where
 
 
+import Control.Applicative
+  (
+    (<$>)
+  )
 import Control.Exception
   (
     bracket
