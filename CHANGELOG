@@ -1,3 +1,9 @@
+0.6.0:
+	* fixes 'throwDestinationInSource' to be more reliable.
+	* removes some unused HPathIOException constructors
+	* consistently provide exception constructor identifiers
+	* be less harsh when non-supported file types get passed to our functions, possibly ignoring them
+	* minor cleanups
 0.5.9:
 	* Adds our posix-paths fork and a lot of IO operations.
 0.5.8:
