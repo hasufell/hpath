@@ -98,25 +98,17 @@ instance Show HPathIOException where
 instance Exception HPathIOException
 
 
+isFileDoesNotExist, isDirDoesNotExist, isSameFile, isDestinationInSource, isFileDoesExist, isDirDoesExist, isInvalidOperation, isCan'tOpenDirectory, isCopyFailed :: HPathIOException -> Bool
+isFileDoesNotExist ex = toConstr (ex :: HPathIOException) == toConstr FileDoesNotExist{}
+isDirDoesNotExist ex = toConstr (ex :: HPathIOException) == toConstr DirDoesNotExist{}
+isSameFile ex = toConstr (ex :: HPathIOException) == toConstr SameFile{}
+isDestinationInSource ex = toConstr (ex :: HPathIOException) == toConstr DestinationInSource{}
+isFileDoesExist ex = toConstr (ex :: HPathIOException) == toConstr FileDoesExist{}
+isDirDoesExist ex = toConstr (ex :: HPathIOException) == toConstr DirDoesExist{}
+isInvalidOperation ex = toConstr (ex :: HPathIOException) == toConstr InvalidOperation{}
+isCan'tOpenDirectory ex = toConstr (ex :: HPathIOException) == toConstr Can'tOpenDirectory{}
+isCopyFailed ex = toConstr (ex :: HPathIOException) == toConstr CopyFailed{}
 
-isDestinationInSource :: HPathIOException -> Bool
-isDestinationInSource (DestinationInSource _ _) = True
-isDestinationInSource _                         = False
-
-
-isSameFile :: HPathIOException -> Bool
-isSameFile (SameFile _ _) = True
-isSameFile _              = False
-
-
-isFileDoesExist :: HPathIOException -> Bool
-isFileDoesExist (FileDoesExist _) = True
-isFileDoesExist _                 = False
-
-
-isDirDoesExist :: HPathIOException -> Bool
-isDirDoesExist (DirDoesExist _) = True
-isDirDoesExist _                = False
 
 
 
