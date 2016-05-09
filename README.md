@@ -36,3 +36,7 @@ so it is forked as well and merged into this library.
 
 * `hasTrailingPathSeparator` behaves in the same way as `System.FilePath`
 * `dropTrailingPathSeparator` behaves in the same way as `System.FilePath`
+* added various functions like `isValid`, `normalise` and `equalFilePath`
+* uses the `word8` package for save word8 literals instead of `OverloadedStrings`
+* has custom versions of `openFd` and `getDirectoryContents`
+
