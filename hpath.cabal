@@ -22,6 +22,7 @@ library
   ghc-options:       -Wall -O2
   c-sources:         cbits/dirutils.c
   exposed-modules:   HPath,
+                     HPath.IO,
                      HPath.Internal,
                      System.Posix.Directory.Foreign,
                      System.Posix.Directory.Traversals,
