@@ -1,5 +1,7 @@
 # HPath
 
+[![Build Status](https://api.travis-ci.org/hasufell/hpath.png?branch=master)](http://travis-ci.org/hasufell/hpath)
+
 Support for well-typed paths in Haskell. Also provides ByteString based filepath
 manipulation.
 
