@@ -8,7 +8,7 @@
 -- Portability :  portable
 --
 -- This module provides high-level IO related file operations like
--- copy, delete, move and so on. It only operates on `Path Abs` which
+-- copy, delete, move and so on. It only operates on /Path Abs/ which
 -- guarantees us well-typed paths which are absolute.
 --
 -- Some functions are just path-safe wrappers around
@@ -16,7 +16,7 @@
 -- and some implement functionality that doesn't have a unix
 -- counterpart (like `copyDirRecursive`).
 --
--- Some of these operations are due to their nature not _atomic_, which
+-- Some of these operations are due to their nature __not atomic__, which
 -- means they may do multiple syscalls which form one context. Some
 -- of them also have to examine the filetypes explicitly before the
 -- syscalls, so a reasonable decision can be made. That means
@@ -24,13 +24,52 @@
 -- while the non-atomic operation is still happening. However, where
 -- possible, as few syscalls as possible are used and the underlying
 -- exception handling is kept.
+--
+-- Note: `BlockDevice`, `CharacterDevice`, `NamedPipe` and `Socket`
+-- are not explicitly supported right now. Calling any of these
+-- functions on such a file may throw an exception.
 
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_HADDOCK ignore-exports #-}
 
-module HPath.IO where
-
+module HPath.IO
+  (
+  -- * Types
+    FileType(..)
+  -- * File copying
+  , copyDirRecursive
+  , copyDirRecursiveOverwrite
+  , recreateSymlink
+  , copyFile
+  , copyFileOverwrite
+  , easyCopy
+  , easyCopyOverwrite
+  -- * File deletion
+  , deleteFile
+  , deleteDir
+  , deleteDirRecursive
+  , easyDelete
+  -- * File opening
+  , openFile
+  , executeFile
+  -- * File creation
+  , createRegularFile
+  , createDir
+  -- * File renaming/moving
+  , renameFile
+  , moveFile
+  , moveFileOverwrite
+  -- * File permissions
+  , newFilePerms
+  , newDirPerms
+  -- * Directory reading
+  , getDirsFiles
+  -- * Filetype operations
+  , getFileType
+  -- * Others
+  , canonicalizePath
+  )
+  where
 
 
 import Control.Exception
@@ -517,7 +556,7 @@ easyDelete p = do
 
 
 -- |Opens a file appropriately by invoking xdg-open. The file type
--- is not checked.
+-- is not checked. This forks a process.
 openFile :: Path Abs
          -> IO ProcessID
 openFile p =
@@ -525,7 +564,7 @@ openFile p =
     SPP.forkProcess $ SPP.executeFile "xdg-open" True [fp] Nothing
 
 
--- |Executes a program with the given arguments.
+-- |Executes a program with the given arguments. This forks a process.
 executeFile :: Path Abs        -- ^ program
             -> [ByteString]    -- ^ arguments
             -> IO ProcessID

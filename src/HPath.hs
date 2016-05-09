@@ -14,7 +14,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# OPTIONS_HADDOCK ignore-exports #-}
 
 module HPath
   (
@@ -48,10 +47,6 @@ module HPath
   -- * ByteString operations
   ,fpToString
   ,userStringToFP
-  -- * Queries
-  ,hasParentDir
-  ,isFileName
-  -- * String based functions
   )
   where
 
@@ -211,13 +206,15 @@ parseFn filepath =
 --------------------------------------------------------------------------------
 -- Path Conversion
 
--- | Convert to a ByteString type.
+-- | Convert any Path to a ByteString type.
 toFilePath :: Path b -> ByteString
 toFilePath (MkPath l) = l
 
+-- | Convert an absolute Path to a ByteString type.
 fromAbs :: Path Abs -> ByteString
 fromAbs = toFilePath
 
+-- | Convert a relative Path to a ByteString type.
 fromRel :: RelC r => Path r -> ByteString
 fromRel = toFilePath
 

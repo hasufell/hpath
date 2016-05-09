@@ -9,8 +9,6 @@
 --
 -- Random and general IO/monad utilities.
 
-{-# OPTIONS_HADDOCK ignore-exports #-}
-
 
 module HPath.IO.Utils where
 

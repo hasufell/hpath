@@ -18,6 +18,7 @@
 
 module System.Posix.FilePath (
 
+  -- * Separators
   pathSeparator
 , isPathSeparator
 , searchPathSeparator
@@ -25,6 +26,7 @@ module System.Posix.FilePath (
 , extSeparator
 , isExtSeparator
 
+  -- * File extensions
 , splitExtension
 , takeExtension
 , replaceExtension
@@ -36,6 +38,7 @@ module System.Posix.FilePath (
 , dropExtensions
 , takeExtensions
 
+  -- * Filenames/Directory names
 , splitFileName
 , takeFileName
 , replaceFileName
@@ -44,17 +47,23 @@ module System.Posix.FilePath (
 , replaceBaseName
 , takeDirectory
 , replaceDirectory
+
+  -- * Path combinators and splitters
 , combine
 , (</>)
 , splitPath
 , joinPath
-, normalise
 , splitDirectories
 
+  -- * Path conversions
+, normalise
+
+  -- * Trailing path separator
 , hasTrailingPathSeparator
 , addTrailingPathSeparator
 , dropTrailingPathSeparator
 
+  -- * Queries
 , isRelative
 , isAbsolute
 , isValid
@@ -63,6 +72,7 @@ module System.Posix.FilePath (
 , equalFilePath
 , hiddenFile
 
+  -- * Type conversion
 , fpToString
 , userStringToFP
 

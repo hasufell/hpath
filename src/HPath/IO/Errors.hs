@@ -11,7 +11,6 @@
 
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_HADDOCK ignore-exports #-}
 
 module HPath.IO.Errors where
 
@@ -42,10 +41,6 @@ import GHC.IO.Exception
   )
 import HPath
 import HPath.IO.Utils
-{- import HPath.IO -}
-  {- ( -}
-    {- canonicalizePath -}
-  {- ) -}
 import System.IO.Error
   (
     catchIOError
