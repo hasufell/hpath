@@ -66,20 +66,13 @@ import qualified System.Posix.Files.ByteString as PF
 
 data HPathIOException = FileDoesNotExist ByteString
                       | DirDoesNotExist ByteString
-                      | PathNotAbsolute ByteString
-                      | FileNotExecutable ByteString
                       | SameFile ByteString ByteString
-                      | NotAFile ByteString
-                      | NotADir ByteString
                       | DestinationInSource ByteString ByteString
                       | FileDoesExist ByteString
                       | DirDoesExist ByteString
-                      | IsSymlink ByteString
                       | InvalidOperation String
-                      | InvalidFileName
                       | Can'tOpenDirectory ByteString
                       | CopyFailed String
-                      | MoveFailed String
   deriving (Typeable, Eq, Data)
 
 
@@ -87,26 +80,18 @@ instance Show HPathIOException where
   show (FileDoesNotExist fp) = "File does not exist:" ++ fpToString fp
   show (DirDoesNotExist fp) = "Directory does not exist: "
                               ++ fpToString fp
-  show (PathNotAbsolute fp) = "Path not absolute: " ++ fpToString fp
-  show (FileNotExecutable fp) = "File not executable: "
-                                ++ fpToString fp
   show (SameFile fp1 fp2) = fpToString fp1
                             ++ " and " ++ fpToString fp2
                             ++ " are the same file!"
-  show (NotAFile fp) = "Not a file: " ++ fpToString fp
-  show (NotADir fp) = "Not a directory: " ++ fpToString fp
   show (DestinationInSource fp1 fp2) = fpToString fp1
                                        ++ " is contained in "
                                        ++ fpToString fp2
   show (FileDoesExist fp) = "File does exist: " ++ fpToString fp
   show (DirDoesExist fp) = "Directory does exist: " ++ fpToString fp
-  show (IsSymlink fp) = "Is a symlink: " ++ fpToString fp
   show (InvalidOperation str) = "Invalid operation: " ++ str
-  show InvalidFileName = "Invalid file name!"
   show (Can'tOpenDirectory fp) = "Can't open directory: "
                                  ++ fpToString fp
   show (CopyFailed str) = "Copying failed: " ++ str
-  show (MoveFailed str) = "Moving failed: " ++ str
 
 
 
