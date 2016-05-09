@@ -393,13 +393,13 @@ _copyFile :: [SPDF.Flags]
           -> IO ()
 _copyFile sflags dflags from to
   =
-    -- TODO: add sendfile support
-    withAbsPath to $ \to' -> withAbsPath from $ \from' ->
-      void $ fallbackCopy from' to'
+  -- TODO: add sendfile support
+  void $ readWriteCopy (fromAbs from) (fromAbs to)
   where
     -- low-level copy operation utilizing read(2)/write(2)
     -- in case `sendFileCopy` fails/is unsupported
-    fallbackCopy source dest =
+    readWriteCopy :: ByteString -> ByteString -> IO Int
+    readWriteCopy source dest =
       bracket (SPDT.openFd source SPI.ReadOnly sflags Nothing)
               SPI.closeFd
               $ \sfd -> do
