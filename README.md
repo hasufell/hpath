@@ -19,6 +19,13 @@ Similarly, [posix-paths](https://github.com/JohnLato/posix-paths)
 was exactly what I wanted for the low-level operations, but upstream seems dead,
 so it is forked as well and merged into this library.
 
+## Goals
+
+* well-typed paths
+* high-level API to file operations like recursive directory copy
+* safe filepath manipulation, never using String as filepath, but ByteString
+* still allowing sufficient control to interact with the underlying low-level calls
+
 ## Differences to 'path'
 
 * doesn't attempt to fake IO-related information into the path, so whether a path points to a file or directory is up to your IO-code to decide...

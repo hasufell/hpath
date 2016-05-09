@@ -1,3 +1,5 @@
+0.5.9:
+	* Adds our posix-paths fork and a lot of IO operations.
 0.5.8:
 	* First version of the fork.
 0.5.7:
