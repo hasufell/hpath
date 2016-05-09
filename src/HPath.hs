@@ -23,6 +23,7 @@ module HPath
   ,Rel
   ,Fn
   ,PathParseException
+  ,PathException
   -- * PatternSynonyms/ViewPatterns
   ,pattern Path
    -- * Path Parsing
