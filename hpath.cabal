@@ -2,7 +2,7 @@ name:                hpath
 version:             0.5.8
 synopsis:            Support for well-typed paths
 description:         Support for will-typed paths.
-license:             BSD3
+license:             GPL-2
 license-file:        LICENSE
 author:              Julian Ospald <hasufell@posteo.de>
 maintainer:          Julian Ospald <hasufell@posteo.de>
@@ -23,6 +23,8 @@ library
   c-sources:         cbits/dirutils.c
   exposed-modules:   HPath,
                      HPath.IO,
+                     HPath.IO.Errors,
+                     HPath.IO.Utils,
                      HPath.Internal,
                      System.Posix.Directory.Foreign,
                      System.Posix.Directory.Traversals,
@@ -33,6 +35,7 @@ library
                    , exceptions
                    , hspec
                    , unix >= 2.5
+                   , unix-bytestring
                    , utf8-string
                    , word8
 
@@ -60,6 +63,39 @@ test-suite doctests-posix
                      doctest >= 0.8,
                      HUnit,
                      QuickCheck
+
+test-suite spec
+  Type:                 exitcode-stdio-1.0
+  Default-Language:     Haskell2010
+  Hs-Source-Dirs:       test
+  Main-Is:              Main.hs
+  other-modules:
+                        Spec
+                        HPath.IO.CopyDirRecursiveSpec
+                        HPath.IO.CopyDirRecursiveOverwriteSpec
+                        HPath.IO.CopyFileSpec
+                        HPath.IO.CopyFileOverwriteSpec
+                        HPath.IO.CreateDirSpec
+                        HPath.IO.CreateRegularFileSpec
+                        HPath.IO.DeleteDirRecursiveSpec
+                        HPath.IO.DeleteDirSpec
+                        HPath.IO.DeleteFileSpec
+                        HPath.IO.GetDirsFilesSpec
+                        HPath.IO.GetFileTypeSpec
+                        HPath.IO.MoveFileSpec
+                        HPath.IO.MoveFileOverwriteSpec
+                        HPath.IO.RecreateSymlinkSpec
+                        HPath.IO.RenameFileSpec
+                        Utils
+  GHC-Options:          -Wall
+  Build-Depends:        base
+                      , HUnit
+                      , bytestring
+                      , hpath
+                      , hspec >= 1.3
+                      , process
+                      , unix
+                      , utf8-string
 
 benchmark bench.hs
   default-language: Haskell2010
