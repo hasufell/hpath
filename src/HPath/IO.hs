@@ -395,9 +395,7 @@ _copyFile :: [SPDF.Flags]
           -> IO ()
 _copyFile sflags dflags from to
   =
-    -- from sendfile(2) manpage:
-    --   Applications  may  wish  to  fall back to read(2)/write(2) in the case
-    --   where sendfile() fails with EINVAL or ENOSYS.
+    -- TODO: add sendfile support
     withAbsPath to $ \to' -> withAbsPath from $ \from' ->
       void $ fallbackCopy from' to'
   where
