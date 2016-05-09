@@ -44,6 +44,10 @@ import GHC.IO.Exception
     IOErrorType
   )
 import HPath
+import {-# SOURCE #-} HPath.IO
+  (
+    canonicalizePath
+  )
 import HPath.IO.Utils
 import System.IO.Error
   (
@@ -194,8 +198,7 @@ throwDestinationInSource :: Path Abs -- ^ source dir
                          -> IO ()
 throwDestinationInSource source dest = do
   dest'   <- (\x -> maybe x (\y -> x </> y) $ basename dest)
-             {- <$> (canonicalizePath $ P.dirname dest) -}
-             <$> (return $ dirname dest)
+             <$> (canonicalizePath $ dirname dest)
   dids <- forM (getAllParents dest') $ \p -> do
           fs <- PF.getSymbolicLinkStatus (fromAbs p)
           return (PF.deviceID fs, PF.fileID fs)
