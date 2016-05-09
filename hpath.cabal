@@ -1,7 +1,7 @@
 name:                hpath
 version:             0.5.9
 synopsis:            Support for well-typed paths
-description:         Support for will-typed paths.
+description:         Support for well-typed paths, utilizing ByteString under the hood.
 license:             GPL-2
 license-file:        LICENSE
 author:              Julian Ospald <hasufell@posteo.de>
