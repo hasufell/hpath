@@ -12,7 +12,44 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module HPath.IO.Errors where
+module HPath.IO.Errors
+  (
+  -- * Types
+    HPathIOException(..)
+
+  -- * Exception identifiers
+  , isFileDoesNotExist
+  , isDirDoesNotExist
+  , isSameFile
+  , isDestinationInSource
+  , isFileDoesExist
+  , isDirDoesExist
+  , isInvalidOperation
+  , isCan'tOpenDirectory
+  , isCopyFailed
+
+  -- * Path based functions
+  , throwFileDoesExist
+  , throwDirDoesExist
+  , throwFileDoesNotExist
+  , throwDirDoesNotExist
+  , throwSameFile
+  , sameFile
+  , throwDestinationInSource
+  , doesFileExist
+  , doesDirectoryExist
+  , isWritable
+  , canOpenDirectory
+  , throwCantOpenDirectory
+
+  -- * Error handling functions
+  , catchErrno
+  , rethrowErrnoAs
+  , handleIOError
+  , bracketeer
+  , reactOnError
+  )
+  where
 
 
 import Control.Applicative
@@ -97,6 +134,13 @@ instance Show HPathIOException where
 
 instance Exception HPathIOException
 
+
+
+
+
+    -----------------------------
+    --[ Exception identifiers ]--
+    -----------------------------
 
 isFileDoesNotExist, isDirDoesNotExist, isSameFile, isDestinationInSource, isFileDoesExist, isDirDoesExist, isInvalidOperation, isCan'tOpenDirectory, isCopyFailed :: HPathIOException -> Bool
 isFileDoesNotExist ex = toConstr (ex :: HPathIOException) == toConstr FileDoesNotExist{}
