@@ -48,8 +48,6 @@ module HPath
   -- * ByteString operations
   ,fpToString
   ,userStringToFP
-  -- * ByteString Query functions
-  ,hiddenFile
   -- * Queries
   ,hasParentDir
   ,isFileName
@@ -358,29 +356,6 @@ withRelPath (MkPath p) action = action p
 withFnPath :: Path Fn -> (ByteString -> IO a) -> IO a
 withFnPath (MkPath p) action = action p
 
-
---------------------------------------------------------------------------------
--- ByteString Query functions
-
-
--- | Whether the file is a hidden file.
---
--- >>> hiddenFile (MkPath ".foo")
--- True
--- >>> hiddenFile (MkPath "..foo.bar")
--- True
--- >>> hiddenFile (MkPath "...")
--- True
--- >>> hiddenFile (MkPath "dod")
--- False
--- >>> hiddenFile (MkPath "dod.bar")
--- False
-hiddenFile :: Path Fn -> Bool
-hiddenFile (MkPath fp)
-  | fp == BS.pack [_period, _period] = False
-  | fp == BS.pack [_period]          = False
-  | otherwise                        = BS.pack [extSeparator]
-                                         `BS.isPrefixOf` fp
 
 ------------------------
 -- ByteString helpers

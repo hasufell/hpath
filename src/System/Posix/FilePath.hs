@@ -61,6 +61,7 @@ module System.Posix.FilePath (
 , isFileName
 , hasParentDir
 , equalFilePath
+, hiddenFile
 
 , fpToString
 , userStringToFP
@@ -586,6 +587,26 @@ equalFilePath :: RawFilePath -> RawFilePath -> Bool
 equalFilePath p1 p2 = f p1 == f p2
   where
     f x = dropTrailingPathSeparator $ normalise x
+
+
+-- | Whether the file is a hidden file.
+--
+-- >>> hiddenFile ".foo"
+-- True
+-- >>> hiddenFile "..foo.bar"
+-- True
+-- >>> hiddenFile "..."
+-- True
+-- >>> hiddenFile "dod"
+-- False
+-- >>> hiddenFile "dod.bar"
+-- False
+hiddenFile :: RawFilePath -> Bool
+hiddenFile fp
+  | fp == BS.pack [_period, _period] = False
+  | fp == BS.pack [_period]          = False
+  | otherwise                        = BS.pack [extSeparator]
+                                         `BS.isPrefixOf` fp
 
 ------------------------
 -- conversion
