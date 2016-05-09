@@ -31,7 +31,6 @@ module HPath
   ,parseFn
   ,parseRel
   -- * Path Conversion
-  ,canonicalizePath
   ,fromAbs
   ,fromRel
   ,normalize
@@ -47,11 +46,6 @@ module HPath
   ,withAbsPath
   ,withRelPath
   ,withFnPath
-  -- * ByteString/Word8 constants
-  ,nullByte
-  ,pathDot
-  ,pathDot'
-  ,pathSeparator'
   -- * ByteString operations
   ,fpToString
   ,userStringToFP
@@ -68,14 +62,12 @@ import           Control.Exception (Exception)
 import           Control.Monad.Catch (MonadThrow(..))
 import           Data.ByteString(ByteString)
 import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (fromString, toString)
 import           Data.Data
 import qualified Data.List as L
 import           Data.Maybe
 import           Data.Word8
 import           HPath.Internal
 import           System.Posix.FilePath hiding ((</>))
-import           System.Posix.Directory.Traversals(realpath)
 
 
 --------------------------------------------------------------------------------
@@ -174,7 +166,8 @@ parseRel :: MonadThrow m
          => ByteString -> m (Path Rel)
 parseRel filepath =
   if not (isAbsolute filepath) &&
-     filepath /= pathDot' && filepath /= pathDoubleDot &&
+     filepath /= BS.singleton _period &&
+     filepath /= BS.pack [_period, _period] &&
      not (hasParentDir filepath) &&
      isValid filepath
      then return (MkPath $ normalise filepath)
@@ -210,7 +203,8 @@ parseFn :: MonadThrow m
         => ByteString -> m (Path Fn)
 parseFn filepath =
   if isFileName filepath &&
-     filepath /= pathDot' && filepath /= pathDoubleDot &&
+     filepath /= BS.singleton _period &&
+     filepath /= BS.pack [_period, _period] &&
      isValid filepath
      then return (MkPath filepath)
      else throwM (InvalidFn filepath)
@@ -312,7 +306,7 @@ isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
 -- []
 getAllParents :: Path Abs -> [Path Abs]
 getAllParents (MkPath p)
-  | np == pathSeparator' = []
+  | np == BS.singleton pathSeparator = []
   | otherwise = dirname (MkPath np) : getAllParents (dirname $ MkPath np)
   where
     np = dropTrailingPathSeparator . normalise $ p
@@ -356,13 +350,6 @@ basename (MkPath l)
 -- Path IO helpers
 
 
--- | May fail on `realpath`.
-canonicalizePath :: Path Abs -> IO (Path Abs)
-canonicalizePath (MkPath l) = do
-  nl <- realpath l
-  return $ MkPath nl
-
-
 withAbsPath :: Path Abs -> (ByteString -> IO a) -> IO a
 withAbsPath (MkPath p) action = action p
 
@@ -393,100 +380,16 @@ withFnPath (MkPath p) action = action p
 -- False
 hiddenFile :: Path Fn -> Bool
 hiddenFile (MkPath fp)
-  | fp == pathDoubleDot = False
-  | fp == pathDot'      = False
-  | otherwise           = pathDot' `BS.isPrefixOf` fp
- 
+  | fp == BS.pack [_period, _period] = False
+  | fp == BS.pack [_period]          = False
+  | otherwise                        = BS.pack [extSeparator]
+                                         `BS.isPrefixOf` fp
 
---------------------------------------------------------------------------------
--- ByteString/Word8 constants
-
-pathSeparator' :: ByteString
-pathSeparator' = BS.singleton pathSeparator
-
-
-pathDot :: Word8
-pathDot = _period
-
-
-pathDot' :: ByteString
-pathDot' = BS.singleton pathDot
-
-
-pathDoubleDot :: ByteString
-pathDoubleDot = pathDot `BS.cons` pathDot'
-
-
-nullByte :: Word8
-nullByte = _nul
-
-
---------------------------------------------------------------------------------
--- ByteString Operations
-
-
-
--- |Uses UTF-8 decoding to convert the bytestring into a String.
-fpToString :: ByteString -> String
-fpToString = toString
-
-
--- |Uses UTF-8 encoding to convert a user provided String into
--- a ByteString, which represents a filepath.
-userStringToFP :: String -> ByteString
-userStringToFP = fromString
-
+------------------------
+-- ByteString helpers
 
 #if MIN_VERSION_bytestring(0,10,8)
 #else
 stripPrefix :: ByteString -> ByteString -> Maybe ByteString
 stripPrefix a b = BS.pack `fmap` L.stripPrefix (BS.unpack a) (BS.unpack b)
 #endif
-
---------------------------------------------------------------------------------
--- ByteString Query functions
-
--- | Helper function: check if the filepath has any parent directories in it.
---
--- >>> hasParentDir "/.."
--- True
--- >>> hasParentDir "foo/bar/.."
--- True
--- >>> hasParentDir "foo/../bar/."
--- True
--- >>> hasParentDir "foo/bar"
--- False
--- >>> hasParentDir "foo"
--- False
--- >>> hasParentDir ""
--- False
--- >>> hasParentDir ".."
--- False
-hasParentDir :: ByteString -> Bool
-hasParentDir filepath =
-  ((pathSeparator `BS.cons` pathDoubleDot)  `BS.isSuffixOf` filepath) ||
-  ((pathSeparator' `BS.append` pathDoubleDot `BS.append` pathSeparator')
-      `BS.isInfixOf`  filepath) ||
-  ((pathDoubleDot `BS.append` pathSeparator') `BS.isPrefixOf` filepath)
-
-
--- | Is the given filename a valid filename?
---
--- >>> isFileName "lal"
--- True
--- >>> isFileName "."
--- True
--- >>> isFileName ".."
--- True
--- >>> isFileName ""
--- False
--- >>> isFileName "\0"
--- False
--- >>> isFileName "/random_ path:*"
--- False
-isFileName :: ByteString -> Bool
-isFileName filepath =
-  not (pathSeparator' `BS.isInfixOf` filepath) &&
-  not (BS.null filepath) &&
-  not (nullByte `BS.elem` filepath)
-

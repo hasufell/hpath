@@ -47,13 +47,19 @@ module System.Posix.FilePath (
 , isRelative
 , isAbsolute
 , isValid
+, isFileName
+, hasParentDir
 , equalFilePath
+
+, fpToString
+, userStringToFP
 
 , module System.Posix.ByteString.FilePath
 ) where
 
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import           Data.ByteString.UTF8 (fromString, toString)
 import           System.Posix.ByteString.FilePath
 
 import           Data.Maybe (isJust)
@@ -496,6 +502,58 @@ isValid filepath
   | _nul `BS.elem` filepath = False
   | otherwise               = True
 
+-- | Is the given filename a valid filename?
+--
+-- >>> isFileName "lal"
+-- True
+-- >>> isFileName "."
+-- True
+-- >>> isFileName ".."
+-- True
+-- >>> isFileName ""
+-- False
+-- >>> isFileName "\0"
+-- False
+-- >>> isFileName "/random_ path:*"
+-- False
+isFileName :: ByteString -> Bool
+isFileName filepath =
+  not (BS.singleton pathSeparator `BS.isInfixOf` filepath) &&
+  not (BS.null filepath) &&
+  not (_nul `BS.elem` filepath)
+
+-- | Helper function: check if the filepath has any parent directories in it.
+--
+-- >>> hasParentDir "/.."
+-- True
+-- >>> hasParentDir "foo/bar/.."
+-- True
+-- >>> hasParentDir "foo/../bar/."
+-- True
+-- >>> hasParentDir "foo/bar"
+-- False
+-- >>> hasParentDir "foo"
+-- False
+-- >>> hasParentDir ""
+-- False
+-- >>> hasParentDir ".."
+-- False
+hasParentDir :: ByteString -> Bool
+hasParentDir filepath =
+  ((pathSeparator `BS.cons` pathDoubleDot)
+    `BS.isSuffixOf` filepath
+  ) ||
+  ((BS.singleton pathSeparator
+     `BS.append` pathDoubleDot
+     `BS.append` BS.singleton pathSeparator
+   ) `BS.isInfixOf`  filepath
+  ) ||
+  ((pathDoubleDot `BS.append` BS.singleton pathSeparator
+   ) `BS.isPrefixOf` filepath
+  )
+  where
+    pathDoubleDot = BS.pack [_period, _period]
+
 -- |Equality of two filepaths. The filepaths are normalised
 -- and trailing path separators are dropped.
 --
@@ -517,6 +575,20 @@ equalFilePath :: RawFilePath -> RawFilePath -> Bool
 equalFilePath p1 p2 = f p1 == f p2
   where
     f x = dropTrailingPathSeparator $ normalise x
+
+------------------------
+-- conversion
+
+-- |Uses UTF-8 decoding to convert the bytestring into a String.
+fpToString :: ByteString -> String
+fpToString = toString
+
+
+-- |Uses UTF-8 encoding to convert a user provided String into
+-- a ByteString, which represents a filepath.
+userStringToFP :: String -> ByteString
+userStringToFP = fromString
+
 
 ------------------------
 -- internal stuff
