@@ -341,7 +341,7 @@ recreateSymlink symsource newsym
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --    - `AlreadyExists` if destination already exists
 --
--- Note: calls `sendfile`
+-- Note: calls `read`/`write`
 copyFile :: Path Abs  -- ^ source file
          -> Path Abs  -- ^ destination file
          -> IO ()
@@ -358,8 +358,7 @@ copyFile from to = do
 --
 -- Safety/reliability concerns:
 --
---    * not atomic
---    * falls back to delete-copy method with explicit checks
+--    * not atomic, since it uses read/write
 --
 -- Throws:
 --
@@ -370,7 +369,7 @@ copyFile from to = do
 --    - `InvalidArgument` if source file is wrong type (directory)
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --
--- Note: calls `sendfile`
+-- Note: calls `read`/`write`
 copyFileOverwrite :: Path Abs  -- ^ source file
                   -> Path Abs  -- ^ destination file
                   -> IO ()
