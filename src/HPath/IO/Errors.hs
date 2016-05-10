@@ -266,7 +266,7 @@ canOpenDirectory fp =
     return True
 
 
--- |Throws a `Can'tOpenDirectory` FmIOException if the directory at the given
+-- |Throws a `Can'tOpenDirectory` HPathIOException if the directory at the given
 -- path cannot be opened.
 throwCantOpenDirectory :: Path Abs -> IO ()
 throwCantOpenDirectory fp =
@@ -332,8 +332,8 @@ bracketeer before after afterEx thing =
 
 
 reactOnError :: IO a
-             -> [(IOErrorType, IO a)]   -- ^ reaction on IO errors
-             -> [(HPathIOException, IO a)] -- ^ reaction on FmIOException
+             -> [(IOErrorType, IO a)]      -- ^ reaction on IO errors
+             -> [(HPathIOException, IO a)] -- ^ reaction on HPathIOException
              -> IO a
 reactOnError a ios fmios =
   a `catches` [iohandler, fmiohandler]
