@@ -8,8 +8,7 @@
 -- which gives us more control on what status flags to pass to the
 -- low-level `open(2)` call, in contrast to the unix package.
 module System.Posix.FD (
-  openFd
-  , fooBar
+    openFd
 ) where
 
 
@@ -62,6 +61,3 @@ openFd name how optional_flags maybe_mode =
      throwErrnoPathIfMinus1Retry "openFd" name $
        open_ str how optional_flags maybe_mode
 
-
-fooBar :: String -> String
-fooBar = undefined
