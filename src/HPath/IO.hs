@@ -80,7 +80,6 @@ import Control.Applicative
 import Control.Exception
   (
     bracket
-  , bracketOnError
   , throwIO
   )
 import Control.Monad
