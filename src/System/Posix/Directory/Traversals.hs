@@ -1,3 +1,4 @@
+-- |
 -- Module      :  System.Posix.Directory.Traversals
 -- Copyright   :  © 2016 Julian Ospald
 -- License     :  BSD3
