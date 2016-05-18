@@ -1,3 +1,14 @@
+-- Module      :  System.Posix.Directory.Traversals
+-- Copyright   :  © 2016 Julian Ospald
+-- License     :  BSD3
+--
+-- Maintainer  :  Julian Ospald <hasufell@posteo.de>
+-- Stability   :  experimental
+-- Portability :  portable
+--
+-- Traversal and read operations on directories.
+
+
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PackageImports #-}
@@ -5,6 +16,8 @@
 {-# LANGUAGE ViewPatterns #-}
 
 {-# OPTIONS_GHC -Wall #-}
+
+
 module System.Posix.Directory.Traversals (
 
   getDirectoryContents

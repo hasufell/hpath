@@ -1,12 +1,23 @@
+-- Module      :  System.Posix.FD
+-- Copyright   :  © 2016 Julian Ospald
+-- License     :  BSD3
+--
+-- Maintainer  :  Julian Ospald <hasufell@posteo.de>
+-- Stability   :  experimental
+-- Portability :  portable
+--
+-- Provides an alternative for `System.Posix.IO.ByteString.openFd`
+-- which gives us more control on what status flags to pass to the
+-- low-level @open(2)@ call, in contrast to the unix package.
+
+
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
--- |Provides an alternative for `System.Posix.IO.ByteString.openFd`
--- which gives us more control on what status flags to pass to the
--- low-level @open(2)@ call, in contrast to the unix package.
+
 module System.Posix.FD (
     openFd
 ) where

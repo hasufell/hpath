@@ -1,3 +1,11 @@
+0.7.0:
+	* use 'sendfile' from 'simple-sendfile' in _copyFile and do read/write as a fallback only
+	* add isFileName, hasParentDir, hiddenFile to System.Posix.FilePath
+	* add our own openFd version for more control
+	* small documentation improvements
+	* add a getDirectoryContents' version that works on Fd
+	* lift version constraints in benchmark
+	* remove fpToString and userStringToFP, use Data.ByteString.UTF8 directly instead
 0.6.0:
 	* fixes 'throwDestinationInSource' to be more reliable.
 	* removes some unused HPathIOException constructors

@@ -1,10 +1,21 @@
+-- Module      :  System.Posix.FilePath
+-- Copyright   :  © 2016 Julian Ospald
+-- License     :  BSD3
+--
+-- Maintainer  :  Julian Ospald <hasufell@posteo.de>
+-- Stability   :  experimental
+-- Portability :  portable
+--
+-- The equivalent of "System.FilePath" on raw (byte string) file paths.
+--
+-- Not all functions of "System.FilePath" are implemented yet. Feel free to contribute!
+
+
 {-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
--- | The equivalent of "System.FilePath" on raw (byte string) file paths.
---
--- Not all functions of "System.FilePath" are implemented yet. Feel free to contribute!
+
 module System.Posix.FilePath (
 
   -- * Separators
