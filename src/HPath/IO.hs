@@ -107,6 +107,8 @@ import Data.Word
 import Foreign.C.Error
   (
     eEXIST
+  , eINVAL
+  , eNOSYS
   , eNOTEMPTY
   , eXDEV
   )
@@ -135,6 +137,14 @@ import System.IO.Error
   (
     catchIOError
   , ioeGetErrorType
+  )
+import System.Linux.Sendfile
+  (
+    sendfileFd
+  )
+import Network.Sendfile
+  (
+    FileRange(..)
   )
 import System.Posix.ByteString
   (
@@ -341,7 +351,7 @@ recreateSymlink symsource newsym
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --    - `AlreadyExists` if destination already exists
 --
--- Note: calls `read`/`write`
+-- Note: calls `sendfile` and possibly `read`/`write` as fallback
 copyFile :: Path Abs  -- ^ source file
          -> Path Abs  -- ^ destination file
          -> IO ()
@@ -369,7 +379,7 @@ copyFile from to = do
 --    - `InvalidArgument` if source file is wrong type (directory)
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --
--- Note: calls `read`/`write`
+-- Note: calls `sendfile` and possibly `read`/`write` as fallback
 copyFileOverwrite :: Path Abs  -- ^ source file
                   -> Path Abs  -- ^ destination file
                   -> IO ()
@@ -397,9 +407,26 @@ _copyFile :: [SPDF.Flags]
           -> IO ()
 _copyFile sflags dflags from to
   =
-  -- TODO: add sendfile support
-  void $ readWriteCopy (fromAbs from) (fromAbs to)
+    -- from sendfile(2) manpage:
+    --   Applications  may  wish  to  fall back to read(2)/write(2) in the case
+    --   where sendfile() fails with EINVAL or ENOSYS.
+    withAbsPath to $ \to' -> withAbsPath from $ \from' ->
+      catchErrno [eINVAL, eNOSYS]
+                 (sendFileCopy from' to')
+                 (void $ readWriteCopy from' to')
   where
+    -- this is low-level stuff utilizing sendfile(2) for speed
+    sendFileCopy source dest =
+      bracket (SPDT.openFd source SPI.ReadOnly sflags Nothing)
+              SPI.closeFd
+              $ \sfd -> do
+                fileM <- System.Posix.Files.ByteString.fileMode
+                         <$> getFdStatus sfd
+                bracketeer (SPDT.openFd dest SPI.WriteOnly
+                             dflags $ Just fileM)
+                           SPI.closeFd
+                           (\fd -> SPI.closeFd fd >> deleteFile to)
+                           $ \dfd -> sendfileFd dfd sfd EntireFile (return ())
     -- low-level copy operation utilizing read(2)/write(2)
     -- in case `sendFileCopy` fails/is unsupported
     readWriteCopy :: ByteString -> ByteString -> IO Int
