@@ -1,5 +1,7 @@
 # HPath
 
+[![Join the chat at https://gitter.im/hasufell/hpath](https://badges.gitter.im/hasufell/hpath.svg)](https://gitter.im/hasufell/hpath?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Hackage version](https://img.shields.io/hackage/v/hpath.svg?label=Hackage)](https://hackage.haskell.org/package/hpath) [![Build Status](https://api.travis-ci.org/hasufell/hpath.png?branch=master)](http://travis-ci.org/hasufell/hpath)
 
 Support for well-typed paths in Haskell. Also provides ByteString based filepath
