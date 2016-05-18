@@ -6,7 +6,7 @@
 
 -- |Provides an alternative for `System.Posix.IO.ByteString.openFd`
 -- which gives us more control on what status flags to pass to the
--- low-level `open(2)` call, in contrast to the unix package.
+-- low-level @open(2)@ call, in contrast to the unix package.
 module System.Posix.FD (
     openFd
 ) where
@@ -50,10 +50,10 @@ open_ str how optional_flags maybe_mode = do
 --
 -- Note that passing `Just x` as the 4th argument triggers the
 -- `oCreat` status flag, which must be set when you pass in `oExcl`
--- to the status flags. Also see the manpage for `open(2)`.
+-- to the status flags. Also see the manpage for @open(2)@.
 openFd :: RawFilePath
        -> Posix.OpenMode
-       -> [Flags]               -- ^ status flags of open(2)
+       -> [Flags]               -- ^ status flags of @open(2)@
        -> Maybe Posix.FileMode  -- ^ Just x => creates the file with the given modes, Nothing => the file must exist.
        -> IO Posix.Fd
 openFd name how optional_flags maybe_mode =
