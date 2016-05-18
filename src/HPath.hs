@@ -45,9 +45,6 @@ module HPath
   ,withAbsPath
   ,withRelPath
   ,withFnPath
-  -- * ByteString operations
-  ,fpToString
-  ,userStringToFP
   )
   where
 

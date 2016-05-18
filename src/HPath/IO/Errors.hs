@@ -66,6 +66,10 @@ import Data.ByteString
   (
     ByteString
   )
+import Data.ByteString.UTF8
+  (
+    toString
+  )
 import Data.Data
   (
     Data(..)
@@ -114,20 +118,20 @@ data HPathIOException = FileDoesNotExist ByteString
 
 
 instance Show HPathIOException where
-  show (FileDoesNotExist fp) = "File does not exist:" ++ fpToString fp
+  show (FileDoesNotExist fp) = "File does not exist:" ++ toString fp
   show (DirDoesNotExist fp) = "Directory does not exist: "
-                              ++ fpToString fp
-  show (SameFile fp1 fp2) = fpToString fp1
-                            ++ " and " ++ fpToString fp2
+                              ++ toString fp
+  show (SameFile fp1 fp2) = toString fp1
+                            ++ " and " ++ toString fp2
                             ++ " are the same file!"
-  show (DestinationInSource fp1 fp2) = fpToString fp1
+  show (DestinationInSource fp1 fp2) = toString fp1
                                        ++ " is contained in "
-                                       ++ fpToString fp2
-  show (FileDoesExist fp) = "File does exist: " ++ fpToString fp
-  show (DirDoesExist fp) = "Directory does exist: " ++ fpToString fp
+                                       ++ toString fp2
+  show (FileDoesExist fp) = "File does exist: " ++ toString fp
+  show (DirDoesExist fp) = "Directory does exist: " ++ toString fp
   show (InvalidOperation str) = "Invalid operation: " ++ str
   show (Can'tOpenDirectory fp) = "Can't open directory: "
-                                 ++ fpToString fp
+                                 ++ toString fp
   show (CopyFailed str) = "Copying failed: " ++ str
 
 

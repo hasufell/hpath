@@ -1,5 +1,6 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -17,7 +18,7 @@ module System.Posix.Directory.Traversals (
 , readDirEnt
 , packDirStream
 , unpackDirStream
-, openFd
+, fdOpendir
 
 , realpath
 ) where
@@ -36,6 +37,7 @@ import System.Posix.Directory.ByteString as PosixBS
 import System.Posix.Files.ByteString
 
 import System.IO.Unsafe
+import "unix" System.Posix.IO.ByteString (closeFd)
 import Unsafe.Coerce (unsafeCoerce)
 import Foreign.C.Error
 import Foreign.C.String
@@ -54,6 +56,8 @@ import Foreign.Storable
 -- Upon entering a directory, 'allDirectoryContents' will get all entries
 -- strictly.  However the returned list is lazy in that directories will only
 -- be accessed on demand.
+--
+-- Follows symbolic links for the input dir.
 allDirectoryContents :: RawFilePath -> IO [RawFilePath]
 allDirectoryContents topdir = do
     namesAndTypes <- getDirectoryContents topdir
@@ -71,6 +75,8 @@ allDirectoryContents topdir = do
     return (topdir : concat paths)
 
 -- | Get all files from a directory and its subdirectories strictly.
+--
+-- Follows symbolic links for the input dir.
 allDirectoryContents' :: RawFilePath -> IO [RawFilePath]
 allDirectoryContents' = fmap reverse . traverseDirectory (\acc fp -> return (fp:acc)) []
 -- this uses traverseDirectory because it's more efficient than forcing the
@@ -80,6 +86,8 @@ allDirectoryContents' = fmap reverse . traverseDirectory (\acc fp -> return (fp:
 -- files/subdirectories.
 --
 -- This function allows for memory-efficient traversals.
+--
+-- Follows symbolic links for the input dir.
 traverseDirectory :: (s -> RawFilePath -> IO s) -> s -> RawFilePath -> IO s
 traverseDirectory act s0 topdir = toploop
   where
@@ -103,17 +111,17 @@ actOnDirContents :: RawFilePath
                  -> IO b
 actOnDirContents pathRelToTop b f =
   modifyIOError ((`ioeSetFileName` (BS.unpack pathRelToTop)) .
-                 (`ioeSetLocation` "findBSTypRel")) $ do
+                 (`ioeSetLocation` "findBSTypRel")) $
     bracket
       (openDirStream pathRelToTop)
-      (Posix.closeDirStream)
+      Posix.closeDirStream
       (\dirp -> loop dirp b)
  where
   loop dirp b' = do
     (typ,e) <- readDirEnt dirp
     if (e == "")
       then return b'
-      else do
+      else
           if (e == "." || e == "..")
               then loop dirp b'
               else f typ (pathRelToTop </> e) b' >>= loop dirp
@@ -154,9 +162,6 @@ foreign import ccall "realpath"
 foreign import ccall unsafe "fdopendir"
   c_fdopendir :: Posix.Fd -> IO (Ptr ())
 
-foreign import ccall unsafe "open"
-   c_open :: CString -> CInt -> Posix.CMode -> IO CInt
-
 ----------------------------------------------------------
 -- less dodgy but still lower-level
 
@@ -189,81 +194,53 @@ readDirEnt (unpackDirStream -> dirp) =
                     else throwErrno "readDirEnt"
 
 
+-- |Gets all directory contents (not recursively).
 getDirectoryContents :: RawFilePath -> IO [(DirType, RawFilePath)]
 getDirectoryContents path =
   modifyIOError ((`ioeSetFileName` (BS.unpack path)) .
-                 (`ioeSetLocation` "System.Posix.Directory.Traversals.getDirectoryContents")) $ do
+                 (`ioeSetLocation` "System.Posix.Directory.Traversals.getDirectoryContents")) $
     bracket
       (PosixBS.openDirStream path)
       PosixBS.closeDirStream
-      loop
- where
-  loop dirp = do
-     t@(_typ,e) <- readDirEnt dirp
-     if BS.null e then return [] else do
-       es <- loop dirp
-       return (t:es)
+      _dirloop
 
 
+-- |Binding to @fdopendir(3)@.
 fdOpendir :: Posix.Fd -> IO DirStream
 fdOpendir fd =
     packDirStream <$> throwErrnoIfNull "fdOpendir" (c_fdopendir fd)
 
 
+-- |Like `getDirectoryContents` except for a file descriptor.
+--
+-- To avoid complicated error checks, the file descriptor is
+-- __always__ closed, even if `fdOpendir` fails. Usually, this
+-- only happens on successful `fdOpendir` and after the directory
+-- stream is closed. Also see the manpage of @fdopendir(3)@ for
+-- more details.
 getDirectoryContents' :: Posix.Fd -> IO [(DirType, RawFilePath)]
-getDirectoryContents' fd =
-    bracket
-      (fdOpendir fd)
-      PosixBS.closeDirStream
-      loop
- where
-  loop dirp = do
-     t@(_typ,e) <- readDirEnt dirp
-     if BS.null e then return [] else do
-       es <- loop dirp
-       return (t:es)
+getDirectoryContents' fd = do
+  dirstream <- fdOpendir fd `catchIOError` \e -> do
+    closeFd fd
+    ioError e
+  -- closeDirStream closes the filedescriptor
+  finally (_dirloop dirstream) (PosixBS.closeDirStream dirstream)
 
 
-open_  :: CString
-       -> Posix.OpenMode
-       -> [Flags]
-       -> Maybe Posix.FileMode
-       -> IO Posix.Fd
-open_ str how optional_flags maybe_mode = do
-    fd <- c_open str all_flags mode_w
-    return (Posix.Fd fd)
-  where
-    all_flags  = unionFlags $ optional_flags ++ [open_mode] ++ creat
-
-
-    (creat, mode_w) = case maybe_mode of
-                        Nothing -> ([],0)
-                        Just x  -> ([oCreat], x)
-
-    open_mode = case how of
-                   Posix.ReadOnly  -> oRdonly
-                   Posix.WriteOnly -> oWronly
-                   Posix.ReadWrite -> oRdwr
-
-
--- |Open and optionally create this file.  See 'System.Posix.Files'
--- for information on how to use the 'FileMode' type.
-openFd :: RawFilePath
-       -> Posix.OpenMode
-       -> [Flags]
-       -> Maybe Posix.FileMode
-       -> IO Posix.Fd
-openFd name how optional_flags maybe_mode =
-   withFilePath name $ \str ->
-     throwErrnoPathIfMinus1Retry "openFd" name $
-       open_ str how optional_flags maybe_mode
+_dirloop :: DirStream -> IO [(DirType, RawFilePath)]
+{-# INLINE _dirloop #-}
+_dirloop dirp = do
+   t@(_typ,e) <- readDirEnt dirp
+   if BS.null e then return [] else do
+     es <- _dirloop dirp
+     return (t:es)
 
 
 -- | return the canonicalized absolute pathname
 --
--- like canonicalizePath, but uses realpath(3)
+-- like canonicalizePath, but uses @realpath(3)@
 realpath :: RawFilePath -> IO RawFilePath
-realpath inp = do
+realpath inp =
     allocaBytes pathMax $ \tmp -> do
         void $ BS.useAsCString inp $ \cstr -> throwErrnoIfNull "realpath" $ c_realpath cstr tmp
         BS.packCString tmp

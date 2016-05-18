@@ -182,6 +182,10 @@ import System.Posix.Files.ByteString
 import qualified System.Posix.Files.ByteString as PF
 import qualified "unix" System.Posix.IO.ByteString as SPI
 import qualified "unix-bytestring" System.Posix.IO.ByteString as SPB
+import System.Posix.FD
+  (
+    openFd
+  )
 import qualified System.Posix.Directory.Traversals as SPDT
 import qualified System.Posix.Directory.Foreign as SPDF
 import qualified System.Posix.Process.ByteString as SPP
@@ -415,33 +419,27 @@ _copyFile sflags dflags from to
                  (sendFileCopy from' to')
                  (void $ readWriteCopy from' to')
   where
-    -- this is low-level stuff utilizing sendfile(2) for speed
-    sendFileCopy source dest =
-      bracket (SPDT.openFd source SPI.ReadOnly sflags Nothing)
+    copyWith copyAction source dest =
+      bracket (openFd source SPI.ReadOnly sflags Nothing)
               SPI.closeFd
               $ \sfd -> do
                 fileM <- System.Posix.Files.ByteString.fileMode
                          <$> getFdStatus sfd
-                bracketeer (SPDT.openFd dest SPI.WriteOnly
+                bracketeer (openFd dest SPI.WriteOnly
                              dflags $ Just fileM)
                            SPI.closeFd
                            (\fd -> SPI.closeFd fd >> deleteFile to)
-                           $ \dfd -> sendfileFd dfd sfd EntireFile (return ())
+                           $ \dfd -> copyAction sfd dfd
+    -- this is low-level stuff utilizing sendfile(2) for speed
+    sendFileCopy :: ByteString -> ByteString -> IO ()
+    sendFileCopy = copyWith
+      (\sfd dfd -> sendfileFd dfd sfd EntireFile $ return ())
     -- low-level copy operation utilizing read(2)/write(2)
     -- in case `sendFileCopy` fails/is unsupported
     readWriteCopy :: ByteString -> ByteString -> IO Int
-    readWriteCopy source dest =
-      bracket (SPDT.openFd source SPI.ReadOnly sflags Nothing)
-              SPI.closeFd
-              $ \sfd -> do
-                fileM <- System.Posix.Files.ByteString.fileMode
-                         <$> getFdStatus sfd
-                bracketeer (SPDT.openFd dest SPI.WriteOnly
-                             dflags $ Just fileM)
-                           SPI.closeFd
-                           (\fd -> SPI.closeFd fd >> deleteFile to)
-                            $ \dfd -> allocaBytes (fromIntegral bufSize) $ \buf ->
-                                        write' sfd dfd buf 0
+    readWriteCopy = copyWith
+      (\sfd dfd -> allocaBytes (fromIntegral bufSize)
+                     $ \buf -> write' sfd dfd buf 0)
       where
         bufSize :: CSize
         bufSize = 8192
@@ -781,14 +779,12 @@ newDirPerms
 getDirsFiles :: Path Abs        -- ^ dir to read
              -> IO [Path Abs]
 getDirsFiles p =
-  withAbsPath p $ \fp ->
-    bracketOnError (SPDT.openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing)
-            SPI.closeFd
-            $ \fd ->
-              return
-                . catMaybes
-                .   fmap (\x -> (</>) p <$> (parseMaybe . snd $ x))
-                =<< getDirectoryContents' fd
+  withAbsPath p $ \fp -> do
+    fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
+    return
+      . catMaybes
+      .   fmap (\x -> (</>) p <$> (parseMaybe . snd $ x))
+      =<< getDirectoryContents' fd
   where
     parseMaybe :: ByteString -> Maybe (Path Fn)
     parseMaybe = parseFn

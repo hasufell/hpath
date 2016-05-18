@@ -1,21 +1,10 @@
--- |
--- Module      :  System.Posix.FilePath
--- Copyright   :  © 2016 Julian Ospald
--- License     :  BSD3
---
--- Maintainer  :  Julian Ospald <hasufell@posteo.de>
--- Stability   :  experimental
--- Portability :  portable
---
--- The equivalent of "System.FilePath" on raw (byte string) file paths.
---
--- Not all functions of "System.FilePath" are implemented yet. Feel free to contribute!
-
 {-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -Wall #-}
 
-
+-- | The equivalent of "System.FilePath" on raw (byte string) file paths.
+--
+-- Not all functions of "System.FilePath" are implemented yet. Feel free to contribute!
 module System.Posix.FilePath (
 
   -- * Separators
@@ -72,16 +61,11 @@ module System.Posix.FilePath (
 , equalFilePath
 , hiddenFile
 
-  -- * Type conversion
-, fpToString
-, userStringToFP
-
 , module System.Posix.ByteString.FilePath
 ) where
 
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (fromString, toString)
 import           System.Posix.ByteString.FilePath
 
 import           Data.Maybe (isJust)
@@ -94,7 +78,6 @@ import           Control.Arrow (second)
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
 -- >>> import qualified Data.ByteString as BS
--- >>> import Data.ByteString (ByteString)
 -- >>> instance Arbitrary ByteString where arbitrary = BS.pack <$> arbitrary
 -- >>> instance CoArbitrary ByteString where coarbitrary = coarbitrary . BS.unpack
 --
@@ -441,7 +424,6 @@ normalise filepath =
     dropDots :: [ByteString] -> [ByteString]
     dropDots = filter (BS.singleton _period /=)
 
-
 ------------------------
 -- trailing path separators
 
@@ -524,7 +506,8 @@ isValid filepath
   | _nul `BS.elem` filepath = False
   | otherwise               = True
 
--- | Is the given filename a valid filename?
+-- | Is the given path a valid filename? This includes
+-- "." and "..".
 --
 -- >>> isFileName "lal"
 -- True
@@ -538,13 +521,13 @@ isValid filepath
 -- False
 -- >>> isFileName "/random_ path:*"
 -- False
-isFileName :: ByteString -> Bool
+isFileName :: RawFilePath -> Bool
 isFileName filepath =
   not (BS.singleton pathSeparator `BS.isInfixOf` filepath) &&
   not (BS.null filepath) &&
   not (_nul `BS.elem` filepath)
 
--- | Helper function: check if the filepath has any parent directories in it.
+-- | Check if the filepath has any parent directories in it.
 --
 -- >>> hasParentDir "/.."
 -- True
@@ -560,19 +543,18 @@ isFileName filepath =
 -- False
 -- >>> hasParentDir ".."
 -- False
-hasParentDir :: ByteString -> Bool
+hasParentDir :: RawFilePath -> Bool
 hasParentDir filepath =
-  ((pathSeparator `BS.cons` pathDoubleDot)
-    `BS.isSuffixOf` filepath
-  ) ||
-  ((BS.singleton pathSeparator
-     `BS.append` pathDoubleDot
-     `BS.append` BS.singleton pathSeparator
-   ) `BS.isInfixOf`  filepath
-  ) ||
-  ((pathDoubleDot `BS.append` BS.singleton pathSeparator
-   ) `BS.isPrefixOf` filepath
-  )
+    (pathSeparator `BS.cons` pathDoubleDot)
+     `BS.isSuffixOf` filepath
+   ||
+    (BS.singleton pathSeparator
+        `BS.append` pathDoubleDot
+        `BS.append` BS.singleton pathSeparator)
+     `BS.isInfixOf`  filepath
+   ||
+    (pathDoubleDot `BS.append` BS.singleton pathSeparator)
+      `BS.isPrefixOf` filepath
   where
     pathDoubleDot = BS.pack [_period, _period]
 
@@ -605,32 +587,26 @@ equalFilePath p1 p2 = f p1 == f p2
 -- True
 -- >>> hiddenFile "..foo.bar"
 -- True
+-- >>> hiddenFile "some/path/.bar"
+-- True
 -- >>> hiddenFile "..."
 -- True
--- >>> hiddenFile "dod"
--- False
 -- >>> hiddenFile "dod.bar"
+-- False
+-- >>> hiddenFile "."
+-- False
+-- >>> hiddenFile ".."
+-- False
+-- >>> hiddenFile ""
 -- False
 hiddenFile :: RawFilePath -> Bool
 hiddenFile fp
-  | fp == BS.pack [_period, _period] = False
-  | fp == BS.pack [_period]          = False
+  | fn == BS.pack [_period, _period] = False
+  | fn == BS.pack [_period]          = False
   | otherwise                        = BS.pack [extSeparator]
-                                         `BS.isPrefixOf` fp
-
-------------------------
--- conversion
-
--- |Uses UTF-8 decoding to convert the bytestring into a String.
-fpToString :: ByteString -> String
-fpToString = toString
-
-
--- |Uses UTF-8 encoding to convert a user provided String into
--- a ByteString, which represents a filepath.
-userStringToFP :: String -> ByteString
-userStringToFP = fromString
-
+                                         `BS.isPrefixOf` fn
+  where
+    fn = takeFileName fp
 
 ------------------------
 -- internal stuff
@@ -638,7 +614,7 @@ userStringToFP = fromString
 -- Just split the input FileName without adding/normalizing or changing
 -- anything.
 splitFileNameRaw :: RawFilePath -> (RawFilePath, RawFilePath)
-splitFileNameRaw x = BS.breakEnd isPathSeparator x
+splitFileNameRaw = BS.breakEnd isPathSeparator
 
 -- | Combine two paths, assuming rhs is NOT absolute.
 combineRaw :: RawFilePath -> RawFilePath -> RawFilePath
