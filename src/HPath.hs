@@ -106,19 +106,19 @@ pattern Path x <- (MkPath x)
 --
 -- Throws: 'PathParseException'
 --
--- >>> parseAbs "/abc" :: Maybe (Path Abs)
+-- >>> parseAbs "/abc"          :: Maybe (Path Abs)
 -- Just "/abc"
--- >>> parseAbs "/" :: Maybe (Path Abs)
+-- >>> parseAbs "/"             :: Maybe (Path Abs)
 -- Just "/"
--- >>> parseAbs "/abc/def" :: Maybe (Path Abs)
+-- >>> parseAbs "/abc/def"      :: Maybe (Path Abs)
 -- Just "/abc/def"
 -- >>> parseAbs "/abc/def/.///" :: Maybe (Path Abs)
 -- Just "/abc/def/"
--- >>> parseAbs "abc" :: Maybe (Path Abs)
+-- >>> parseAbs "abc"           :: Maybe (Path Abs)
 -- Nothing
--- >>> parseAbs "" :: Maybe (Path Abs)
+-- >>> parseAbs ""              :: Maybe (Path Abs)
 -- Nothing
--- >>> parseAbs "/abc/../foo" :: Maybe (Path Abs)
+-- >>> parseAbs "/abc/../foo"   :: Maybe (Path Abs)
 -- Nothing
 parseAbs :: MonadThrow m
          => ByteString -> m (Path Abs)
@@ -138,23 +138,23 @@ parseAbs filepath =
 --
 -- Throws: 'PathParseException'
 --
--- >>> parseRel "abc" :: Maybe (Path Rel)
+-- >>> parseRel "abc"        :: Maybe (Path Rel)
 -- Just "abc"
--- >>> parseRel "def/" :: Maybe (Path Rel)
+-- >>> parseRel "def/"       :: Maybe (Path Rel)
 -- Just "def/"
--- >>> parseRel "abc/def" :: Maybe (Path Rel)
+-- >>> parseRel "abc/def"    :: Maybe (Path Rel)
 -- Just "abc/def"
--- >>> parseRel "abc/def/." :: Maybe (Path Rel)
+-- >>> parseRel "abc/def/."  :: Maybe (Path Rel)
 -- Just "abc/def/"
--- >>> parseRel "/abc" :: Maybe (Path Rel)
+-- >>> parseRel "/abc"       :: Maybe (Path Rel)
 -- Nothing
--- >>> parseRel "" :: Maybe (Path Rel)
+-- >>> parseRel ""           :: Maybe (Path Rel)
 -- Nothing
 -- >>> parseRel "abc/../foo" :: Maybe (Path Rel)
 -- Nothing
--- >>> parseRel "." :: Maybe (Path Rel)
+-- >>> parseRel "."          :: Maybe (Path Rel)
 -- Nothing
--- >>> parseRel ".." :: Maybe (Path Rel)
+-- >>> parseRel ".."         :: Maybe (Path Rel)
 -- Nothing
 parseRel :: MonadThrow m
          => ByteString -> m (Path Rel)
@@ -173,25 +173,25 @@ parseRel filepath =
 --
 -- Throws: 'PathParseException'
 --
--- >>> parseFn "abc" :: Maybe (Path Fn)
+-- >>> parseFn "abc"        :: Maybe (Path Fn)
 -- Just "abc"
--- >>> parseFn "..." :: Maybe (Path Fn)
+-- >>> parseFn "..."        :: Maybe (Path Fn)
 -- Just "..."
--- >>> parseFn "def/" :: Maybe (Path Fn)
+-- >>> parseFn "def/"       :: Maybe (Path Fn)
 -- Nothing
--- >>> parseFn "abc/def" :: Maybe (Path Fn)
+-- >>> parseFn "abc/def"    :: Maybe (Path Fn)
 -- Nothing
--- >>> parseFn "abc/def/." :: Maybe (Path Fn)
+-- >>> parseFn "abc/def/."  :: Maybe (Path Fn)
 -- Nothing
--- >>> parseFn "/abc" :: Maybe (Path Fn)
+-- >>> parseFn "/abc"       :: Maybe (Path Fn)
 -- Nothing
--- >>> parseFn "" :: Maybe (Path Fn)
+-- >>> parseFn ""           :: Maybe (Path Fn)
 -- Nothing
 -- >>> parseFn "abc/../foo" :: Maybe (Path Fn)
 -- Nothing
--- >>> parseFn "." :: Maybe (Path Fn)
+-- >>> parseFn "."          :: Maybe (Path Fn)
 -- Nothing
--- >>> parseFn ".." :: Maybe (Path Fn)
+-- >>> parseFn ".."         :: Maybe (Path Fn)
 -- Nothing
 parseFn :: MonadThrow m
         => ByteString -> m (Path Fn)
@@ -234,13 +234,13 @@ fromRel = toFilePath
 -- because this library is IO-agnostic and makes no assumptions about
 -- file types.
 --
--- >>> (MkPath "/") </> (MkPath "file" :: Path Rel)
+-- >>> (MkPath "/")        </> (MkPath "file"     :: Path Rel)
 -- "/file"
--- >>> (MkPath "/path/to") </> (MkPath "file" :: Path Rel)
+-- >>> (MkPath "/path/to") </> (MkPath "file"     :: Path Rel)
 -- "/path/to/file"
--- >>> (MkPath "/") </> (MkPath "file/lal" :: Path Rel)
+-- >>> (MkPath "/")        </> (MkPath "file/lal" :: Path Rel)
 -- "/file/lal"
--- >>> (MkPath "/") </> (MkPath "file/" :: Path Rel)
+-- >>> (MkPath "/")        </> (MkPath "file/"    :: Path Rel)
 -- "/file/"
 (</>) :: RelC r => Path b -> Path r -> Path b
 (</>) (MkPath a) (MkPath b) = MkPath (a' `BS.append` b)
@@ -254,15 +254,15 @@ fromRel = toFilePath
 --
 -- The bases must match.
 --
--- >>> (MkPath "/lal/lad") `stripDir` (MkPath "/lal/lad/fad") :: Maybe (Path Rel)
+-- >>> (MkPath "/lal/lad")     `stripDir` (MkPath "/lal/lad/fad") :: Maybe (Path Rel)
 -- Just "fad"
--- >>> (MkPath "lal/lad") `stripDir` (MkPath "lal/lad/fad") :: Maybe (Path Rel)
+-- >>> (MkPath "lal/lad")      `stripDir` (MkPath "lal/lad/fad")  :: Maybe (Path Rel)
 -- Just "fad"
--- >>> (MkPath "/") `stripDir` (MkPath "/") :: Maybe (Path Rel)
+-- >>> (MkPath "/")            `stripDir` (MkPath "/")            :: Maybe (Path Rel)
 -- Nothing
--- >>> (MkPath "/lal/lad/fad") `stripDir` (MkPath "/lal/lad") :: Maybe (Path Rel)
+-- >>> (MkPath "/lal/lad/fad") `stripDir` (MkPath "/lal/lad")     :: Maybe (Path Rel)
 -- Nothing
--- >>> (MkPath "fad") `stripDir` (MkPath "fad") :: Maybe (Path Rel)
+-- >>> (MkPath "fad")          `stripDir` (MkPath "fad")          :: Maybe (Path Rel)
 -- Nothing
 stripDir :: MonadThrow m
          => Path b -> Path b -> m (Path Rel)
@@ -278,15 +278,15 @@ stripDir (MkPath p) (MkPath l) =
 -- | Is p a parent of the given location? Implemented in terms of
 -- 'stripDir'. The bases must match.
 --
--- >>> (MkPath "/lal/lad") `isParentOf` (MkPath "/lal/lad/fad")
+-- >>> (MkPath "/lal/lad")     `isParentOf` (MkPath "/lal/lad/fad")
 -- True
--- >>> (MkPath "lal/lad") `isParentOf` (MkPath "lal/lad/fad")
+-- >>> (MkPath "lal/lad")      `isParentOf` (MkPath "lal/lad/fad")
 -- True
--- >>> (MkPath "/") `isParentOf` (MkPath "/")
+-- >>> (MkPath "/")            `isParentOf` (MkPath "/")
 -- False
 -- >>> (MkPath "/lal/lad/fad") `isParentOf` (MkPath "/lal/lad")
 -- False
--- >>> (MkPath "fad") `isParentOf` (MkPath "fad")
+-- >>> (MkPath "fad")          `isParentOf` (MkPath "fad")
 -- False
 isParentOf :: Path b -> Path b -> Bool
 isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
@@ -330,7 +330,7 @@ dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 --
 -- >>> basename (MkPath "/abc/def/dod") :: Maybe (Path Fn)
 -- Just "dod"
--- >>> basename (MkPath "/") :: Maybe (Path Fn)
+-- >>> basename (MkPath "/")            :: Maybe (Path Fn)
 -- Nothing
 basename :: MonadThrow m => Path b -> m (Path Fn)
 basename (MkPath l)
