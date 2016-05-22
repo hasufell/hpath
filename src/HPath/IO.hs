@@ -242,8 +242,8 @@ data FileType = Directory
 --    - `PermissionDenied` if source directory can't be opened
 --    - `InvalidArgument` if source directory is wrong type (symlink)
 --    - `InvalidArgument` if source directory is wrong type (regular file)
---    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --    - `AlreadyExists` if destination already exists
+--    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --    - `DestinationInSource` if destination is contained in source (`HPathIOException`)
 copyDirRecursive :: Path Abs  -- ^ source dir
                  -> Path Abs  -- ^ full destination
@@ -351,8 +351,8 @@ recreateSymlink symsource newsym
 --    - `PermissionDenied` if source directory can't be opened
 --    - `InvalidArgument` if source file is wrong type (symlink)
 --    - `InvalidArgument` if source file is wrong type (directory)
---    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --    - `AlreadyExists` if destination already exists
+--    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --
 -- Note: calls `sendfile` and possibly `read`/`write` as fallback
 copyFile :: Path Abs  -- ^ source file
@@ -496,7 +496,7 @@ easyCopyOverwrite from to = do
     ---------------------
 
 
--- |Deletes the given file, does not follow symlinks. Raises `eISDIR`
+-- |Deletes the given file. Raises `eISDIR`
 -- if run on a directory. Does not follow symbolic links.
 --
 -- Throws:
@@ -651,8 +651,8 @@ createDir dest = createDirectory (fromAbs dest) newDirPerms
 --     - `PermissionDenied` if output directory cannot be written to
 --     - `PermissionDenied` if source directory cannot be opened
 --     - `UnsupportedOperation` if source and destination are on different devices
---     - `FileDoesExist` if destination file already exists
---     - `DirDoesExist` if destination directory already exists
+--     - `FileDoesExist` if destination file already exists (`HPathIOException`)
+--     - `DirDoesExist` if destination directory already exists (`HPathIOException`)
 --     - `SameFile` if destination and source are the same file (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
@@ -678,8 +678,8 @@ renameFile fromf tof = do
 --     - `NoSuchThing` if source file does not exist
 --     - `PermissionDenied` if output directory cannot be written to
 --     - `PermissionDenied` if source directory cannot be opened
---     - `FileDoesExist` if destination file already exists
---     - `DirDoesExist` if destination directory already exists
+--     - `FileDoesExist` if destination file already exists (`HPathIOException`)
+--     - `DirDoesExist` if destination directory already exists (`HPathIOException`)
 --     - `SameFile` if destination and source are the same file (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
