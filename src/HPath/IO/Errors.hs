@@ -218,7 +218,7 @@ sameFile fp1 fp2 =
 -- source directory with all device+file IDs of the parent directories
 -- of the destination.
 throwDestinationInSource :: Path Abs -- ^ source dir
-                         -> Path Abs -- ^ full destination, `dirname dest`
+                         -> Path Abs -- ^ full destination, @dirname dest@
                                      --   must exist
                          -> IO ()
 throwDestinationInSource source dest = do
