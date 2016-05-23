@@ -43,9 +43,15 @@ so it is forked as well and merged into this library.
 
 ## Differences to 'posix-paths'
 
-* `hasTrailingPathSeparator` behaves in the same way as `System.FilePath`
-* `dropTrailingPathSeparator` behaves in the same way as `System.FilePath`
-* added various functions like `isValid`, `normalise` and `equalFilePath`
 * uses the `word8` package for save word8 literals instead of `OverloadedStrings`
-* has custom versions of `openFd` and `getDirectoryContents`
+* `hasTrailingPathSeparator` and `dropTrailingPathSeparator` behave in the same way as their `System.FilePath` counterpart
+* added various functions:
+    * `isValid`
+    * `normalise`
+    * `equalFilePath`
+    * `isFileName`
+    * `hasParentDir`
+    * `hiddenFile`
+* has a custom versions of `openFd` which allows more control over the flags than its unix package counterpart
+* adds a `getDirectoryContents'` version that works on Fd
 
