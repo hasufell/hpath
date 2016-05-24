@@ -32,7 +32,7 @@ library
                      System.Posix.FD,
                      System.Posix.FilePath
   build-depends:     base >= 4.2 && <5
-                   , bytestring >= 0.9.2.0
+                   , bytestring >= 0.10.8.0
                    , deepseq
                    , exceptions
                    , hspec

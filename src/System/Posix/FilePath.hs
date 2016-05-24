@@ -16,6 +16,7 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
+-- TODO: makeValid, makeRelative
 
 module System.Posix.FilePath (
 
@@ -27,6 +28,10 @@ module System.Posix.FilePath (
 , extSeparator
 , isExtSeparator
 
+  -- * $PATH methods
+, splitSearchPath
+, getSearchPath
+
   -- * File extensions
 , splitExtension
 , takeExtension
@@ -34,6 +39,7 @@ module System.Posix.FilePath (
 , dropExtension
 , addExtension
 , hasExtension
+, stripExtension
 , (<.>)
 , splitExtensions
 , dropExtensions
@@ -78,7 +84,9 @@ module System.Posix.FilePath (
 
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import Data.String (fromString)
 import           System.Posix.ByteString.FilePath
+import qualified System.Posix.Env.ByteString as PE
 
 import           Data.Maybe (isJust)
 import           Data.Word8
@@ -87,6 +95,7 @@ import           Control.Arrow (second)
 
 -- $setup
 -- >>> import Data.Char
+-- >>> import Data.Maybe
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
 -- >>> import qualified Data.ByteString as BS
@@ -125,6 +134,36 @@ extSeparator = _period
 -- prop> \n -> (_chr n == '.') == isExtSeparator n
 isExtSeparator :: Word8 -> Bool
 isExtSeparator = (== extSeparator)
+
+------------------------
+-- $PATH methods
+
+-- | Take a ByteString, split it on the 'searchPathSeparator'.
+-- Blank items are converted to @.@.
+--
+-- Follows the recommendations in
+-- <http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html>
+--
+-- >>> splitSearchPath "File1:File2:File3"
+-- ["File1","File2","File3"]
+-- >>> splitSearchPath "File1::File2:File3"
+-- ["File1",".","File2","File3"]
+-- >>> splitSearchPath ""
+-- ["."]
+splitSearchPath :: ByteString -> [RawFilePath]
+splitSearchPath = f
+  where
+    f bs = let (pre, post) = BS.break isSearchPathSeparator bs
+           in if BS.null post
+                 then g pre
+                 else g pre ++ f (BS.tail post)
+    g x
+      | BS.null x = [BS.singleton _period]
+      | otherwise = [x]
+
+-- | Get a list of 'RawFilePath's in the $PATH variable.
+getSearchPath :: IO [RawFilePath]
+getSearchPath = fmap (maybe [] splitSearchPath) (PE.getEnv $ fromString "PATH")
 
 ------------------------
 -- extension stuff
@@ -205,7 +244,39 @@ addExtension file ext
 hasExtension :: RawFilePath -> Bool
 hasExtension = isJust . BS.elemIndex extSeparator . takeFileName
 
--- | Split a 'RawFilePath' on the first extension
+-- | Drop the given extension from a FilePath, and the @\".\"@ preceding it.
+-- Returns 'Nothing' if the FilePath does not have the given extension, or
+-- 'Just' and the part before the extension if it does.
+--
+-- This function can be more predictable than 'dropExtensions',
+-- especially if the filename might itself contain @.@ characters.
+--
+-- >>> stripExtension "hs.o" "foo.x.hs.o"
+-- Just "foo.x"
+-- >>> stripExtension "hi.o" "foo.x.hs.o"
+-- Nothing
+-- >>> stripExtension ".c.d" "a.b.c.d"
+-- Just "a.b"
+-- >>> stripExtension ".c.d" "a.b..c.d"
+-- Just "a.b."
+-- >>> stripExtension "baz"  "foo.bar"
+-- Nothing
+-- >>> stripExtension "bar"  "foobar"
+-- Nothing
+--
+-- prop> \path -> stripExtension "" path == Just path
+-- prop> \path -> dropExtension path  == fromJust (stripExtension (takeExtension path) path)
+-- prop> \path -> dropExtensions path == fromJust (stripExtension (takeExtensions path) path)
+stripExtension :: ByteString -> RawFilePath -> Maybe RawFilePath
+stripExtension bs path
+  | BS.null bs = Just path
+  | otherwise  = BS.stripSuffix dotExt path
+  where
+    dotExt = if isExtSeparator $ BS.head bs
+                then bs
+                else extSeparator `BS.cons` bs
+
+-- | Split a 'RawFilePath' on the first extension.
 --
 -- >>> splitExtensions "/path/file.tar.gz"
 -- ("/path/file",".tar.gz")
