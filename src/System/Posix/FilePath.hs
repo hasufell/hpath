@@ -613,6 +613,8 @@ normalise filepath =
 -- True
 -- >>> equalFilePath "foo" "./foo"
 -- True
+-- >>> equalFilePath "" ""
+-- True
 -- >>> equalFilePath "foo" "/foo"
 -- False
 -- >>> equalFilePath "foo" "FOO"
