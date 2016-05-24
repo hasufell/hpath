@@ -46,12 +46,17 @@ so it is forked as well and merged into this library.
 * uses the `word8` package for save word8 literals instead of `OverloadedStrings`
 * `hasTrailingPathSeparator` and `dropTrailingPathSeparator` behave in the same way as their `System.FilePath` counterpart
 * added various functions:
-    * `isValid`
-    * `normalise`
     * `equalFilePath`
-    * `isFileName`
+    * `getSearchPath`
     * `hasParentDir`
     * `hiddenFile`
+    * `isFileName`
+    * `isValid`
+    * `makeRelative`
+    * `makeValid`
+    * `normalise`
+    * `splitSearchPath`
+    * `stripExtension`
 * has a custom versions of `openFd` which allows more control over the flags than its unix package counterpart
 * adds a `getDirectoryContents'` version that works on Fd
 

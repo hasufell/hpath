@@ -1,3 +1,6 @@
+0.7.1:
+	* various cleanups and documentation improvements
+	* added the following functions to System.Posix.FilePath: splitSearchPath, getSearchPath, stripExtension, makeRelative, makeValid
 0.7.0:
 	* use 'sendfile' from 'simple-sendfile' in _copyFile and do read/write as a fallback only
 	* add isFileName, hasParentDir, hiddenFile to System.Posix.FilePath
