@@ -28,6 +28,8 @@ so it is forked as well and merged into this library.
 * safe filepath manipulation, never using String as filepath, but ByteString
 * still allowing sufficient control to interact with the underlying low-level calls
 
+Note: this library was written for __posix__ systems and it will probably not support other systems.
+
 ## Differences to 'path'
 
 * doesn't attempt to fake IO-related information into the path, so whether a path points to a file or directory is up to your IO-code to decide...
