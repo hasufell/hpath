@@ -213,6 +213,7 @@ sameFile fp1 fp2 =
         else return False
 
 
+-- TODO: make this more robust when destination does not exist
 -- |Checks whether the destination directory is contained
 -- within the source directory by comparing the device+file ID of the
 -- source directory with all device+file IDs of the parent directories
