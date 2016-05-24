@@ -54,10 +54,10 @@ import           Control.Monad.Catch (MonadThrow(..))
 import           Data.ByteString(ByteString, stripPrefix)
 #else
 import           Data.ByteString(ByteString)
+import qualified Data.List as L
 #endif
 import qualified Data.ByteString as BS
 import           Data.Data
-import qualified Data.List as L
 import           Data.Maybe
 import           Data.Word8
 import           HPath.Internal
