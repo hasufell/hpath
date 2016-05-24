@@ -140,10 +140,7 @@ import System.IO.Error
 import System.Linux.Sendfile
   (
     sendfileFd
-  )
-import Network.Sendfile
-  (
-    FileRange(..)
+  , FileRange(..)
   )
 import System.Posix.ByteString
   (

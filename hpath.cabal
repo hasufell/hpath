@@ -36,7 +36,7 @@ library
                    , deepseq
                    , exceptions
                    , hspec
-                   , simple-sendfile >= 0.2.22
+                   , simple-sendfile >= 0.2.24
                    , unix >= 2.5
                    , unix-bytestring
                    , utf8-string
