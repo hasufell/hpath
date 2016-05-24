@@ -17,7 +17,6 @@
 
 {-# OPTIONS_GHC -Wall #-}
 
--- TODO: makeValid, makeRelative
 
 module System.Posix.FilePath (
 
@@ -68,10 +67,12 @@ module System.Posix.FilePath (
 
   -- * File name manipulations
 , normalise
+, makeRelative
 , equalFilePath
 , isRelative
 , isAbsolute
 , isValid
+, makeValid
 , isFileName
 , hasParentDir
 , hiddenFile
@@ -604,6 +605,48 @@ normalise filepath =
     dropDots = filter (BS.singleton _period /=)
 
 
+
+-- | Contract a filename, based on a relative path. Note that the resulting
+-- path will never introduce @..@ paths, as the presence of symlinks
+-- means @..\/b@ may not reach @a\/b@ if it starts from @a\/c@. For a
+-- worked example see
+-- <http://neilmitchell.blogspot.co.uk/2015/10/filepaths-are-subtle-symlinks-are-hard.html this blog post>.
+--
+-- >>> makeRelative "/directory" "/directory/file.ext"
+-- "file.ext"
+-- >>> makeRelative "/Home" "/home/bob"
+-- "/home/bob"
+-- >>> makeRelative "/home/" "/home/bob/foo/bar"
+-- "bob/foo/bar"
+-- >>> makeRelative "/fred" "bob"
+-- "bob"
+-- >>> makeRelative "/file/test" "/file/test/fred"
+-- "fred"
+-- >>> makeRelative "/file/test" "/file/test/fred/"
+-- "fred/"
+-- >>> makeRelative "some/path" "some/path/a/b/c"
+-- "a/b/c"
+--
+-- prop> \p -> makeRelative p p == "."
+-- prop> \p -> makeRelative (takeDirectory p) p `equalFilePath` takeFileName p
+-- prop \x y -> equalFilePath x y || (isRelative x && makeRelative y x == x) || equalFilePath (y </> makeRelative y x) x
+makeRelative :: RawFilePath -> RawFilePath -> RawFilePath
+makeRelative root path
+  | equalFilePath root path = BS.singleton _period
+  | takeAbs root /= takeAbs path = path
+  | otherwise = f (dropAbs root) (dropAbs path)
+  where
+    f x y
+      | BS.null x = BS.dropWhile isPathSeparator y
+      | otherwise = let (x1,x2) = g x
+                        (y1,y2) = g y
+                    in if equalFilePath x1 y1 then f x2 y2 else path
+    g x = (BS.dropWhile isPathSeparator a, BS.dropWhile isPathSeparator b)
+      where (a, b) = BS.break isPathSeparator $ BS.dropWhile isPathSeparator x
+    dropAbs x = snd $ BS.span (== _slash) x
+    takeAbs x = fst $ BS.span (== _slash) x
+
+
 -- |Equality of two filepaths. The filepaths are normalised
 -- and trailing path separators are dropped.
 --
@@ -663,6 +706,21 @@ isValid filepath
   | BS.null filepath        = False
   | _nul `BS.elem` filepath = False
   | otherwise               = True
+
+
+-- | Take a FilePath and make it valid; does not change already valid FilePaths.
+--
+-- >>> makeValid ""
+-- "_"
+-- >>> makeValid "file\0name"
+-- "file_name"
+--
+-- prop> \p -> if isValid p then makeValid p == p else makeValid p /= p
+-- prop> \p -> isValid (makeValid p)
+makeValid :: RawFilePath -> RawFilePath
+makeValid path
+  | BS.null path = BS.singleton _underscore
+  | otherwise    = BS.map (\x -> if x == _nul then _underscore else x) path
 
 
 -- | Is the given path a valid filename? This includes
