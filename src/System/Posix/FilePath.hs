@@ -330,7 +330,7 @@ stripExtension bs path
 #if MIN_VERSION_bytestring(0,10,8)
     stripSuffix' = BS.stripSuffix
 #else
-    stripSuffix' xs ys = fmap (BS.pack . reverse) $ stripPrefix (reverse $ BS.unpack xs) (reverse $ BS.unpack ys)
+    stripSuffix' xs ys = fmap (BS.pack . reverse) $ L.stripPrefix (reverse $ BS.unpack xs) (reverse $ BS.unpack ys)
 #endif
 
 
