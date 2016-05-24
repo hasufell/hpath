@@ -12,6 +12,7 @@
 -- Not all functions of "System.FilePath" are implemented yet. Feel free to contribute!
 
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -86,7 +87,9 @@ import qualified System.Posix.Env.ByteString as PE
 
 import           Data.Maybe (isJust)
 import           Data.Word8
-
+#if !MIN_VERSION_bytestring(0,10,8)
+import qualified Data.List as L
+#endif
 import           Control.Arrow (second)
 
 -- $setup
@@ -319,12 +322,16 @@ takeExtensions = snd . splitExtensions
 stripExtension :: ByteString -> RawFilePath -> Maybe RawFilePath
 stripExtension bs path
   | BS.null bs = Just path
-  | otherwise  = BS.stripSuffix dotExt path
+  | otherwise  = stripSuffix' dotExt path
   where
     dotExt = if isExtSeparator $ BS.head bs
                 then bs
                 else extSeparator `BS.cons` bs
-
+#if MIN_VERSION_bytestring(0,10,8)
+    stripSuffix' = BS.stripSuffix
+#else
+    stripSuffix' xs ys = fmap (BS.pack . reverse) $ stripPrefix (reverse $ BS.unpack xs) (reverse $ BS.unpack ys)
+#endif
 
 
 ------------------------
