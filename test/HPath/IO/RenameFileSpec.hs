@@ -18,78 +18,95 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "myFile"
+  createSymlink' "myFileL" "myFile"
+  createRegularFile' "alreadyExists"
+  createDir' "alreadyExistsD"
+  createDir' "dir"
+  createDir' "noPerms"
+  createDir' "noWritePerm"
+  noPerms "noPerms"
+  noWritableDirPerms "noWritePerm"
+  writeFile' "myFile" "Blahfaselgagaga"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/renameFileSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  normalDirPerms "noWritePerm"
+  deleteFile' "myFile"
+  deleteFile' "myFileL"
+  deleteFile' "alreadyExists"
+  deleteDir' "alreadyExistsD"
+  deleteDir' "dir"
+  deleteDir' "noPerms"
+  deleteDir' "noWritePerm"
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.renameFile" $ do
 
     -- successes --
     it "renameFile, all fine" $
-      renameFile' (specDir `ba` "myFile")
-                  (specDir `ba` "renamedFile")
+      renameFile' "myFile"
+                  "renamedFile"
 
     it "renameFile, all fine" $
-      renameFile' (specDir `ba` "myFile")
-                  (specDir `ba` "dir/renamedFile")
+      renameFile' "myFile"
+                  "dir/renamedFile"
 
     it "renameFile, all fine on symlink" $
-      renameFile' (specDir `ba` "myFileL")
-                  (specDir `ba` "renamedFile")
+      renameFile' "myFileL"
+                  "renamedFile"
 
     it "renameFile, all fine on directory" $
-      renameFile' (specDir `ba` "dir")
-                  (specDir `ba` "renamedFile")
+      renameFile' "dir"
+                  "renamedFile"
 
     -- posix failures --
     it "renameFile, source file does not exist" $
-      renameFile' (specDir `ba` "fileDoesNotExist")
-                  (specDir `ba` "renamedFile")
+      renameFile' "fileDoesNotExist"
+                  "renamedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "renameFile, can't write to output directory" $
-      renameFile' (specDir `ba` "myFile")
-                  (specDir `ba` "noWritePerm/renamedFile")
+      renameFile' "myFile"
+                  "noWritePerm/renamedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "renameFile, can't open output directory" $
-      renameFile' (specDir `ba` "myFile")
-                  (specDir `ba` "noPerms/renamedFile")
+      renameFile' "myFile"
+                  "noPerms/renamedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "renameFile, can't open source directory" $
-      renameFile' (specDir `ba` "noPerms/myFile")
-                  (specDir `ba` "renamedFile")
+      renameFile' "noPerms/myFile"
+                  "renamedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     -- custom failures --
     it "renameFile, destination file already exists" $
-      renameFile' (specDir `ba` "myFile")
-                  (specDir `ba` "alreadyExists")
+      renameFile' "myFile"
+                  "alreadyExists"
         `shouldThrow`
         isFileDoesExist
 
     it "renameFile, move from file to dir" $
-      renameFile' (specDir `ba` "myFile")
-                  (specDir `ba` "alreadyExistsD")
+      renameFile' "myFile"
+                  "alreadyExistsD"
         `shouldThrow`
         isDirDoesExist
 
     it "renameFile, source and dest are same file" $
-      renameFile' (specDir `ba` "myFile")
-                  (specDir `ba` "myFile")
+      renameFile' "myFile"
+                  "myFile"
         `shouldThrow`
         isSameFile
 

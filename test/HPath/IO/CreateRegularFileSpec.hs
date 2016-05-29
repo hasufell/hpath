@@ -17,38 +17,47 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "alreadyExists"
+  createDir' "noPerms"
+  createDir' "noWritePerms"
+  noPerms "noPerms"
+  noWritableDirPerms "noWritePerms"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/createRegularFileSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  normalDirPerms "noWritePerms"
+  deleteFile' "alreadyExists"
+  deleteDir' "noPerms"
+  deleteDir' "noWritePerms"
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.createRegularFile" $ do
 
     -- successes --
     it "createRegularFile, all fine" $ do
-      createRegularFile' (specDir `ba` "newDir")
-      removeFileIfExists (specDir `ba` "newDir")
+      createRegularFile' "newDir"
+      removeFileIfExists "newDir"
 
     -- posix failures --
     it "createRegularFile, can't write to destination directory" $
-      createRegularFile' (specDir `ba` "noWritePerms/newDir")
+      createRegularFile' "noWritePerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "createRegularFile, can't write to destination directory" $
-      createRegularFile' (specDir `ba` "noPerms/newDir")
+      createRegularFile' "noPerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "createRegularFile, destination file already exists" $
-      createRegularFile' (specDir `ba` "alreadyExists")
+      createRegularFile' "alreadyExists"
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 

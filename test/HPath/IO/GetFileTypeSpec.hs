@@ -18,53 +18,66 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "regularfile"
+  createSymlink' "symlink" "regularfile"
+  createSymlink' "brokenSymlink" "broken"
+  createDir' "directory"
+  createSymlink' "symlinkD" "directory"
+  createDir' "noPerms"
+  noPerms "noPerms"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/getFileTypeSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  deleteFile' "regularfile"
+  deleteFile' "symlink"
+  deleteFile' "brokenSymlink"
+  deleteDir' "directory"
+  deleteFile' "symlinkD"
+  deleteDir' "noPerms"
+
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.getFileType" $ do
 
     -- successes --
     it "getFileType, regular file" $
-      getFileType' (specDir `ba` "regularfile")
+      getFileType' "regularfile"
         `shouldReturn` RegularFile
 
     it "getFileType, directory" $
-      getFileType' (specDir `ba` "directory")
+      getFileType' "directory"
         `shouldReturn` Directory
 
     it "getFileType, directory with null permissions" $
-      getFileType' (specDir `ba` "noPerms")
+      getFileType' "noPerms"
         `shouldReturn` Directory
 
     it "getFileType, symlink to file" $
-      getFileType' (specDir `ba` "symlink")
+      getFileType' "symlink"
         `shouldReturn` SymbolicLink
 
     it "getFileType, symlink to directory" $
-      getFileType' (specDir `ba` "symlinkD")
+      getFileType' "symlinkD"
         `shouldReturn` SymbolicLink
 
     it "getFileType, broken symlink" $
-      getFileType' (specDir `ba` "brokenSymlink")
+      getFileType' "brokenSymlink"
         `shouldReturn` SymbolicLink
 
     -- posix failures --
     it "getFileType, file does not exist" $
-      getFileType' (specDir `ba` "nothingHere")
+      getFileType' "nothingHere"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "getFileType, can't open directory" $
-      getFileType' (specDir `ba` "noPerms/forz")
+      getFileType' "noPerms/forz"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 

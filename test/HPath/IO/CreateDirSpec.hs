@@ -17,38 +17,47 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createDir' "alreadyExists"
+  createDir' "noPerms"
+  createDir' "noWritePerms"
+  noPerms "noPerms"
+  noWritableDirPerms "noWritePerms"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/createDirSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  normalDirPerms "noWritePerms"
+  deleteDir' "alreadyExists"
+  deleteDir' "noPerms"
+  deleteDir' "noWritePerms"
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.createDir" $ do
 
     -- successes --
     it "createDir, all fine" $ do
-      createDir' (specDir `ba` "newDir")
-      removeDirIfExists (specDir `ba` "newDir")
+      createDir' "newDir"
+      removeDirIfExists "newDir"
 
     -- posix failures --
     it "createDir, can't write to output directory" $
-      createDir' (specDir `ba` "noWritePerms/newDir")
+      createDir' "noWritePerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "createDir, can't open output directory" $
-      createDir' (specDir `ba` "noPerms/newDir")
+      createDir' "noPerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "createDir, destination directory already exists" $
-      createDir' (specDir `ba` "alreadyExists")
+      createDir' "alreadyExists"
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 

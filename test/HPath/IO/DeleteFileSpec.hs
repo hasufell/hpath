@@ -21,49 +21,58 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "foo"
+  createSymlink' "syml" "foo"
+  createDir' "dir"
+  createDir' "noPerms"
+  noPerms "noPerms"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/deleteFileSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  deleteFile' "foo"
+  deleteFile' "syml"
+  deleteDir' "dir"
+  deleteDir' "noPerms"
+
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.deleteFile" $ do
 
     -- successes --
     it "deleteFile, regular file, all fine" $ do
-      createRegularFile' (specDir `ba` "testFile")
-      deleteFile' (specDir `ba` "testFile")
-      getSymbolicLinkStatus (specDir `ba` "testFile")
+      createRegularFile' "testFile"
+      deleteFile' "testFile"
+      getSymbolicLinkStatus "testFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "deleteFile, symlink, all fine" $ do
-      recreateSymlink' (specDir `ba` "syml")
-                       (specDir `ba` "testFile")
-      deleteFile' (specDir `ba` "testFile")
-      getSymbolicLinkStatus (specDir `ba` "testFile")
+      recreateSymlink' "syml"
+                       "testFile"
+      deleteFile' "testFile"
+      getSymbolicLinkStatus "testFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     -- posix failures --
     it "deleteFile, wrong file type (directory)" $
-      deleteFile' (specDir `ba` "dir")
+      deleteFile' "dir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == InappropriateType)
 
     it "deleteFile, file does not exist" $
-      deleteFile' (specDir `ba` "doesNotExist")
+      deleteFile' "doesNotExist"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "deleteFile, can't read directory" $
-      deleteFile' (specDir `ba` "noPerms/blah")
+      deleteFile' "noPerms/blah"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 

@@ -74,21 +74,6 @@ test-suite spec
   Main-Is:              Main.hs
   other-modules:
                         Spec
-                        HPath.IO.CopyDirRecursiveSpec
-                        HPath.IO.CopyDirRecursiveOverwriteSpec
-                        HPath.IO.CopyFileSpec
-                        HPath.IO.CopyFileOverwriteSpec
-                        HPath.IO.CreateDirSpec
-                        HPath.IO.CreateRegularFileSpec
-                        HPath.IO.DeleteDirRecursiveSpec
-                        HPath.IO.DeleteDirSpec
-                        HPath.IO.DeleteFileSpec
-                        HPath.IO.GetDirsFilesSpec
-                        HPath.IO.GetFileTypeSpec
-                        HPath.IO.MoveFileSpec
-                        HPath.IO.MoveFileOverwriteSpec
-                        HPath.IO.RecreateSymlinkSpec
-                        HPath.IO.RenameFileSpec
                         Utils
   GHC-Options:          -Wall
   Build-Depends:        base
@@ -98,6 +83,7 @@ test-suite spec
                       , hspec >= 1.3
                       , process
                       , unix
+                      , unix-bytestring
                       , utf8-string
 
 benchmark bench.hs

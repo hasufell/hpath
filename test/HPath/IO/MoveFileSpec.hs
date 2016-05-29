@@ -18,78 +18,96 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "myFile"
+  createSymlink' "myFileL" "myFile"
+  createRegularFile' "alreadyExists"
+  createDir' "alreadyExistsD"
+  createDir' "dir"
+  createDir' "noPerms"
+  createDir' "noWritePerm"
+  noPerms "noPerms"
+  noWritableDirPerms "noWritePerm"
+  writeFile' "myFile" "Blahfaselgagaga"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/moveFileSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  normalDirPerms "noWritePerm"
+  deleteFile' "myFile"
+  deleteFile' "myFileL"
+  deleteFile' "alreadyExists"
+  deleteDir' "alreadyExistsD"
+  deleteDir' "dir"
+  deleteDir' "noPerms"
+  deleteDir' "noWritePerm"
+
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.moveFile" $ do
 
     -- successes --
     it "moveFile, all fine" $
-      moveFile' (specDir `ba` "myFile")
-                (specDir `ba` "movedFile")
+      moveFile' "myFile"
+                "movedFile"
 
     it "moveFile, all fine" $
-      moveFile' (specDir `ba` "myFile")
-                (specDir `ba` "dir/movedFile")
+      moveFile' "myFile"
+                "dir/movedFile"
 
     it "moveFile, all fine on symlink" $
-      moveFile' (specDir `ba` "myFileL")
-                (specDir `ba` "movedFile")
+      moveFile' "myFileL"
+                "movedFile"
 
     it "moveFile, all fine on directory" $
-      moveFile' (specDir `ba` "dir")
-                (specDir `ba` "movedFile")
+      moveFile' "dir"
+                "movedFile"
 
     -- posix failures --
     it "moveFile, source file does not exist" $
-      moveFile' (specDir `ba` "fileDoesNotExist")
-                (specDir `ba` "movedFile")
+      moveFile' "fileDoesNotExist"
+                "movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "moveFile, can't write to destination directory" $
-      moveFile' (specDir `ba` "myFile")
-                (specDir `ba` "noWritePerm/movedFile")
+      moveFile' "myFile"
+                "noWritePerm/movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "moveFile, can't open destination directory" $
-      moveFile' (specDir `ba` "myFile")
-                (specDir `ba` "noPerms/movedFile")
+      moveFile' "myFile"
+                "noPerms/movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "moveFile, can't open source directory" $
-      moveFile' (specDir `ba` "noPerms/myFile")
-                (specDir `ba` "movedFile")
+      moveFile' "noPerms/myFile"
+                "movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     -- custom failures --
     it "moveFile, destination file already exists" $
-      moveFile' (specDir `ba` "myFile")
-                (specDir `ba` "alreadyExists")
+      moveFile' "myFile"
+                "alreadyExists"
         `shouldThrow`
         isFileDoesExist
 
     it "moveFile, move from file to dir" $
-      moveFile' (specDir `ba` "myFile")
-                (specDir `ba` "alreadyExistsD")
+      moveFile' "myFile"
+                "alreadyExistsD"
         `shouldThrow`
         isDirDoesExist
 
     it "moveFile, source and dest are same file" $
-      moveFile' (specDir `ba` "myFile")
-                (specDir `ba` "myFile")
+      moveFile' "myFile"
+                "myFile"
         `shouldThrow`
         isSameFile
 

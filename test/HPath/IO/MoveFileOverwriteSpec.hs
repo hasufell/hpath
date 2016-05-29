@@ -18,76 +18,92 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "myFile"
+  createSymlink' "myFileL" "myFile"
+  createDir' "alreadyExistsD"
+  createDir' "dir"
+  createDir' "noPerms"
+  createDir' "noWritePerm"
+  noPerms "noPerms"
+  noWritableDirPerms "noWritePerm"
+  writeFile' "myFile" "Blahfaselgagaga"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/moveFileOverwriteSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  normalDirPerms "noWritePerm"
+  deleteFile' "myFile"
+  deleteFile' "myFileL"
+  deleteDir' "alreadyExistsD"
+  deleteDir' "dir"
+  deleteDir' "noPerms"
+  deleteDir' "noWritePerm"
+
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.moveFileOverwrite" $ do
 
     -- successes --
     it "moveFileOverwrite, all fine" $
-      moveFileOverwrite' (specDir `ba` "myFile")
-                         (specDir `ba` "movedFile")
+      moveFileOverwrite' "myFile"
+                         "movedFile"
 
     it "moveFileOverwrite, all fine" $
-      moveFileOverwrite' (specDir `ba` "myFile")
-                         (specDir `ba` "dir/movedFile")
+      moveFileOverwrite' "myFile"
+                         "dir/movedFile"
 
     it "moveFileOverwrite, all fine on symlink" $
-      moveFileOverwrite' (specDir `ba` "myFileL")
-                         (specDir `ba` "movedFile")
+      moveFileOverwrite' "myFileL"
+                         "movedFile"
 
     it "moveFileOverwrite, all fine on directory" $
-      moveFileOverwrite' (specDir `ba` "dir")
-                         (specDir `ba` "movedFile")
+      moveFileOverwrite' "dir"
+                         "movedFile"
 
     it "moveFileOverwrite, destination file already exists" $
-      moveFileOverwrite' (specDir `ba` "myFile")
-                         (specDir `ba` "alreadyExists")
+      moveFileOverwrite' "myFile"
+                         "alreadyExists"
 
     -- posix failures --
     it "moveFileOverwrite, source file does not exist" $
-      moveFileOverwrite' (specDir `ba` "fileDoesNotExist")
-                         (specDir `ba` "movedFile")
+      moveFileOverwrite' "fileDoesNotExist"
+                         "movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "moveFileOverwrite, can't write to destination directory" $
-      moveFileOverwrite' (specDir `ba` "myFile")
-                         (specDir `ba` "noWritePerm/movedFile")
+      moveFileOverwrite' "myFile"
+                         "noWritePerm/movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "moveFileOverwrite, can't open destination directory" $
-      moveFileOverwrite' (specDir `ba` "myFile")
-                         (specDir `ba` "noPerms/movedFile")
+      moveFileOverwrite' "myFile"
+                         "noPerms/movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "moveFileOverwrite, can't open source directory" $
-      moveFileOverwrite' (specDir `ba` "noPerms/myFile")
-                         (specDir `ba` "movedFile")
+      moveFileOverwrite' "noPerms/myFile"
+                         "movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     -- custom failures --
     it "moveFileOverwrite, move from file to dir" $
-      moveFileOverwrite' (specDir `ba` "myFile")
-                         (specDir `ba` "alreadyExistsD")
+      moveFileOverwrite' "myFile"
+                         "alreadyExistsD"
         `shouldThrow`
         isDirDoesExist
 
     it "moveFileOverwrite, source and dest are same file" $
-      moveFileOverwrite' (specDir `ba` "myFile")
-                         (specDir `ba` "myFile")
+      moveFileOverwrite' "myFile"
+                         "myFile"
         `shouldThrow`
         isSameFile
 

@@ -16,6 +16,7 @@ import Data.Maybe
     fromJust
   )
 import qualified HPath as P
+import HPath.IO
 import Test.Hspec
 import System.IO.Error
   (
@@ -34,56 +35,71 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "file"
+  createRegularFile' "Lala"
+  createRegularFile' ".hidden"
+  createSymlink' "syml" "Lala"
+  createDir' "dir"
+  createSymlink' "dirsym" "dir"
+  createDir' "noPerms"
+  noPerms "noPerms"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/getDirsFilesSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  deleteFile' "file"
+  deleteFile' "Lala"
+  deleteFile' ".hidden"
+  deleteFile' "syml"
+  deleteDir' "dir"
+  deleteFile' "dirsym"
+  deleteDir' "noPerms"
+
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.getDirsFiles" $ do
 
     -- successes --
-    it "getDirsFiles, all fine" $ do
-      pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-      expectedFiles <- mapM P.parseRel [(specDir `ba ` ".hidden")
-                                       ,(specDir `ba ` "Lala")
-                                       ,(specDir `ba ` "dir")
-                                       ,(specDir `ba ` "dirsym")
-                                       ,(specDir `ba ` "file")
-                                       ,(specDir `ba ` "noPerms")
-                                       ,(specDir `ba ` "syml")]
-      (fmap sort $ getDirsFiles' specDir)
-        `shouldReturn` fmap (pwd P.</>) expectedFiles
+    it "getDirsFiles, all fine" $
+      withRawTmpDir $ \p -> do
+      expectedFiles <- mapM P.parseRel [".hidden"
+                                       ,"Lala"
+                                       ,"dir"
+                                       ,"dirsym"
+                                       ,"file"
+                                       ,"noPerms"
+                                       ,"syml"]
+      (fmap sort $ getDirsFiles p)
+        `shouldReturn` fmap (p P.</>) expectedFiles
 
     -- posix failures --
     it "getDirsFiles, nonexistent directory" $
-      getDirsFiles' (specDir `ba ` "nothingHere")
+      getDirsFiles' "nothingHere"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "getDirsFiles, wrong file type (file)" $
-      getDirsFiles' (specDir `ba ` "file")
+      getDirsFiles' "file"
         `shouldThrow`
         (\e -> ioeGetErrorType e == InappropriateType)
 
     it "getDirsFiles, wrong file type (symlink to file)" $
-      getDirsFiles' (specDir `ba ` "syml")
+      getDirsFiles' "syml"
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
     it "getDirsFiles, wrong file type (symlink to dir)" $
-      getDirsFiles' (specDir `ba ` "dirsym")
+      getDirsFiles' "dirsym"
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
     it "getDirsFiles, can't open directory" $
-      getDirsFiles' (specDir `ba ` "noPerms")
+      getDirsFiles' "noPerms"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 

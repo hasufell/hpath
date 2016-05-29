@@ -18,78 +18,95 @@ import qualified Data.ByteString as BS
 import           Data.ByteString.UTF8 (toString)
 
 
-ba :: BS.ByteString -> BS.ByteString -> BS.ByteString
-ba = BS.append
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "myFile"
+  createSymlink' "myFileL" "myFile"
+  createRegularFile' "alreadyExists"
+  createDir' "alreadyExistsD"
+  createDir' "dir"
+  createDir' "noPerms"
+  createDir' "noWritePerm"
+  noPerms "noPerms"
+  noWritableDirPerms "noWritePerm"
+  writeFile' "myFile" "Blahfaselgagaga"
 
-specDir :: BS.ByteString
-specDir = "test/HPath/IO/recreateSymlinkSpec/"
 
-specDir' :: String
-specDir' = toString specDir
+cleanupFiles :: IO ()
+cleanupFiles = do
+  normalDirPerms "noPerms"
+  normalDirPerms "noWritePerm"
+  deleteFile' "myFile"
+  deleteFile' "myFileL"
+  deleteFile' "alreadyExists"
+  deleteDir' "alreadyExistsD"
+  deleteDir' "dir"
+  deleteDir' "noPerms"
+  deleteDir' "noWritePerm"
 
 
 spec :: Spec
-spec =
+spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.recreateSymlink" $ do
 
     -- successes --
     it "recreateSymLink, all fine" $ do
-      recreateSymlink' (specDir `ba` "myFileL")
-                       (specDir `ba` "movedFile")
-      removeFileIfExists (specDir `ba` "movedFile")
+      recreateSymlink' "myFileL"
+                       "movedFile"
+      removeFileIfExists "movedFile"
 
     it "recreateSymLink, all fine" $ do
-      recreateSymlink' (specDir `ba` "myFileL")
-                       (specDir `ba` "dir/movedFile")
-      removeFileIfExists (specDir `ba` "dir/movedFile")
+      recreateSymlink' "myFileL"
+                       "dir/movedFile"
+      removeFileIfExists "dir/movedFile"
 
     -- posix failures --
     it "recreateSymLink, wrong input type (file)" $
-      recreateSymlink' (specDir `ba` "myFile")
-                       (specDir `ba` "movedFile")
+      recreateSymlink' "myFile"
+                       "movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
     it "recreateSymLink, wrong input type (directory)" $
-      recreateSymlink' (specDir `ba` "dir")
-                       (specDir `ba` "movedFile")
+      recreateSymlink' "dir"
+                       "movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
     it "recreateSymLink, can't write to destination directory" $
-      recreateSymlink' (specDir `ba` "myFileL")
-                       (specDir `ba` "noWritePerm/movedFile")
+      recreateSymlink' "myFileL"
+                       "noWritePerm/movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "recreateSymLink, can't open destination directory" $
-      recreateSymlink' (specDir `ba` "myFileL")
-                       (specDir `ba` "noPerms/movedFile")
+      recreateSymlink' "myFileL"
+                       "noPerms/movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "recreateSymLink, can't open source directory" $
-      recreateSymlink' (specDir `ba` "noPerms/myFileL")
-                       (specDir `ba` "movedFile")
+      recreateSymlink' "noPerms/myFileL"
+                       "movedFile"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "recreateSymLink, destination file already exists" $
-      recreateSymlink' (specDir `ba` "myFileL")
-                       (specDir `ba` "alreadyExists")
+      recreateSymlink' "myFileL"
+                       "alreadyExists"
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 
     it "recreateSymLink, destination already exists and is a dir" $
-      recreateSymlink' (specDir `ba` "myFileL")
-                       (specDir `ba` "alreadyExistsD")
+      recreateSymlink' "myFileL"
+                       "alreadyExistsD"
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 
     -- custom failures --
     it "recreateSymLink, source and destination are the same file" $
-      recreateSymlink' (specDir `ba` "myFileL")
-                       (specDir `ba` "myFileL")
+      recreateSymlink' "myFileL"
+                       "myFileL"
         `shouldThrow`
         isSameFile
 
