@@ -56,6 +56,7 @@ module HPath.IO
   -- * File creation
   , createRegularFile
   , createDir
+  , createSymlink
   -- * File renaming/moving
   , renameFile
   , moveFile
@@ -314,6 +315,7 @@ copyDirRecursiveOverwrite fromp destdirp
           Directory    -> go f newdest
           RegularFile  -> copyFileOverwrite f newdest
           _            -> return ()
+
 
 -- |Recreate a symlink.
 --
@@ -625,6 +627,20 @@ createRegularFile dest =
 createDir :: Path Abs -> IO ()
 createDir dest = createDirectory (fromAbs dest) newDirPerms
 
+
+-- |Create a symlink.
+--
+-- Throws:
+--
+--    - `PermissionDenied` if output directory cannot be written to
+--    - `AlreadyExists` if destination file already exists
+--
+-- Note: calls `symlink`
+createSymlink :: Path Abs   -- ^ destination file
+              -> ByteString -- ^ path the symlink points to
+              -> IO ()
+createSymlink dest sympoint
+  = createSymbolicLink sympoint (fromAbs dest)
 
 
 
