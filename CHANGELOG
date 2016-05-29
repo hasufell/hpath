@@ -1,3 +1,6 @@
+0.7.2:
+	* fix tests, so they work with the sdist tarball too
+	* added the following function to HPath.IO: createSymlink
 0.7.1:
 	* various cleanups and documentation improvements
 	* added the following functions to System.Posix.FilePath: splitSearchPath, getSearchPath, stripExtension, makeRelative, makeValid
