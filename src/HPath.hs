@@ -95,7 +95,9 @@ instance RelC Fn
 --------------------------------------------------------------------------------
 -- PatternSynonyms
 
+#if __GLASGOW_HASKELL__ >= 710
 pattern Path :: ByteString -> Path a
+#endif
 pattern Path x <- (MkPath x)
 
 --------------------------------------------------------------------------------
