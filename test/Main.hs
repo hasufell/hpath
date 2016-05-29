@@ -13,7 +13,7 @@ import Utils
 main :: IO ()
 main =
   hspecWith
-    defaultConfig { configFormatter = Just specdoc }
+    defaultConfig { configFormatter = Just progress }
     $ before_ up
     $ after_ down
     $ Spec.spec
