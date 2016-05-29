@@ -73,6 +73,22 @@ test-suite spec
   Hs-Source-Dirs:       test
   Main-Is:              Main.hs
   other-modules:
+                        HPath.IO.CanonicalizePathSpec
+                        HPath.IO.CopyDirRecursiveSpec
+                        HPath.IO.CopyDirRecursiveOverwriteSpec
+                        HPath.IO.CopyFileSpec
+                        HPath.IO.CopyFileOverwriteSpec
+                        HPath.IO.CreateDirSpec
+                        HPath.IO.CreateRegularFileSpec
+                        HPath.IO.DeleteDirRecursiveSpec
+                        HPath.IO.DeleteDirSpec
+                        HPath.IO.DeleteFileSpec
+                        HPath.IO.GetDirsFilesSpec
+                        HPath.IO.GetFileTypeSpec
+                        HPath.IO.MoveFileSpec
+                        HPath.IO.MoveFileOverwriteSpec
+                        HPath.IO.RecreateSymlinkSpec
+                        HPath.IO.RenameFileSpec
                         Spec
                         Utils
   GHC-Options:          -Wall
