@@ -62,3 +62,26 @@ Note: this library was written for __posix__ systems and it will probably not su
 * has a custom versions of `openFd` which allows more control over the flags than its unix package counterpart
 * adds a `getDirectoryContents'` version that works on Fd
 
+## Examples in ghci
+
+Start ghci via `cabal repl`:
+
+```hs
+-- enable OverloadedStrings
+:set -XOverloadedStrings
+-- import HPath.IO
+import HPath.IO
+-- parse an absolute path
+abspath <- parseAbs "/home"
+-- parse a relative path (e.g. user users home directory)
+relpath <- parseRel "jule"
+-- concatenate paths
+let newpath = abspath </> relpath
+-- get file type
+getFileType newpath
+-- return all contents of that directory
+getDirsFiles newpath
+-- return all contents of the parent directory
+getDirsFiles (dirname newpath)
+```
+
