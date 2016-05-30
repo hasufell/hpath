@@ -12,7 +12,7 @@ import Data.Data
 
 -- | Path of some base and type.
 --
--- Internally is a string. The string can be of two formats only:
+-- Internally is a ByteString. The ByteString can be of two formats only:
 --
 -- 1. without trailing path separator: @file.txt@, @foo\/bar.txt@, @\/foo\/bar.txt@
 -- 2. with trailing path separator: @foo\/@, @\/foo\/bar\/@
@@ -22,7 +22,7 @@ import Data.Data
 data Path b = MkPath ByteString
   deriving (Typeable)
 
--- | String equality.
+-- | ByteString equality.
 --
 -- The following property holds:
 --
@@ -30,7 +30,7 @@ data Path b = MkPath ByteString
 instance Eq (Path b) where
   (==) (MkPath x) (MkPath y) = x == y
 
--- | String ordering.
+-- | ByteString ordering.
 --
 -- The following property holds:
 --
@@ -38,7 +38,7 @@ instance Eq (Path b) where
 instance Ord (Path b) where
   compare (MkPath x) (MkPath y) = compare x y
 
--- | Same as 'Path.toFilePath'.
+-- | Same as 'HPath.toFilePath'.
 --
 -- The following property holds:
 --
