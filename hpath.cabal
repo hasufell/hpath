@@ -25,11 +25,11 @@ library
                      HPath.IO,
                      HPath.IO.Errors,
                      HPath.IO.Utils,
-                     HPath.Internal,
                      System.Posix.Directory.Foreign,
                      System.Posix.Directory.Traversals,
                      System.Posix.FD,
                      System.Posix.FilePath
+  other-modules:     HPath.Internal
   build-depends:     base >= 4.2 && <5
                    , bytestring >= 0.9.2.0
                    , deepseq
