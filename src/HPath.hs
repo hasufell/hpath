@@ -24,6 +24,7 @@ module HPath
   ,Fn
   ,PathParseException
   ,PathException
+  ,RelC
   -- * PatternSynonyms/ViewPatterns
   ,pattern Path
    -- * Path Parsing
@@ -88,6 +89,8 @@ instance Exception PathParseException
 data PathException = RootDirHasNoBasename
   deriving (Show,Typeable)
 instance Exception PathException
+
+class RelC m
 
 instance RelC Rel
 instance RelC Fn

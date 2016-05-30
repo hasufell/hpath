@@ -3,8 +3,7 @@
 -- | Internal types and functions.
 
 module HPath.Internal
-  (Path(..)
-  ,RelC)
+  (Path(..))
   where
 
 import Control.DeepSeq (NFData (..))
@@ -49,7 +48,4 @@ instance Show (Path b) where
 
 instance NFData (Path b) where
   rnf (MkPath x) = rnf x
-
-
-class RelC m
 
