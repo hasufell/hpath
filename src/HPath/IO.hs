@@ -26,9 +26,9 @@
 -- exception handling is kept.
 --
 -- Note: `BlockDevice`, `CharacterDevice`, `NamedPipe` and `Socket`
--- are not explicitly supported right now. Calling any of these
--- functions on such a file may throw an exception or just do
--- nothing.
+-- are ignored by some of the more high-level functions (like `easyCopy`).
+-- For other functions (like `copyFile`), the behavior on these file types is
+-- unreliable/unsafe. Check the documentation of those functions for details.
 
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -224,6 +224,10 @@ data FileType = Directory
 -- |Copies a directory recursively to the given destination.
 -- Does not follow symbolic links.
 --
+-- For directory contents, this has the same behavior as `easyCopy`
+-- and thus will ignore any file type that is not `RegularFile`,
+-- `SymbolicLink` or `Directory`.
+--
 -- Safety/reliability concerns:
 --
 --    * not atomic
@@ -262,6 +266,8 @@ copyDirRecursive fromp destdirp
       fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
       createDirectory (fromAbs destdirp') fmode'
 
+      -- we can't use `easyCopy` here, because we want to call `go`
+      -- recursively to skip the top-level sanity checks
       for_ contents $ \f -> do
         ftype <- getFileType f
         newdest <- (destdirp' </>) <$> basename f
@@ -274,6 +280,10 @@ copyDirRecursive fromp destdirp
 
 -- |Like `copyDirRecursive` except it overwrites contents of directories
 -- if any.
+--
+-- For directory contents, this has the same behavior as `easyCopyOverwrite`
+-- and thus will ignore any file type that is not `RegularFile`,
+-- `SymbolicLink` or `Directory`.
 --
 -- Throws:
 --
@@ -306,6 +316,8 @@ copyDirRecursiveOverwrite fromp destdirp
           AlreadyExists -> setFileMode (fromAbs destdirp') fmode'
           _             -> ioError e
 
+      -- we can't use `easyCopyOverwrite` here, because we want to call `go`
+      -- recursively to skip the top-level sanity checks
       for_ contents $ \f -> do
         ftype <- getFileType f
         newdest <- (destdirp' </>) <$> basename f
@@ -321,8 +333,7 @@ copyDirRecursiveOverwrite fromp destdirp
 --
 -- Throws:
 --
---    - `InvalidArgument` if symlink file is wrong type (file)
---    - `InvalidArgument` if symlink file is wrong type (directory)
+--    - `InvalidArgument` if source file is wrong type (not a symlink)
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `PermissionDenied` if source directory cannot be opened
 --    - `AlreadyExists` if destination file already exists
@@ -343,13 +354,26 @@ recreateSymlink symsource newsym
 -- Neither follows symbolic links, nor accepts them.
 -- For "copying" symbolic links, use `recreateSymlink` instead.
 --
+-- Note that this is still sort of a low-level function and doesn't
+-- examine file types. For a more high-level version, use `easyCopy`
+-- instead.
+--
+-- Safety/reliability concerns:
+--
+--    * when used on `CharacterDevice`, reads the "contents" and copies
+--      them to a regular file, which might take indefinitely
+--    * when used on `BlockDevice`, may either read the "contents"
+--      and copy them to a regular file (potentially hanging indefinitely)
+--      or may create a regular empty destination file
+--    * when used on `NamedPipe`, will hang indefinitely
+--
 -- Throws:
 --
 --    - `NoSuchThing` if source file does not exist
+--    - `NoSuchThing` if source file is a a `Socket`
 --    - `PermissionDenied` if output directory is not writable
 --    - `PermissionDenied` if source directory can't be opened
---    - `InvalidArgument` if source file is wrong type (symlink)
---    - `InvalidArgument` if source file is wrong type (directory)
+--    - `InvalidArgument` if source file is wrong type (symlink or directory)
 --    - `AlreadyExists` if destination already exists
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --
@@ -366,19 +390,24 @@ copyFile from to = do
 
 -- |Like `copyFile` except it overwrites the destination if it already
 -- exists.
--- This also works if source and destination are the same file.
 --
 -- Safety/reliability concerns:
 --
+--    * when used on `CharacterDevice`, reads the "contents" and copies
+--      them to a regular file, which might take indefinitely
+--    * when used on `BlockDevice`, may either read the "contents"
+--      and copy them to a regular file (potentially hanging indefinitely)
+--      or may create a regular empty destination file
+--    * when used on `NamedPipe`, will hang indefinitely
 --    * not atomic, since it uses read/write
 --
 -- Throws:
 --
 --    - `NoSuchThing` if source file does not exist
+--    - `NoSuchThing` if source file is a `Socket`
 --    - `PermissionDenied` if output directory is not writable
 --    - `PermissionDenied` if source directory can't be opened
---    - `InvalidArgument` if source file is wrong type (symlink)
---    - `InvalidArgument` if source file is wrong type (directory)
+--    - `InvalidArgument` if source file is wrong type (symlink or directory)
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --
 -- Note: calls `sendfile` and possibly `read`/`write` as fallback
@@ -451,8 +480,9 @@ _copyFile sflags dflags from to
                       write' sfd dfd buf (totalsize + fromIntegral size)
 
 
--- |Copies anything. In case of a symlink,
--- it is just recreated, even if it points to a directory.
+-- |Copies a regular file, directory or symbolic link. In case of a
+-- symbolic link it is just recreated, even if it points to a directory.
+-- Any other file type is ignored.
 --
 -- Safety/reliability concerns:
 --
@@ -473,6 +503,11 @@ easyCopy from to = do
 -- |Like `easyCopy` except it overwrites the destination if it already exists.
 -- For directories, this overwrites contents without pruning them, so the resulting
 -- directory may have more files than have been copied.
+--
+-- Safety/reliability concerns:
+--
+--    * examines filetypes explicitly
+--    * calls `copyDirRecursive` for directories
 easyCopyOverwrite :: Path Abs
                   -> Path Abs
                   -> IO ()
@@ -526,6 +561,10 @@ deleteDir p = withAbsPath p removeDirectory
 -- links. Tries `deleteDir` first before attemtping a recursive
 -- deletion.
 --
+-- On directory contents this behaves like `easyDelete`
+-- and thus will ignore any file type that is not `RegularFile`,
+-- `SymbolicLink` or `Directory`.
+--
 -- Safety/reliability concerns:
 --
 --    * not atomic
@@ -553,9 +592,10 @@ deleteDirRecursive p =
       removeDirectory . toFilePath $ p
 
 
--- |Deletes a file, directory or symlink, whatever it may be.
+-- |Deletes a file, directory or symlink.
 -- In case of directory, performs recursive deletion. In case of
 -- a symlink, the symlink file is deleted.
+-- Any other file type is ignored.
 --
 -- Safety/reliability concerns:
 --
@@ -682,9 +722,13 @@ renameFile fromf tof = do
 --
 -- Does not follow symbolic links, but renames the symbolic link file.
 --
+--
 -- Safety/reliability concerns:
 --
 --    * copy-delete fallback is inherently non-atomic
+--    * since this function calls `easyCopy` and `easyDelete` as a fallback
+--      to `renameFile`, file types that are not `RegularFile`, `SymbolicLink`
+--      or `Directory` may be ignored
 --
 -- Throws:
 --
@@ -709,6 +753,9 @@ moveFile from to = do
 -- |Like `moveFile`, but overwrites the destination if it exists.
 --
 -- Does not follow symbolic links, but renames the symbolic link file.
+--
+-- Ignores any file type that is not `RegularFile`, `SymbolicLink` or
+-- `Directory`.
 --
 -- Safety/reliability concerns:
 --
