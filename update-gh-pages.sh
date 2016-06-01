@@ -19,6 +19,13 @@ git config --global user.email "travis@travis-ci.org"
 git config --global user.name "travis-ci"
 git clone --branch=${TARGET_BRANCH} ${REPO} ${TARGET_BRANCH} || exit 1
 
+# docs
+cd ${TARGET_BRANCH} || exit 1
+echo "Removing old docs."
+rm -rf .
+echo "Adding new docs."
+cp -rf "${TRAVIS_BUILD_DIR}${DOC_LOCATION}"/* . || exit 1
+
 # If there are no changes to the compiled out (e.g. this is a README update)
 # then just bail.
 if [ -z `git diff --exit-code` ]; then
@@ -26,13 +33,7 @@ if [ -z `git diff --exit-code` ]; then
     exit 0
 fi
 
-# docs
-cd ${TARGET_BRANCH} || exit 1
-echo "Removing old docs."
-git rm -rf .
-echo "Adding new docs."
-cp -rf "${TRAVIS_BUILD_DIR}${DOC_LOCATION}"/* . || exit 1
-git add *
+git add -- .
 
 if [[ -e ./index.html ]] ; then
 	echo "Commiting docs."
@@ -45,7 +46,7 @@ auto-pushed to gh-pages"
 	git push origin $TARGET_BRANCH
 	echo "Published docs to gh-pages."
 else
-	echo "Error docs are empty."
+	echo "Error: docs are empty."
 	exit 1
 fi
 
