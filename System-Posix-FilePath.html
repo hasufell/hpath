@@ -1,0 +1,243 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>System.Posix.FilePath</title><link href="ocean.css" rel="stylesheet" type="text/css" title="Ocean" /><script src="haddock-util.js" type="text/javascript"></script><script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script><script type="text/javascript">//<![CDATA[
+window.onload = function () {pageLoad();setSynopsis("mini_System-Posix-FilePath.html");};
+//]]>
+</script></head><body><div id="package-header"><ul class="links" id="page-menu"><li><a href="src/System-Posix-FilePath.html">Source</a></li><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul><p class="caption">hpath-0.7.3: Support for well-typed paths</p></div><div id="content"><div id="module-header"><table class="info"><tr><th>Copyright</th><td>&#169; 2016 Julian Ospald</td></tr><tr><th>License</th><td>BSD3</td></tr><tr><th>Maintainer</th><td>Julian Ospald &lt;hasufell@posteo.de&gt;</td></tr><tr><th>Stability</th><td>experimental</td></tr><tr><th>Portability</th><td>portable</td></tr><tr><th>Safe Haskell</th><td>Safe</td></tr><tr><th>Language</th><td>Haskell2010</td></tr></table><p class="caption">System.Posix.FilePath</p></div><div id="table-of-contents"><p class="caption">Contents</p><ul><li><a href="#g:1">Separator predicates</a></li><li><a href="#g:2">$PATH methods</a></li><li><a href="#g:3">Extension functions</a></li><li><a href="#g:4">Filename/directory functions</a></li><li><a href="#g:5">Trailing slash functions</a></li><li><a href="#g:6">File name manipulations</a></li></ul></div><div id="description"><p class="caption">Description</p><div class="doc"><p>The equivalent of <a href="System-FilePath.html">System.FilePath</a> on raw (byte string) file paths.</p><p>Not all functions of <a href="System-FilePath.html">System.FilePath</a> are implemented yet. Feel free to contribute!</p></div></div><div id="synopsis"><p id="control.syn" class="caption expander" onclick="toggleSection('syn')">Synopsis</p><ul id="section.syn" class="hide" onclick="toggleSection('syn')"><li class="src short"><a href="#v:pathSeparator">pathSeparator</a> :: Word8</li><li class="src short"><a href="#v:isPathSeparator">isPathSeparator</a> :: Word8 -&gt; Bool</li><li class="src short"><a href="#v:searchPathSeparator">searchPathSeparator</a> :: Word8</li><li class="src short"><a href="#v:isSearchPathSeparator">isSearchPathSeparator</a> :: Word8 -&gt; Bool</li><li class="src short"><a href="#v:extSeparator">extSeparator</a> :: Word8</li><li class="src short"><a href="#v:isExtSeparator">isExtSeparator</a> :: Word8 -&gt; Bool</li><li class="src short"><a href="#v:splitSearchPath">splitSearchPath</a> :: <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; [RawFilePath]</li><li class="src short"><a href="#v:getSearchPath">getSearchPath</a> :: IO [RawFilePath]</li><li class="src short"><a href="#v:splitExtension">splitExtension</a> :: RawFilePath -&gt; (RawFilePath, <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a>)</li><li class="src short"><a href="#v:takeExtension">takeExtension</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a></li><li class="src short"><a href="#v:replaceExtension">replaceExtension</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath</li><li class="src short"><a href="#v:dropExtension">dropExtension</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:addExtension">addExtension</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath</li><li class="src short"><a href="#v:hasExtension">hasExtension</a> :: RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:-60-.-62-">(&lt;.&gt;)</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath</li><li class="src short"><a href="#v:splitExtensions">splitExtensions</a> :: RawFilePath -&gt; (RawFilePath, <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a>)</li><li class="src short"><a href="#v:dropExtensions">dropExtensions</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:takeExtensions">takeExtensions</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a></li><li class="src short"><a href="#v:stripExtension">stripExtension</a> :: <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath -&gt; Maybe RawFilePath</li><li class="src short"><a href="#v:splitFileName">splitFileName</a> :: RawFilePath -&gt; (RawFilePath, RawFilePath)</li><li class="src short"><a href="#v:takeFileName">takeFileName</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:replaceFileName">replaceFileName</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath</li><li class="src short"><a href="#v:dropFileName">dropFileName</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:takeBaseName">takeBaseName</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a></li><li class="src short"><a href="#v:replaceBaseName">replaceBaseName</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath</li><li class="src short"><a href="#v:takeDirectory">takeDirectory</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:replaceDirectory">replaceDirectory</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath</li><li class="src short"><a href="#v:combine">combine</a> :: RawFilePath -&gt; RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:-60--47--62-">(&lt;/&gt;)</a> :: RawFilePath -&gt; RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:splitPath">splitPath</a> :: RawFilePath -&gt; [RawFilePath]</li><li class="src short"><a href="#v:joinPath">joinPath</a> :: [RawFilePath] -&gt; RawFilePath</li><li class="src short"><a href="#v:splitDirectories">splitDirectories</a> :: RawFilePath -&gt; [RawFilePath]</li><li class="src short"><a href="#v:hasTrailingPathSeparator">hasTrailingPathSeparator</a> :: RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:addTrailingPathSeparator">addTrailingPathSeparator</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:dropTrailingPathSeparator">dropTrailingPathSeparator</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:normalise">normalise</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:makeRelative">makeRelative</a> :: RawFilePath -&gt; RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:equalFilePath">equalFilePath</a> :: RawFilePath -&gt; RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:isRelative">isRelative</a> :: RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:isAbsolute">isAbsolute</a> :: RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:isValid">isValid</a> :: RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:makeValid">makeValid</a> :: RawFilePath -&gt; RawFilePath</li><li class="src short"><a href="#v:isFileName">isFileName</a> :: RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:hasParentDir">hasParentDir</a> :: RawFilePath -&gt; Bool</li><li class="src short"><a href="#v:hiddenFile">hiddenFile</a> :: RawFilePath -&gt; Bool</li></ul></div><div id="interface"><h1 id="g:1">Separator predicates</h1><div class="top"><p class="src"><a id="v:pathSeparator" class="def">pathSeparator</a> :: Word8 <a href="src/System-Posix-FilePath.html#pathSeparator" class="link">Source</a> <a href="#v:pathSeparator" class="selflink">#</a></p><div class="doc"><p>Path separator character</p></div></div><div class="top"><p class="src"><a id="v:isPathSeparator" class="def">isPathSeparator</a> :: Word8 -&gt; Bool <a href="src/System-Posix-FilePath.html#isPathSeparator" class="link">Source</a> <a href="#v:isPathSeparator" class="selflink">#</a></p><div class="doc"><p>Check if a character is the path separator</p><pre>\n -&gt;  (_chr n == '/') == isPathSeparator n</pre></div></div><div class="top"><p class="src"><a id="v:searchPathSeparator" class="def">searchPathSeparator</a> :: Word8 <a href="src/System-Posix-FilePath.html#searchPathSeparator" class="link">Source</a> <a href="#v:searchPathSeparator" class="selflink">#</a></p><div class="doc"><p>Search path separator</p></div></div><div class="top"><p class="src"><a id="v:isSearchPathSeparator" class="def">isSearchPathSeparator</a> :: Word8 -&gt; Bool <a href="src/System-Posix-FilePath.html#isSearchPathSeparator" class="link">Source</a> <a href="#v:isSearchPathSeparator" class="selflink">#</a></p><div class="doc"><p>Check if a character is the search path separator</p><pre>\n -&gt; (_chr n == ':') == isSearchPathSeparator n</pre></div></div><div class="top"><p class="src"><a id="v:extSeparator" class="def">extSeparator</a> :: Word8 <a href="src/System-Posix-FilePath.html#extSeparator" class="link">Source</a> <a href="#v:extSeparator" class="selflink">#</a></p><div class="doc"><p>File extension separator</p></div></div><div class="top"><p class="src"><a id="v:isExtSeparator" class="def">isExtSeparator</a> :: Word8 -&gt; Bool <a href="src/System-Posix-FilePath.html#isExtSeparator" class="link">Source</a> <a href="#v:isExtSeparator" class="selflink">#</a></p><div class="doc"><p>Check if a character is the file extension separator</p><pre>\n -&gt; (_chr n == '.') == isExtSeparator n</pre></div></div><h1 id="g:2">$PATH methods</h1><div class="top"><p class="src"><a id="v:splitSearchPath" class="def">splitSearchPath</a> :: <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; [RawFilePath] <a href="src/System-Posix-FilePath.html#splitSearchPath" class="link">Source</a> <a href="#v:splitSearchPath" class="selflink">#</a></p><div class="doc"><p>Take a ByteString, split it on the <code><a href="System-Posix-FilePath.html#v:searchPathSeparator">searchPathSeparator</a></code>.
+ Blank items are converted to <code>.</code>.</p><p>Follows the recommendations in
+ <a href="http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html">http://www.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html</a></p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitSearchPath &quot;File1:File2:File3&quot;
+</code></strong>[&quot;File1&quot;,&quot;File2&quot;,&quot;File3&quot;]
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitSearchPath &quot;File1::File2:File3&quot;
+</code></strong>[&quot;File1&quot;,&quot;.&quot;,&quot;File2&quot;,&quot;File3&quot;]
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitSearchPath &quot;&quot;
+</code></strong>[&quot;.&quot;]
+</pre></div></div><div class="top"><p class="src"><a id="v:getSearchPath" class="def">getSearchPath</a> :: IO [RawFilePath] <a href="src/System-Posix-FilePath.html#getSearchPath" class="link">Source</a> <a href="#v:getSearchPath" class="selflink">#</a></p><div class="doc"><p>Get a list of <code>RawFilePath</code>s in the $PATH variable.</p></div></div><h1 id="g:3">Extension functions</h1><div class="top"><p class="src"><a id="v:splitExtension" class="def">splitExtension</a> :: RawFilePath -&gt; (RawFilePath, <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a>) <a href="src/System-Posix-FilePath.html#splitExtension" class="link">Source</a> <a href="#v:splitExtension" class="selflink">#</a></p><div class="doc"><p>Split a <code>RawFilePath</code> into a path+filename and extension</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitExtension &quot;file.exe&quot;
+</code></strong>(&quot;file&quot;,&quot;.exe&quot;)
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitExtension &quot;file&quot;
+</code></strong>(&quot;file&quot;,&quot;&quot;)
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitExtension &quot;/path/file.tar.gz&quot;
+</code></strong>(&quot;/path/file.tar&quot;,&quot;.gz&quot;)
+</pre><pre>\path -&gt; uncurry (BS.append) (splitExtension path) == path</pre></div></div><div class="top"><p class="src"><a id="v:takeExtension" class="def">takeExtension</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> <a href="src/System-Posix-FilePath.html#takeExtension" class="link">Source</a> <a href="#v:takeExtension" class="selflink">#</a></p><div class="doc"><p>Get the final extension from a <code>RawFilePath</code></p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeExtension &quot;file.exe&quot;
+</code></strong>&quot;.exe&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeExtension &quot;file&quot;
+</code></strong>&quot;&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeExtension &quot;/path/file.tar.gz&quot;
+</code></strong>&quot;.gz&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:replaceExtension" class="def">replaceExtension</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#replaceExtension" class="link">Source</a> <a href="#v:replaceExtension" class="selflink">#</a></p><div class="doc"><p>Change a file's extension</p><pre>\path -&gt; let ext = takeExtension path in replaceExtension path ext == path</pre></div></div><div class="top"><p class="src"><a id="v:dropExtension" class="def">dropExtension</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#dropExtension" class="link">Source</a> <a href="#v:dropExtension" class="selflink">#</a></p><div class="doc"><p>Drop the final extension from a <code>RawFilePath</code></p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropExtension &quot;file.exe&quot;
+</code></strong>&quot;file&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropExtension &quot;file&quot;
+</code></strong>&quot;file&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropExtension &quot;/path/file.tar.gz&quot;
+</code></strong>&quot;/path/file.tar&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:addExtension" class="def">addExtension</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#addExtension" class="link">Source</a> <a href="#v:addExtension" class="selflink">#</a></p><div class="doc"><p>Add an extension to a <code>RawFilePath</code></p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>addExtension &quot;file&quot; &quot;.exe&quot;
+</code></strong>&quot;file.exe&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>addExtension &quot;file.tar&quot; &quot;.gz&quot;
+</code></strong>&quot;file.tar.gz&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>addExtension &quot;/path/&quot; &quot;.ext&quot;
+</code></strong>&quot;/path/.ext&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:hasExtension" class="def">hasExtension</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#hasExtension" class="link">Source</a> <a href="#v:hasExtension" class="selflink">#</a></p><div class="doc"><p>Check if a <code>RawFilePath</code> has an extension</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasExtension &quot;file&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasExtension &quot;file.tar&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasExtension &quot;/path.part1/&quot;
+</code></strong>False
+</pre></div></div><div class="top"><p class="src"><a id="v:-60-.-62-" class="def">(&lt;.&gt;)</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#%3C.%3E" class="link">Source</a> <a href="#v:-60-.-62-" class="selflink">#</a></p><div class="doc"><p>Operator version of <code><a href="System-Posix-FilePath.html#v:addExtension">addExtension</a></code></p></div></div><div class="top"><p class="src"><a id="v:splitExtensions" class="def">splitExtensions</a> :: RawFilePath -&gt; (RawFilePath, <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a>) <a href="src/System-Posix-FilePath.html#splitExtensions" class="link">Source</a> <a href="#v:splitExtensions" class="selflink">#</a></p><div class="doc"><p>Split a <code>RawFilePath</code> on the first extension.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitExtensions &quot;/path/file.tar.gz&quot;
+</code></strong>(&quot;/path/file&quot;,&quot;.tar.gz&quot;)
+</pre><pre>\path -&gt; uncurry addExtension (splitExtensions path) == path</pre></div></div><div class="top"><p class="src"><a id="v:dropExtensions" class="def">dropExtensions</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#dropExtensions" class="link">Source</a> <a href="#v:dropExtensions" class="selflink">#</a></p><div class="doc"><p>Remove all extensions from a <code>RawFilePath</code></p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropExtensions &quot;/path/file.tar.gz&quot;
+</code></strong>&quot;/path/file&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:takeExtensions" class="def">takeExtensions</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> <a href="src/System-Posix-FilePath.html#takeExtensions" class="link">Source</a> <a href="#v:takeExtensions" class="selflink">#</a></p><div class="doc"><p>Take all extensions from a <code>RawFilePath</code></p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeExtensions &quot;/path/file.tar.gz&quot;
+</code></strong>&quot;.tar.gz&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:stripExtension" class="def">stripExtension</a> :: <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath -&gt; Maybe RawFilePath <a href="src/System-Posix-FilePath.html#stripExtension" class="link">Source</a> <a href="#v:stripExtension" class="selflink">#</a></p><div class="doc"><p>Drop the given extension from a FilePath, and the <code>&quot;.&quot;</code> preceding it.
+ Returns <code>Nothing</code> if the FilePath does not have the given extension, or
+ <code>Just</code> and the part before the extension if it does.</p><p>This function can be more predictable than <code><a href="System-Posix-FilePath.html#v:dropExtensions">dropExtensions</a></code>,
+ especially if the filename might itself contain <code>.</code> characters.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>stripExtension &quot;hs.o&quot; &quot;foo.x.hs.o&quot;
+</code></strong>Just &quot;foo.x&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>stripExtension &quot;hi.o&quot; &quot;foo.x.hs.o&quot;
+</code></strong>Nothing
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>stripExtension &quot;.c.d&quot; &quot;a.b.c.d&quot;
+</code></strong>Just &quot;a.b&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>stripExtension &quot;.c.d&quot; &quot;a.b..c.d&quot;
+</code></strong>Just &quot;a.b.&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>stripExtension &quot;baz&quot;  &quot;foo.bar&quot;
+</code></strong>Nothing
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>stripExtension &quot;bar&quot;  &quot;foobar&quot;
+</code></strong>Nothing
+</pre><pre>\path -&gt; stripExtension &quot;&quot; path == Just path</pre><pre>\path -&gt; dropExtension path  == fromJust (stripExtension (takeExtension path) path)</pre><pre>\path -&gt; dropExtensions path == fromJust (stripExtension (takeExtensions path) path)</pre></div></div><h1 id="g:4">Filename/directory functions</h1><div class="top"><p class="src"><a id="v:splitFileName" class="def">splitFileName</a> :: RawFilePath -&gt; (RawFilePath, RawFilePath) <a href="src/System-Posix-FilePath.html#splitFileName" class="link">Source</a> <a href="#v:splitFileName" class="selflink">#</a></p><div class="doc"><p>Split a <code>RawFilePath</code> into (path,file).  <code><a href="System-Posix-FilePath.html#v:combine">combine</a></code> is the inverse</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitFileName &quot;path/file.txt&quot;
+</code></strong>(&quot;path/&quot;,&quot;file.txt&quot;)
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitFileName &quot;path/&quot;
+</code></strong>(&quot;path/&quot;,&quot;&quot;)
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitFileName &quot;file.txt&quot;
+</code></strong>(&quot;./&quot;,&quot;file.txt&quot;)
+</pre><pre>\path -&gt; uncurry combine (splitFileName path) == path || fst (splitFileName path) == &quot;./&quot;</pre></div></div><div class="top"><p class="src"><a id="v:takeFileName" class="def">takeFileName</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#takeFileName" class="link">Source</a> <a href="#v:takeFileName" class="selflink">#</a></p><div class="doc"><p>Get the file name</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeFileName &quot;path/file.txt&quot;
+</code></strong>&quot;file.txt&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeFileName &quot;path/&quot;
+</code></strong>&quot;&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:replaceFileName" class="def">replaceFileName</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#replaceFileName" class="link">Source</a> <a href="#v:replaceFileName" class="selflink">#</a></p><div class="doc"><p>Change the file name</p><pre>\path -&gt; replaceFileName path (takeFileName path) == path</pre></div></div><div class="top"><p class="src"><a id="v:dropFileName" class="def">dropFileName</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#dropFileName" class="link">Source</a> <a href="#v:dropFileName" class="selflink">#</a></p><div class="doc"><p>Drop the file name</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropFileName &quot;path/file.txt&quot;
+</code></strong>&quot;path/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropFileName &quot;file.txt&quot;
+</code></strong>&quot;./&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:takeBaseName" class="def">takeBaseName</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> <a href="src/System-Posix-FilePath.html#takeBaseName" class="link">Source</a> <a href="#v:takeBaseName" class="selflink">#</a></p><div class="doc"><p>Get the file name, without a trailing extension</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeBaseName &quot;path/file.tar.gz&quot;
+</code></strong>&quot;file.tar&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeBaseName &quot;&quot;
+</code></strong>&quot;&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:replaceBaseName" class="def">replaceBaseName</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#replaceBaseName" class="link">Source</a> <a href="#v:replaceBaseName" class="selflink">#</a></p><div class="doc"><p>Change the base name</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>replaceBaseName &quot;path/file.tar.gz&quot; &quot;bob&quot;
+</code></strong>&quot;path/bob.gz&quot;
+</pre><pre>\path -&gt; replaceBaseName path (takeBaseName path) == path</pre></div></div><div class="top"><p class="src"><a id="v:takeDirectory" class="def">takeDirectory</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#takeDirectory" class="link">Source</a> <a href="#v:takeDirectory" class="selflink">#</a></p><div class="doc"><p>Get the directory, moving up one level if it's already a directory</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeDirectory &quot;path/file.txt&quot;
+</code></strong>&quot;path&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeDirectory &quot;file&quot;
+</code></strong>&quot;.&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeDirectory &quot;/path/to/&quot;
+</code></strong>&quot;/path/to&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>takeDirectory &quot;/path/to&quot;
+</code></strong>&quot;/path&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:replaceDirectory" class="def">replaceDirectory</a> :: RawFilePath -&gt; <a href="https://hackage.haskell.org/package/utf8-string-0.3.7/docs/Data-ByteString-UTF8.html#t:ByteString">ByteString</a> -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#replaceDirectory" class="link">Source</a> <a href="#v:replaceDirectory" class="selflink">#</a></p><div class="doc"><p>Change the directory component of a <code>RawFilePath</code></p><pre>\path -&gt; replaceDirectory path (takeDirectory path) `equalFilePath` path || takeDirectory path == &quot;.&quot;</pre></div></div><div class="top"><p class="src"><a id="v:combine" class="def">combine</a> :: RawFilePath -&gt; RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#combine" class="link">Source</a> <a href="#v:combine" class="selflink">#</a></p><div class="doc"><p>Join two paths together</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>combine &quot;/&quot; &quot;file&quot;
+</code></strong>&quot;/file&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>combine &quot;/path/to&quot; &quot;file&quot;
+</code></strong>&quot;/path/to/file&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>combine &quot;file&quot; &quot;/absolute/path&quot;
+</code></strong>&quot;/absolute/path&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:-60--47--62-" class="def">(&lt;/&gt;)</a> :: RawFilePath -&gt; RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#%3C%2F%3E" class="link">Source</a> <a href="#v:-60--47--62-" class="selflink">#</a></p><div class="doc"><p>Operator version of combine</p></div></div><div class="top"><p class="src"><a id="v:splitPath" class="def">splitPath</a> :: RawFilePath -&gt; [RawFilePath] <a href="src/System-Posix-FilePath.html#splitPath" class="link">Source</a> <a href="#v:splitPath" class="selflink">#</a></p><div class="doc"><p>Split a path into a list of components:</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitPath &quot;/path/to/file.txt&quot;
+</code></strong>[&quot;/&quot;,&quot;path/&quot;,&quot;to/&quot;,&quot;file.txt&quot;]
+</pre><pre>\path -&gt; BS.concat (splitPath path) == path</pre></div></div><div class="top"><p class="src"><a id="v:joinPath" class="def">joinPath</a> :: [RawFilePath] -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#joinPath" class="link">Source</a> <a href="#v:joinPath" class="selflink">#</a></p><div class="doc"><p>Join a split path back together</p><pre>\path -&gt; joinPath (splitPath path) == path</pre><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>joinPath [&quot;path&quot;,&quot;to&quot;,&quot;file.txt&quot;]
+</code></strong>&quot;path/to/file.txt&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:splitDirectories" class="def">splitDirectories</a> :: RawFilePath -&gt; [RawFilePath] <a href="src/System-Posix-FilePath.html#splitDirectories" class="link">Source</a> <a href="#v:splitDirectories" class="selflink">#</a></p><div class="doc"><p>Like <code><a href="System-Posix-FilePath.html#v:splitPath">splitPath</a></code>, but without trailing slashes</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitDirectories &quot;/path/to/file.txt&quot;
+</code></strong>[&quot;/&quot;,&quot;path&quot;,&quot;to&quot;,&quot;file.txt&quot;]
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>splitDirectories &quot;&quot;
+</code></strong>[]
+</pre></div></div><h1 id="g:5">Trailing slash functions</h1><div class="top"><p class="src"><a id="v:hasTrailingPathSeparator" class="def">hasTrailingPathSeparator</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#hasTrailingPathSeparator" class="link">Source</a> <a href="#v:hasTrailingPathSeparator" class="selflink">#</a></p><div class="doc"><p>Check if the last character of a <code>RawFilePath</code> is <code>/</code>.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasTrailingPathSeparator &quot;/path/&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasTrailingPathSeparator &quot;/&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasTrailingPathSeparator &quot;/path&quot;
+</code></strong>False
+</pre></div></div><div class="top"><p class="src"><a id="v:addTrailingPathSeparator" class="def">addTrailingPathSeparator</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#addTrailingPathSeparator" class="link">Source</a> <a href="#v:addTrailingPathSeparator" class="selflink">#</a></p><div class="doc"><p>Add a trailing path separator.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>addTrailingPathSeparator &quot;/path&quot;
+</code></strong>&quot;/path/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>addTrailingPathSeparator &quot;/path/&quot;
+</code></strong>&quot;/path/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>addTrailingPathSeparator &quot;/&quot;
+</code></strong>&quot;/&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:dropTrailingPathSeparator" class="def">dropTrailingPathSeparator</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#dropTrailingPathSeparator" class="link">Source</a> <a href="#v:dropTrailingPathSeparator" class="selflink">#</a></p><div class="doc"><p>Remove a trailing path separator</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropTrailingPathSeparator &quot;/path/&quot;
+</code></strong>&quot;/path&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropTrailingPathSeparator &quot;/path////&quot;
+</code></strong>&quot;/path&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropTrailingPathSeparator &quot;/&quot;
+</code></strong>&quot;/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dropTrailingPathSeparator &quot;//&quot;
+</code></strong>&quot;/&quot;
+</pre></div></div><h1 id="g:6">File name manipulations</h1><div class="top"><p class="src"><a id="v:normalise" class="def">normalise</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#normalise" class="link">Source</a> <a href="#v:normalise" class="selflink">#</a></p><div class="doc"><p>Normalise a file.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;/file/\\test////&quot;
+</code></strong>&quot;/file/\\test/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;/file/./test&quot;
+</code></strong>&quot;/file/test&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;/test/file/../bob/fred/&quot;
+</code></strong>&quot;/test/file/../bob/fred/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;../bob/fred/&quot;
+</code></strong>&quot;../bob/fred/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;./bob/fred/&quot;
+</code></strong>&quot;bob/fred/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;./bob////.fred/./...///./..///#.&quot;
+</code></strong>&quot;bob/.fred/.../../#.&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;.&quot;
+</code></strong>&quot;.&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;./&quot;
+</code></strong>&quot;./&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;./.&quot;
+</code></strong>&quot;./&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;/./&quot;
+</code></strong>&quot;/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;/&quot;
+</code></strong>&quot;/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;bob/fred/.&quot;
+</code></strong>&quot;bob/fred/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>normalise &quot;//home&quot;
+</code></strong>&quot;/home&quot;
+</pre></div></div><div class="top"><p class="src"><a id="v:makeRelative" class="def">makeRelative</a> :: RawFilePath -&gt; RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#makeRelative" class="link">Source</a> <a href="#v:makeRelative" class="selflink">#</a></p><div class="doc"><p>Contract a filename, based on a relative path. Note that the resulting
+ path will never introduce <code>..</code> paths, as the presence of symlinks
+ means <code>../b</code> may not reach <code>a/b</code> if it starts from <code>a/c</code>. For a
+ worked example see
+ <a href="http://neilmitchell.blogspot.co.uk/2015/10/filepaths-are-subtle-symlinks-are-hard.html">this blog post</a>.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeRelative &quot;/directory&quot; &quot;/directory/file.ext&quot;
+</code></strong>&quot;file.ext&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeRelative &quot;/Home&quot; &quot;/home/bob&quot;
+</code></strong>&quot;/home/bob&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeRelative &quot;/home/&quot; &quot;/home/bob/foo/bar&quot;
+</code></strong>&quot;bob/foo/bar&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeRelative &quot;/fred&quot; &quot;bob&quot;
+</code></strong>&quot;bob&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeRelative &quot;/file/test&quot; &quot;/file/test/fred&quot;
+</code></strong>&quot;fred&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeRelative &quot;/file/test&quot; &quot;/file/test/fred/&quot;
+</code></strong>&quot;fred/&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeRelative &quot;some/path&quot; &quot;some/path/a/b/c&quot;
+</code></strong>&quot;a/b/c&quot;
+</pre><pre>\p -&gt; makeRelative p p == &quot;.&quot;</pre><pre>\p -&gt; makeRelative (takeDirectory p) p `equalFilePath` takeFileName p</pre><p>prop x y -&gt; equalFilePath x y || (isRelative x &amp;&amp; makeRelative y x == x) || equalFilePath (y <a href="/">/</a> makeRelative y x) x</p></div></div><div class="top"><p class="src"><a id="v:equalFilePath" class="def">equalFilePath</a> :: RawFilePath -&gt; RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#equalFilePath" class="link">Source</a> <a href="#v:equalFilePath" class="selflink">#</a></p><div class="doc"><p>Equality of two filepaths. The filepaths are normalised
+ and trailing path separators are dropped.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>equalFilePath &quot;foo&quot; &quot;foo&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>equalFilePath &quot;foo&quot; &quot;foo/&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>equalFilePath &quot;foo&quot; &quot;./foo&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>equalFilePath &quot;&quot; &quot;&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>equalFilePath &quot;foo&quot; &quot;/foo&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>equalFilePath &quot;foo&quot; &quot;FOO&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>equalFilePath &quot;foo&quot; &quot;../foo&quot;
+</code></strong>False
+</pre><pre>\p -&gt; equalFilePath p p</pre></div></div><div class="top"><p class="src"><a id="v:isRelative" class="def">isRelative</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#isRelative" class="link">Source</a> <a href="#v:isRelative" class="selflink">#</a></p><div class="doc"><p>Check if a path is relative</p><pre>\path -&gt; isRelative path /= isAbsolute path</pre></div></div><div class="top"><p class="src"><a id="v:isAbsolute" class="def">isAbsolute</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#isAbsolute" class="link">Source</a> <a href="#v:isAbsolute" class="selflink">#</a></p><div class="doc"><p>Check if a path is absolute</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isAbsolute &quot;/path&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isAbsolute &quot;path&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isAbsolute &quot;&quot;
+</code></strong>False
+</pre></div></div><div class="top"><p class="src"><a id="v:isValid" class="def">isValid</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#isValid" class="link">Source</a> <a href="#v:isValid" class="selflink">#</a></p><div class="doc"><p>Is a FilePath valid, i.e. could you create a file like it?</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isValid &quot;&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isValid &quot;\0&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isValid &quot;/random_ path:*&quot;
+</code></strong>True
+</pre></div></div><div class="top"><p class="src"><a id="v:makeValid" class="def">makeValid</a> :: RawFilePath -&gt; RawFilePath <a href="src/System-Posix-FilePath.html#makeValid" class="link">Source</a> <a href="#v:makeValid" class="selflink">#</a></p><div class="doc"><p>Take a FilePath and make it valid; does not change already valid FilePaths.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeValid &quot;&quot;
+</code></strong>&quot;_&quot;
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>makeValid &quot;file\0name&quot;
+</code></strong>&quot;file_name&quot;
+</pre><pre>\p -&gt; if isValid p then makeValid p == p else makeValid p /= p</pre><pre>\p -&gt; isValid (makeValid p)</pre></div></div><div class="top"><p class="src"><a id="v:isFileName" class="def">isFileName</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#isFileName" class="link">Source</a> <a href="#v:isFileName" class="selflink">#</a></p><div class="doc"><p>Is the given path a valid filename? This includes
+ &quot;.&quot; and &quot;..&quot;.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isFileName &quot;lal&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isFileName &quot;.&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isFileName &quot;..&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isFileName &quot;&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isFileName &quot;\0&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>isFileName &quot;/random_ path:*&quot;
+</code></strong>False
+</pre></div></div><div class="top"><p class="src"><a id="v:hasParentDir" class="def">hasParentDir</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#hasParentDir" class="link">Source</a> <a href="#v:hasParentDir" class="selflink">#</a></p><div class="doc"><p>Check if the filepath has any parent directories in it.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasParentDir &quot;/..&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasParentDir &quot;foo/bar/..&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasParentDir &quot;foo/../bar/.&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasParentDir &quot;foo/bar&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasParentDir &quot;foo&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasParentDir &quot;&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hasParentDir &quot;..&quot;
+</code></strong>False
+</pre></div></div><div class="top"><p class="src"><a id="v:hiddenFile" class="def">hiddenFile</a> :: RawFilePath -&gt; Bool <a href="src/System-Posix-FilePath.html#hiddenFile" class="link">Source</a> <a href="#v:hiddenFile" class="selflink">#</a></p><div class="doc"><p>Whether the file is a hidden file.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;.foo&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;..foo.bar&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;some/path/.bar&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;...&quot;
+</code></strong>True
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;dod.bar&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;.&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;..&quot;
+</code></strong>False
+<code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>hiddenFile &quot;&quot;
+</code></strong>False
+</pre></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.17.2</p></div></body></html>
