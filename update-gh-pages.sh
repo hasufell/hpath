@@ -22,13 +22,13 @@ git clone --branch=${TARGET_BRANCH} ${REPO} ${TARGET_BRANCH} || exit 1
 # docs
 cd ${TARGET_BRANCH} || exit 1
 echo "Removing old docs."
-rm -rf .
+rm -rf *
 echo "Adding new docs."
 cp -rf "${TRAVIS_BUILD_DIR}${DOC_LOCATION}"/* . || exit 1
 
 # If there are no changes to the compiled out (e.g. this is a README update)
 # then just bail.
-if [ -z `git diff --exit-code` ]; then
+if [ -z "`git diff --exit-code`" ]; then
     echo "No changes to the output on this push; exiting."
     exit 0
 fi
