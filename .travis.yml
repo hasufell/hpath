@@ -19,6 +19,10 @@ matrix:
   allow_failures:
     - env: CABALVER=head GHCVER=head
 
+env:
+  global:
+    - secure: q++z4DGwOHYjmed00oxMnGhBTzOBzKYunXvVcnCEmvmzW3qZERtXj3B7CLW4vRtmBlo3SiM0fb25NeYao+ByzTjo8jk9noiBVZvffwRmlKCeVwYx7T4/rsDhfV97k2JOeahBSgxWNuTkt+5gv07HpKdTiIxJsiv/QdBxQeq6/Ly6dyRskmCt+VuFvQg+cqPMugxIXtY6F7eZ1zgl/LxlamWjO3E4lX0Myf4o8+SU1HRDVkkVe+ytnRcVcYI2FHuFV/sSoDMTweXQToA9roVjOkfhq4rGlPCuXJkBPyZW2otLXgAV7I2kjwgxqmS5Yw752CcFjMMbG6R1u8sEAcGrJNKHfx8sKqBwI0AVoq4CJn+nKSElTDl0KI1mqazmazK4/mddkD9NGIVXCFmw4b+YGf1uDj8FAR94UmOiEFkEObGkQxG1XK/uzDaUJ1tO3MYXjPPEIE89BJORo+ZskmKFEoqbrBR/vEjbXxJHWP7SaaoM+mWpMiSssEFb/Z5mDBFPb2P/2f7nO4ZDfOYp/9hZdBvDaVM8FmTQfzF6jIUIOFmeeiSZWIBAHoDfdZDRrM/hC5JzqfMumW9frwllsQtYytkAsUqlNnCW86jlc5/5L6D8eY2NERFI2DRqrBi7bP2AfYXsozY0gMO1RL5+iQSQVKlPhk6IyAJYCWCYnrA+dz4=
+
 before_install:
  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
@@ -34,6 +38,7 @@ script:
  - cabal test
  - cabal check
  - cabal sdist
+ - cabal haddock --hyperlink-source --html-location=https://hackage.haskell.org/package/\$pkg-\$version/docs/
 # check that the generated source-distribution can be built & installed
  - export SRC_TGZ=$(cabal info . | awk '{print $2 ".tar.gz";exit}') ;
    cd dist/;
@@ -44,6 +49,9 @@ script:
       echo "expected '$SRC_TGZ' not found";
       exit 1;
    fi
+
+after_script:
+    - ./update-gh-pages.sh
 
 notifications:
   email:
