@@ -1,7 +1,7 @@
 -- |
 -- Module      :  HPath.IO.Utils
 -- Copyright   :  © 2016 Julian Ospald
--- License     :  GPL-2
+-- License     :  BSD3
 --
 -- Maintainer  :  Julian Ospald <hasufell@posteo.de>
 -- Stability   :  experimental
