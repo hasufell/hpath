@@ -227,7 +227,9 @@ data FileType = Directory
 --
 -- On `CollectFailures` skips errors in the recursion and keeps on recursing.
 -- However all errors are collected in the `RecursiveFailure` error type,
--- which is raised finally if there was any error.
+-- which is raised finally if there was any error. Also note that
+-- `RecursiveFailure` does not give any guarantees on the ordering
+-- of the collected exceptions.
 data RecursiveErrorMode = FailEarly
                         | CollectFailures
 
@@ -262,9 +264,6 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- contents, so the destination might contain more files than the source after
 -- the operation has completed. Permissions of existing directories are
 -- fixed.
---
--- Note that there is no guaranteed ordering of the exceptions
--- contained within `RecursiveFailure` in `CollectFailures` RecursiveErrorMode.
 --
 -- Safety/reliability concerns:
 --
