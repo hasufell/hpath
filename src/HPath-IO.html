@@ -46,7 +46,7 @@
 <a name="line-37"></a>  <span class='hs-layout'>(</span>
 <a name="line-38"></a>  <span class='hs-comment'>-- * Types</span>
 <a name="line-39"></a>    <span class='hs-conid'>FileType</span><span class='hs-layout'>(</span><span class='hs-keyglyph'>..</span><span class='hs-layout'>)</span>
-<a name="line-40"></a>  <span class='hs-layout'>,</span> <span class='hs-conid'>RecursiveMode</span><span class='hs-layout'>(</span><span class='hs-keyglyph'>..</span><span class='hs-layout'>)</span>
+<a name="line-40"></a>  <span class='hs-layout'>,</span> <span class='hs-conid'>RecursiveErrorMode</span><span class='hs-layout'>(</span><span class='hs-keyglyph'>..</span><span class='hs-layout'>)</span>
 <a name="line-41"></a>  <span class='hs-layout'>,</span> <span class='hs-conid'>CopyMode</span><span class='hs-layout'>(</span><span class='hs-keyglyph'>..</span><span class='hs-layout'>)</span>
 <a name="line-42"></a>  <span class='hs-comment'>-- * File copying</span>
 <a name="line-43"></a>  <span class='hs-layout'>,</span> <span class='hs-varid'>copyDirRecursive</span>
@@ -228,17 +228,17 @@
 <a name="line-219"></a>
 <a name="line-220"></a>
 <a name="line-221"></a>
-<a name="line-222"></a><a name="RecursiveMode"></a><span class='hs-comment'>-- |The mode for any recursive operation.</span>
-<a name="line-223"></a><a name="RecursiveMode"></a><span class='hs-comment'>--</span>
-<a name="line-224"></a><a name="RecursiveMode"></a><span class='hs-comment'>-- On `FailEarly` the whole operation fails immediately if any of the</span>
-<a name="line-225"></a><a name="RecursiveMode"></a><span class='hs-comment'>-- recursive sub-operations fail, which is sort of the default</span>
-<a name="line-226"></a><a name="RecursiveMode"></a><span class='hs-comment'>-- for IO operations.</span>
-<a name="line-227"></a><a name="RecursiveMode"></a><span class='hs-comment'>--</span>
-<a name="line-228"></a><a name="RecursiveMode"></a><span class='hs-comment'>-- On `CollectFailures` skips errors in the recursion and keeps on recursing.</span>
-<a name="line-229"></a><a name="RecursiveMode"></a><span class='hs-comment'>-- However all errors are collected in the `RecursiveFailure` error type,</span>
-<a name="line-230"></a><a name="RecursiveMode"></a><span class='hs-comment'>-- which is raised finally if there was any error.</span>
-<a name="line-231"></a><a name="RecursiveMode"></a><span class='hs-keyword'>data</span> <span class='hs-conid'>RecursiveMode</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>FailEarly</span>
-<a name="line-232"></a>                   <span class='hs-keyglyph'>|</span> <span class='hs-conid'>CollectFailures</span>
+<a name="line-222"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>-- |The error mode for any recursive operation.</span>
+<a name="line-223"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>--</span>
+<a name="line-224"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>-- On `FailEarly` the whole operation fails immediately if any of the</span>
+<a name="line-225"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>-- recursive sub-operations fail, which is sort of the default</span>
+<a name="line-226"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>-- for IO operations.</span>
+<a name="line-227"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>--</span>
+<a name="line-228"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>-- On `CollectFailures` skips errors in the recursion and keeps on recursing.</span>
+<a name="line-229"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>-- However all errors are collected in the `RecursiveFailure` error type,</span>
+<a name="line-230"></a><a name="RecursiveErrorMode"></a><span class='hs-comment'>-- which is raised finally if there was any error.</span>
+<a name="line-231"></a><a name="RecursiveErrorMode"></a><span class='hs-keyword'>data</span> <span class='hs-conid'>RecursiveErrorMode</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>FailEarly</span>
+<a name="line-232"></a>                        <span class='hs-keyglyph'>|</span> <span class='hs-conid'>CollectFailures</span>
 <a name="line-233"></a>
 <a name="line-234"></a>
 <a name="line-235"></a><a name="CopyMode"></a><span class='hs-comment'>-- |The mode for copy and file moves.</span>
@@ -262,12 +262,12 @@
 <a name="line-253"></a><span class='hs-comment'>-- For directory contents, this will ignore any file type that is not</span>
 <a name="line-254"></a><span class='hs-comment'>-- `RegularFile`, `SymbolicLink` or `Directory`.</span>
 <a name="line-255"></a><span class='hs-comment'>--</span>
-<a name="line-256"></a><span class='hs-comment'>-- For `Overwrite` mode this does not prune destination directory contents,</span>
+<a name="line-256"></a><span class='hs-comment'>-- For `Overwrite` copy mode this does not prune destination directory contents,</span>
 <a name="line-257"></a><span class='hs-comment'>-- so the destination might contain more files than the source after</span>
 <a name="line-258"></a><span class='hs-comment'>-- the operation has completed.</span>
 <a name="line-259"></a><span class='hs-comment'>--</span>
 <a name="line-260"></a><span class='hs-comment'>-- Note that there is no guaranteed ordering of the exceptions</span>
-<a name="line-261"></a><span class='hs-comment'>-- contained within `RecursiveFailure` in `CollectFailures` RecursiveMode.</span>
+<a name="line-261"></a><span class='hs-comment'>-- contained within `RecursiveFailure` in `CollectFailures` RecursiveErrorMode.</span>
 <a name="line-262"></a><span class='hs-comment'>--</span>
 <a name="line-263"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
 <a name="line-264"></a><span class='hs-comment'>--</span>
@@ -287,16 +287,16 @@
 <a name="line-278"></a><span class='hs-comment'>--    - `DestinationInSource` if destination is contained in source</span>
 <a name="line-279"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
 <a name="line-280"></a><span class='hs-comment'>--</span>
-<a name="line-281"></a><span class='hs-comment'>-- Throws in `FailEarly` RecursiveMode only:</span>
+<a name="line-281"></a><span class='hs-comment'>-- Throws in `FailEarly` RecursiveErrorMode only:</span>
 <a name="line-282"></a><span class='hs-comment'>--</span>
 <a name="line-283"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory is not writable</span>
 <a name="line-284"></a><span class='hs-comment'>--    - `InvalidArgument` if source directory is wrong type (symlink)</span>
 <a name="line-285"></a><span class='hs-comment'>--    - `InappropriateType` if source directory is wrong type (regular file)</span>
 <a name="line-286"></a><span class='hs-comment'>--</span>
-<a name="line-287"></a><span class='hs-comment'>-- Throws in `CollectFailures` RecursiveMode only:</span>
+<a name="line-287"></a><span class='hs-comment'>-- Throws in `CollectFailures` RecursiveErrorMode only:</span>
 <a name="line-288"></a><span class='hs-comment'>--</span>
 <a name="line-289"></a><span class='hs-comment'>--    - `RecursiveFailure` if any of the recursive operations that are not</span>
-<a name="line-290"></a><span class='hs-comment'>--      part of the top-directory sanity-checks fails (`HPathIOException`)</span>
+<a name="line-290"></a><span class='hs-comment'>--      part of the top-directory sanity-checks fail (`HPathIOException`)</span>
 <a name="line-291"></a><span class='hs-comment'>--</span>
 <a name="line-292"></a><span class='hs-comment'>-- Throws in `Strict` CopyMode only:</span>
 <a name="line-293"></a><span class='hs-comment'>--</span>
@@ -304,7 +304,7 @@
 <a name="line-295"></a><span class='hs-definition'>copyDirRecursive</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ source dir</span>
 <a name="line-296"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ full destination</span>
 <a name="line-297"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
-<a name="line-298"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveMode</span>
+<a name="line-298"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveErrorMode</span>
 <a name="line-299"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
 <a name="line-300"></a><span class='hs-definition'>copyDirRecursive</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span>
 <a name="line-301"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
@@ -357,7 +357,7 @@
 <a name="line-348"></a>
 <a name="line-349"></a><a name="recreateSymlink"></a><span class='hs-comment'>-- |Recreate a symlink.</span>
 <a name="line-350"></a><span class='hs-comment'>--</span>
-<a name="line-351"></a><span class='hs-comment'>-- In `Overwrite` mode only files and empty directories are deleted.</span>
+<a name="line-351"></a><span class='hs-comment'>-- In `Overwrite` copy mode only files and empty directories are deleted.</span>
 <a name="line-352"></a><span class='hs-comment'>--</span>
 <a name="line-353"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
 <a name="line-354"></a><span class='hs-comment'>--</span>
@@ -408,7 +408,7 @@
 <a name="line-399"></a><span class='hs-comment'>-- examine file types. For a more high-level version, use `easyCopy`</span>
 <a name="line-400"></a><span class='hs-comment'>-- instead.</span>
 <a name="line-401"></a><span class='hs-comment'>--</span>
-<a name="line-402"></a><span class='hs-comment'>-- In `Overwrite` mode only overwrites actual files, not directories.</span>
+<a name="line-402"></a><span class='hs-comment'>-- In `Overwrite` copy mode only overwrites actual files, not directories.</span>
 <a name="line-403"></a><span class='hs-comment'>--</span>
 <a name="line-404"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
 <a name="line-405"></a><span class='hs-comment'>--</span>
@@ -523,7 +523,7 @@
 <a name="line-514"></a><span class='hs-definition'>easyCopy</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
 <a name="line-515"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
 <a name="line-516"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
-<a name="line-517"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveMode</span>
+<a name="line-517"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveErrorMode</span>
 <a name="line-518"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
 <a name="line-519"></a><span class='hs-definition'>easyCopy</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
 <a name="line-520"></a>  <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>from</span>
