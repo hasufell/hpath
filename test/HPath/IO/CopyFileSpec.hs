@@ -19,10 +19,7 @@ import System.Exit
 import System.Process
 import Utils
 import Data.ByteString.UTF8 (toString)
-import Data.IORef
-  (
-    readIORef
-  )
+
 
 
 upTmpDir :: IO ()

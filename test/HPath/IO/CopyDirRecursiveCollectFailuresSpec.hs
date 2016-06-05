@@ -6,7 +6,6 @@ module HPath.IO.CopyDirRecursiveCollectFailuresSpec where
 
 import Test.Hspec
 import Data.List (sort)
-import Data.Maybe (fromJust)
 import HPath.IO
 import HPath.IO.Errors
 import System.IO.Error
@@ -19,17 +18,10 @@ import GHC.IO.Exception
   )
 import System.Exit
 import System.Process
-import System.Posix.Env.ByteString
-  (
-    getEnv
-  )
 import Utils
 import qualified Data.ByteString as BS
 import Data.ByteString.UTF8 (toString)
-import Data.IORef
-  (
-    readIORef
-  )
+
 
 
 upTmpDir :: IO ()
