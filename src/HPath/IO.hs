@@ -37,7 +37,7 @@ module HPath.IO
   (
   -- * Types
     FileType(..)
-  , RecursiveMode(..)
+  , RecursiveErrorMode(..)
   , CopyMode(..)
   -- * File copying
   , copyDirRecursive
@@ -219,7 +219,7 @@ data FileType = Directory
 
 
 
--- |The mode for any recursive operation.
+-- |The error mode for any recursive operation.
 --
 -- On `FailEarly` the whole operation fails immediately if any of the
 -- recursive sub-operations fail, which is sort of the default
@@ -228,8 +228,8 @@ data FileType = Directory
 -- On `CollectFailures` skips errors in the recursion and keeps on recursing.
 -- However all errors are collected in the `RecursiveFailure` error type,
 -- which is raised finally if there was any error.
-data RecursiveMode = FailEarly
-                   | CollectFailures
+data RecursiveErrorMode = FailEarly
+                        | CollectFailures
 
 
 -- |The mode for copy and file moves.
@@ -253,12 +253,12 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- For directory contents, this will ignore any file type that is not
 -- `RegularFile`, `SymbolicLink` or `Directory`.
 --
--- For `Overwrite` mode this does not prune destination directory contents,
+-- For `Overwrite` copy mode this does not prune destination directory contents,
 -- so the destination might contain more files than the source after
 -- the operation has completed.
 --
 -- Note that there is no guaranteed ordering of the exceptions
--- contained within `RecursiveFailure` in `CollectFailures` RecursiveMode.
+-- contained within `RecursiveFailure` in `CollectFailures` RecursiveErrorMode.
 --
 -- Safety/reliability concerns:
 --
@@ -278,13 +278,13 @@ data CopyMode = Strict    -- ^ fail if any target exists
 --    - `DestinationInSource` if destination is contained in source
 --      (`HPathIOException`)
 --
--- Throws in `FailEarly` RecursiveMode only:
+-- Throws in `FailEarly` RecursiveErrorMode only:
 --
 --    - `PermissionDenied` if output directory is not writable
 --    - `InvalidArgument` if source directory is wrong type (symlink)
 --    - `InappropriateType` if source directory is wrong type (regular file)
 --
--- Throws in `CollectFailures` RecursiveMode only:
+-- Throws in `CollectFailures` RecursiveErrorMode only:
 --
 --    - `RecursiveFailure` if any of the recursive operations that are not
 --      part of the top-directory sanity-checks fail (`HPathIOException`)
@@ -295,7 +295,7 @@ data CopyMode = Strict    -- ^ fail if any target exists
 copyDirRecursive :: Path Abs  -- ^ source dir
                  -> Path Abs  -- ^ full destination
                  -> CopyMode
-                 -> RecursiveMode
+                 -> RecursiveErrorMode
                  -> IO ()
 copyDirRecursive fromp destdirp cm rm
   = do
@@ -348,7 +348,7 @@ copyDirRecursive fromp destdirp cm rm
 
 -- |Recreate a symlink.
 --
--- In `Overwrite` mode only files and empty directories are deleted.
+-- In `Overwrite` copy mode only files and empty directories are deleted.
 --
 -- Safety/reliability concerns:
 --
@@ -399,7 +399,7 @@ recreateSymlink symsource newsym cm
 -- examine file types. For a more high-level version, use `easyCopy`
 -- instead.
 --
--- In `Overwrite` mode only overwrites actual files, not directories.
+-- In `Overwrite` copy mode only overwrites actual files, not directories.
 --
 -- Safety/reliability concerns:
 --
@@ -514,7 +514,7 @@ _copyFile sflags dflags from to
 easyCopy :: Path Abs
          -> Path Abs
          -> CopyMode
-         -> RecursiveMode
+         -> RecursiveErrorMode
          -> IO ()
 easyCopy from to cm rm = do
   ftype <- getFileType from

@@ -169,7 +169,7 @@ copyFile' inputFileP outputFileP cm =
 
 
 copyDirRecursive' :: ByteString -> ByteString
-                  -> CopyMode -> RecursiveMode -> IO ()
+                  -> CopyMode -> RecursiveErrorMode -> IO ()
 {-# NOINLINE copyDirRecursive' #-}
 copyDirRecursive' inputDirP outputDirP cm rm =
   withTmpDir' inputDirP outputDirP (\p1 p2 -> copyDirRecursive p1 p2 cm rm)
