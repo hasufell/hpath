@@ -22,10 +22,6 @@ import Data.IORef
   , writeIORef
   , IORef
   )
-import GHC.IO.Unsafe
-  (
-    unsafePerformIO
-  )
 import HPath.IO
 import HPath.IO.Errors
 import HPath.IO.Utils
@@ -34,6 +30,10 @@ import Data.Maybe
     fromJust
   )
 import qualified HPath as P
+import System.IO.Unsafe
+  (
+    unsafePerformIO
+  )
 import System.Posix.Directory.Traversals
   (
     allDirectoryContents
