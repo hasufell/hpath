@@ -10,6 +10,7 @@
 -- Traversal and read operations on directories.
 
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PackageImports #-}
@@ -37,7 +38,10 @@ module System.Posix.Directory.Traversals (
 , realpath
 ) where
 
-import Control.Applicative
+
+#if __GLASGOW_HASKELL__ < 710
+import Control.Applicative ((<$>))
+#endif
 import Control.Monad
 import System.Posix.FilePath ((</>))
 import System.Posix.Directory.Foreign
