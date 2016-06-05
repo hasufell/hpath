@@ -63,6 +63,11 @@ import Control.Monad
     forM
   , when
   )
+import Control.Monad.IfElse
+  (
+    whenM
+  , unlessM
+  )
 import Data.ByteString
   (
     ByteString
@@ -86,7 +91,6 @@ import {-# SOURCE #-} HPath.IO
   (
     canonicalizePath
   )
-import HPath.IO.Utils
 import System.IO.Error
   (
     catchIOError

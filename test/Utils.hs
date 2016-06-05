@@ -14,6 +14,10 @@ import Control.Monad
     forM_
   , void
   )
+import Control.Monad.IfElse
+  (
+    whenM
+  )
 import qualified Data.ByteString as BS
 import Data.IORef
   (
@@ -24,7 +28,6 @@ import Data.IORef
   )
 import HPath.IO
 import HPath.IO.Errors
-import HPath.IO.Utils
 import Data.Maybe
   (
     fromJust
