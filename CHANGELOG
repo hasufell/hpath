@@ -1,3 +1,9 @@
+0.8.0
+	* 'copyDirRecursiveOverwrite', 'copyFileOverwrite', 'easyCopyOverwrite' and 'moveFileOverwrite' have been removed, instead use the versions without the *Overwrite suffix and pass in 'Strict' (for default behavior) or 'Overwrite' as the CopyMode argument
+	* introduced a new 'RecursiveErrorMode' type to allow controlling recursive behavior of 'copyDirRecursive' (use 'FailEarly' for default behavior)
+	* 'createRegularFile' and 'createDir' now take FileMode as a parameter (also see 'newFilePerms' and 'newDirPerms')
+	* various documentation fixes
+	* improved reliability of tests
 0.7.5:
 	* relicense to BSD3
 0.7.3:
