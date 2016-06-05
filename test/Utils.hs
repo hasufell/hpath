@@ -21,6 +21,10 @@ import Data.Maybe
     fromJust
   )
 import qualified HPath as P
+import System.Posix.Directory.Traversals
+  (
+    allDirectoryContents
+  )
 import System.Posix.Env.ByteString
   (
     getEnv
@@ -108,24 +112,15 @@ removeDirIfExists bs =
   withTmpDir bs $ \p -> whenM (doesDirectoryExist p) (deleteDirRecursive p)
 
 
-copyFile' :: ByteString -> ByteString -> IO ()
-copyFile' inputFileP outputFileP =
-  withTmpDir' inputFileP outputFileP copyFile
+copyFile' :: ByteString -> ByteString -> CopyMode -> IO ()
+copyFile' inputFileP outputFileP cm =
+  withTmpDir' inputFileP outputFileP (\p1 p2 -> copyFile p1 p2 cm)
 
 
-copyFileOverwrite' :: ByteString -> ByteString -> IO ()
-copyFileOverwrite' inputFileP outputFileP =
-  withTmpDir' inputFileP outputFileP copyFileOverwrite
-
-
-copyDirRecursive' :: ByteString -> ByteString -> IO ()
-copyDirRecursive' inputDirP outputDirP =
-  withTmpDir' inputDirP outputDirP copyDirRecursive
-
-
-copyDirRecursiveOverwrite' :: ByteString -> ByteString -> IO ()
-copyDirRecursiveOverwrite' inputDirP outputDirP =
-  withTmpDir' inputDirP outputDirP copyDirRecursiveOverwrite
+copyDirRecursive' :: ByteString -> ByteString
+                  -> CopyMode -> RecursiveMode -> IO ()
+copyDirRecursive' inputDirP outputDirP cm rm =
+  withTmpDir' inputDirP outputDirP (\p1 p2 -> copyDirRecursive p1 p2 cm rm)
 
 
 createDir' :: ByteString -> IO ()
@@ -148,23 +143,16 @@ renameFile' inputFileP outputFileP =
     renameFile o i
 
 
-moveFile' :: ByteString -> ByteString -> IO ()
-moveFile' inputFileP outputFileP =
+moveFile' :: ByteString -> ByteString -> CopyMode -> IO ()
+moveFile' inputFileP outputFileP cm =
   withTmpDir' inputFileP outputFileP $ \i o -> do
-    moveFile i o
-    moveFile o i
+    moveFile i o cm
+    moveFile o i Strict
 
 
-moveFileOverwrite' :: ByteString -> ByteString -> IO ()
-moveFileOverwrite' inputFileP outputFileP =
-  withTmpDir' inputFileP outputFileP $ \i o -> do
-    moveFileOverwrite i o
-    moveFile o i
-
-
-recreateSymlink' :: ByteString -> ByteString -> IO ()
-recreateSymlink' inputFileP outputFileP =
-  withTmpDir' inputFileP outputFileP recreateSymlink
+recreateSymlink' :: ByteString -> ByteString -> CopyMode -> IO ()
+recreateSymlink' inputFileP outputFileP cm =
+  withTmpDir' inputFileP outputFileP (\p1 p2 -> recreateSymlink p1 p2 cm)
 
 
 noWritableDirPerms :: ByteString -> IO ()
@@ -217,5 +205,11 @@ writeFile' ip bs =
   withTmpDir ip $ \p -> do
     fd <- SPI.openFd (P.fromAbs p) SPI.WriteOnly Nothing
                                    SPI.defaultFileFlags
-    SPB.fdWrite fd bs
+    _ <- SPB.fdWrite fd bs
     SPI.closeFd fd
+
+
+allDirectoryContents' :: ByteString -> IO [ByteString]
+allDirectoryContents' ip =
+  withTmpDir ip $ \p -> allDirectoryContents (P.fromAbs p)
+

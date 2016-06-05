@@ -73,6 +73,7 @@ test-suite spec
   Main-Is:              Main.hs
   other-modules:
                         HPath.IO.CanonicalizePathSpec
+                        HPath.IO.CopyDirRecursiveCollectFailuresSpec
                         HPath.IO.CopyDirRecursiveOverwriteSpec
                         HPath.IO.CopyDirRecursiveSpec
                         HPath.IO.CopyFileOverwriteSpec
@@ -87,6 +88,7 @@ test-suite spec
                         HPath.IO.GetFileTypeSpec
                         HPath.IO.MoveFileOverwriteSpec
                         HPath.IO.MoveFileSpec
+                        HPath.IO.RecreateSymlinkOverwriteSpec
                         HPath.IO.RecreateSymlinkSpec
                         HPath.IO.RenameFileSpec
                         Spec

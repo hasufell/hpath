@@ -4,6 +4,7 @@ module HPath.IO.CopyFileOverwriteSpec where
 
 
 import Test.Hspec
+import HPath.IO
 import HPath.IO.Errors
 import System.IO.Error
   (
@@ -16,8 +17,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
+import Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()
@@ -52,78 +52,88 @@ cleanupFiles = do
 
 spec :: Spec
 spec = before_ setupFiles $ after_ cleanupFiles $
-  describe "HPath.IO.copyFileOverwrite" $ do
+  describe "HPath.IO.copyFile" $ do
 
     -- successes --
-    it "copyFileOverwrite, everything clear" $ do
-      copyFileOverwrite' "inputFile"
+    it "copyFile (Overwrite), everything clear" $ do
+      copyFile' "inputFile"
                 "outputFile"
+                Overwrite
       removeFileIfExists "outputFile"
 
-    it "copyFileOverwrite, output file already exists, all clear" $ do
-      copyFile' "alreadyExists" "alreadyExists.bak"
-      copyFileOverwrite' "inputFile"
-                         "alreadyExists"
+    it "copyFile (Overwrite), output file already exists, all clear" $ do
+      copyFile' "alreadyExists" "alreadyExists.bak" Strict
+      copyFile' "inputFile" "alreadyExists" Overwrite
       (system $ "cmp -s " ++ toString tmpDir ++ "inputFile" ++ " "
                           ++ toString tmpDir ++ "alreadyExists")
         `shouldReturn` ExitSuccess
       removeFileIfExists "alreadyExists"
-      copyFile' "alreadyExists.bak" "alreadyExists"
+      copyFile' "alreadyExists.bak" "alreadyExists" Strict
       removeFileIfExists "alreadyExists.bak"
 
-    it "copyFileOverwrite, and compare" $ do
-      copyFileOverwrite' "inputFile"
+    it "copyFile (Overwrite), and compare" $ do
+      copyFile' "inputFile"
                 "outputFile"
+                Overwrite
       (system $ "cmp -s " ++ toString tmpDir ++ "inputFile" ++ " "
                           ++ toString tmpDir ++ "outputFile")
         `shouldReturn` ExitSuccess
       removeFileIfExists "outputFile"
 
+
     -- posix failures --
-    it "copyFileOverwrite, input file does not exist" $
-      copyFileOverwrite' "noSuchFile"
+    it "copyFile (Overwrite), input file does not exist" $
+      copyFile' "noSuchFile"
                 "outputFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "copyFileOverwrite, no permission to write to output directory" $
-      copyFileOverwrite' "inputFile"
+    it "copyFile (Overwrite), no permission to write to output directory" $
+      copyFile' "inputFile"
                 "outputDirNoWrite/outputFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyFileOverwrite, cannot open output directory" $
-      copyFileOverwrite' "inputFile"
+    it "copyFile (Overwrite), cannot open output directory" $
+      copyFile' "inputFile"
                 "noPerms/outputFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyFileOverwrite, cannot open source directory" $
-      copyFileOverwrite' "noPerms/inputFile"
+    it "copyFile (Overwrite), cannot open source directory" $
+      copyFile' "noPerms/inputFile"
                 "outputFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyFileOverwrite, wrong input type (symlink)" $
-      copyFileOverwrite' "inputFileSymL"
+    it "copyFile (Overwrite), wrong input type (symlink)" $
+      copyFile' "inputFileSymL"
                 "outputFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
-    it "copyFileOverwrite, wrong input type (directory)" $
-      copyFileOverwrite' "wrongInput"
+    it "copyFile (Overwrite), wrong input type (directory)" $
+      copyFile' "wrongInput"
                 "outputFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == InappropriateType)
 
-    it "copyFileOverwrite, output file already exists and is a dir" $
-      copyFileOverwrite' "inputFile"
+    it "copyFile (Overwrite), output file already exists and is a dir" $
+      copyFile' "inputFile"
                 "alreadyExistsD"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == InappropriateType)
 
     -- custom failures --
-    it "copyFileOverwrite, output and input are same file" $
-      copyFileOverwrite' "inputFile"
+    it "copyFile (Overwrite), output and input are same file" $
+      copyFile' "inputFile"
                 "inputFile"
+                Overwrite
         `shouldThrow` isSameFile

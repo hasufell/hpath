@@ -3,17 +3,9 @@
 module HPath.IO.GetDirsFilesSpec where
 
 
-import Control.Applicative
-  (
-    (<$>)
-  )
 import Data.List
   (
     sort
-  )
-import Data.Maybe
-  (
-    fromJust
   )
 import qualified HPath as P
 import HPath.IO
@@ -22,17 +14,11 @@ import System.IO.Error
   (
     ioeGetErrorType
   )
-import System.Posix.Env.ByteString
-  (
-    getEnv
-  )
 import GHC.IO.Exception
   (
     IOErrorType(..)
   )
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()

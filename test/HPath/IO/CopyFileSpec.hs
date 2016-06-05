@@ -5,6 +5,7 @@ module HPath.IO.CopyFileSpec where
 
 
 import Test.Hspec
+import HPath.IO
 import HPath.IO.Errors
 import System.IO.Error
   (
@@ -17,8 +18,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
+import Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()
@@ -55,71 +55,82 @@ spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.copyFile" $ do
 
     -- successes --
-    it "copyFile, everything clear" $ do
+    it "copyFile (Strict), everything clear" $ do
       copyFile' "inputFile"
                 "outputFile"
+                Strict
       removeFileIfExists "outputFile"
 
-    it "copyFile, and compare" $ do
+    it "copyFile (Strict), and compare" $ do
       copyFile' "inputFile"
                 "outputFile"
+                Strict
       (system $ "cmp -s " ++ toString tmpDir ++ "inputFile" ++ " "
                           ++ toString tmpDir ++ "outputFile")
         `shouldReturn` ExitSuccess
       removeFileIfExists "outputFile"
 
     -- posix failures --
-    it "copyFile, input file does not exist" $
+    it "copyFile (Strict), input file does not exist" $
       copyFile' "noSuchFile"
                 "outputFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "copyFile, no permission to write to output directory" $
+    it "copyFile (Strict), no permission to write to output directory" $
       copyFile' "inputFile"
                 "outputDirNoWrite/outputFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyFile, cannot open output directory" $
+    it "copyFile (Strict), cannot open output directory" $
       copyFile' "inputFile"
                 "noPerms/outputFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyFile, cannot open source directory" $
+    it "copyFile (Strict), cannot open source directory" $
       copyFile' "noPerms/inputFile"
                 "outputFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyFile, wrong input type (symlink)" $
+    it "copyFile (Strict), wrong input type (symlink)" $
       copyFile' "inputFileSymL"
                 "outputFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
-    it "copyFile, wrong input type (directory)" $
+    it "copyFile (Strict), wrong input type (directory)" $
       copyFile' "wrongInput"
                 "outputFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == InappropriateType)
 
-    it "copyFile, output file already exists" $
+    it "copyFile (Strict), output file already exists" $
       copyFile' "inputFile"
                 "alreadyExists"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 
-    it "copyFile, output file already exists and is a dir" $
+    it "copyFile (Strict), output file already exists and is a dir" $
       copyFile' "inputFile"
                 "alreadyExistsD"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 
     -- custom failures --
-    it "copyFile, output and input are same file" $
+    it "copyFile (Strict), output and input are same file" $
       copyFile' "inputFile"
                 "inputFile"
+                Strict
         `shouldThrow`
         isSameFile

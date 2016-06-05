@@ -4,6 +4,7 @@ module HPath.IO.MoveFileOverwriteSpec where
 
 
 import Test.Hspec
+import HPath.IO
 import HPath.IO.Errors
 import System.IO.Error
   (
@@ -14,8 +15,6 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()
@@ -46,64 +45,75 @@ cleanupFiles = do
 
 spec :: Spec
 spec = before_ setupFiles $ after_ cleanupFiles $
-  describe "HPath.IO.moveFileOverwrite" $ do
+  describe "HPath.IO.moveFile" $ do
 
     -- successes --
-    it "moveFileOverwrite, all fine" $
-      moveFileOverwrite' "myFile"
-                         "movedFile"
+    it "moveFile (Overwrite), all fine" $
+      moveFile' "myFile"
+                "movedFile"
+                Overwrite
 
-    it "moveFileOverwrite, all fine" $
-      moveFileOverwrite' "myFile"
-                         "dir/movedFile"
+    it "moveFile (Overwrite), all fine" $
+      moveFile' "myFile"
+                "dir/movedFile"
+                Overwrite
 
-    it "moveFileOverwrite, all fine on symlink" $
-      moveFileOverwrite' "myFileL"
-                         "movedFile"
+    it "moveFile (Overwrite), all fine on symlink" $
+      moveFile' "myFileL"
+                "movedFile"
+                Overwrite
 
-    it "moveFileOverwrite, all fine on directory" $
-      moveFileOverwrite' "dir"
-                         "movedFile"
+    it "moveFile (Overwrite), all fine on directory" $
+      moveFile' "dir"
+                "movedFile"
+                Overwrite
 
-    it "moveFileOverwrite, destination file already exists" $
-      moveFileOverwrite' "myFile"
-                         "alreadyExists"
+    it "moveFile (Overwrite), destination file already exists" $
+      moveFile' "myFile"
+                "alreadyExists"
+                Overwrite
 
     -- posix failures --
-    it "moveFileOverwrite, source file does not exist" $
-      moveFileOverwrite' "fileDoesNotExist"
-                         "movedFile"
+    it "moveFile (Overwrite), source file does not exist" $
+      moveFile' "fileDoesNotExist"
+                "movedFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "moveFileOverwrite, can't write to destination directory" $
-      moveFileOverwrite' "myFile"
-                         "noWritePerm/movedFile"
+    it "moveFile (Overwrite), can't write to destination directory" $
+      moveFile' "myFile"
+                "noWritePerm/movedFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "moveFileOverwrite, can't open destination directory" $
-      moveFileOverwrite' "myFile"
-                         "noPerms/movedFile"
+    it "moveFile (Overwrite), can't open destination directory" $
+      moveFile' "myFile"
+                "noPerms/movedFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "moveFileOverwrite, can't open source directory" $
-      moveFileOverwrite' "noPerms/myFile"
-                         "movedFile"
+    it "moveFile (Overwrite), can't open source directory" $
+      moveFile' "noPerms/myFile"
+                "movedFile"
+                Overwrite
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     -- custom failures --
-    it "moveFileOverwrite, move from file to dir" $
-      moveFileOverwrite' "myFile"
-                         "alreadyExistsD"
+
+    it "moveFile (Overwrite), move from file to dir" $
+      moveFile' "myFile"
+                "alreadyExistsD"
+                Overwrite
         `shouldThrow`
         isDirDoesExist
 
-    it "moveFileOverwrite, source and dest are same file" $
-      moveFileOverwrite' "myFile"
-                         "myFile"
+    it "moveFile (Overwrite), source and dest are same file" $
+      moveFile' "myFile"
+                "myFile"
+                Overwrite
         `shouldThrow`
         isSameFile
-

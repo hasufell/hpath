@@ -14,8 +14,6 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()

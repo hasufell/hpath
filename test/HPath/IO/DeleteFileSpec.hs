@@ -4,6 +4,7 @@ module HPath.IO.DeleteFileSpec where
 
 
 import Test.Hspec
+import HPath.IO
 import System.IO.Error
   (
     ioeGetErrorType
@@ -17,8 +18,6 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()
@@ -55,6 +54,7 @@ spec = before_ setupFiles $ after_ cleanupFiles $
     it "deleteFile, symlink, all fine" $ do
       recreateSymlink' "syml"
                        "testFile"
+                       Strict
       deleteFile' "testFile"
       getSymbolicLinkStatus "testFile"
         `shouldThrow`

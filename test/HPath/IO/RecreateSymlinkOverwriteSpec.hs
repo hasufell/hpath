@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module HPath.IO.RecreateSymlinkSpec where
+module HPath.IO.RecreateSymlinkOverwriteSpec where
 
 
 -- TODO: exception if destination exists but is not a file + `OverWrite` CopyMode
@@ -52,73 +52,71 @@ spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.recreateSymlink" $ do
 
     -- successes --
-    it "recreateSymLink (Strict), all fine" $ do
+    it "recreateSymLink (Overwrite), all fine" $ do
       recreateSymlink' "myFileL"
                        "movedFile"
-                       Strict
+                       Overwrite
       removeFileIfExists "movedFile"
 
-    it "recreateSymLink (Strict), all fine" $ do
+    it "recreateSymLink (Overwrite), all fine" $ do
       recreateSymlink' "myFileL"
                        "dir/movedFile"
-                       Strict
+                       Overwrite
       removeFileIfExists "dir/movedFile"
 
-    -- posix failures --
-    it "recreateSymLink (Strict), wrong input type (file)" $
-      recreateSymlink' "myFile"
-                       "movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == InvalidArgument)
-
-    it "recreateSymLink (Strict), wrong input type (directory)" $
-      recreateSymlink' "dir"
-                       "movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == InvalidArgument)
-
-    it "recreateSymLink (Strict), can't write to destination directory" $
-      recreateSymlink' "myFileL"
-                       "noWritePerm/movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == PermissionDenied)
-
-    it "recreateSymLink (Strict), can't open destination directory" $
-      recreateSymlink' "myFileL"
-                       "noPerms/movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == PermissionDenied)
-
-    it "recreateSymLink (Strict), can't open source directory" $
-      recreateSymlink' "noPerms/myFileL"
-                       "movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == PermissionDenied)
-
-    it "recreateSymLink (Strict), destination file already exists" $
+    it "recreateSymLink (Overwrite), destination file already exists" $
       recreateSymlink' "myFileL"
                        "alreadyExists"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == AlreadyExists)
+                       Overwrite
 
-    it "recreateSymLink (Strict), destination already exists and is a dir" $
+    it "recreateSymLink (Overwrite), destination already exists and is a dir" $ do
       recreateSymlink' "myFileL"
                        "alreadyExistsD"
-                       Strict
+                       Overwrite
+      deleteFile' "alreadyExistsD"
+      createDir' "alreadyExistsD"
+
+    -- posix failures --
+    it "recreateSymLink (Overwrite), wrong input type (file)" $
+      recreateSymlink' "myFile"
+                       "movedFile"
+                       Overwrite
         `shouldThrow`
-        (\e -> ioeGetErrorType e == AlreadyExists)
+        (\e -> ioeGetErrorType e == InvalidArgument)
+
+    it "recreateSymLink (Overwrite), wrong input type (directory)" $
+      recreateSymlink' "dir"
+                       "movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == InvalidArgument)
+
+    it "recreateSymLink (Overwrite), can't write to destination directory" $
+      recreateSymlink' "myFileL"
+                       "noWritePerm/movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
+
+    it "recreateSymLink (Overwrite), can't open destination directory" $
+      recreateSymlink' "myFileL"
+                       "noPerms/movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
+
+    it "recreateSymLink (Overwrite), can't open source directory" $
+      recreateSymlink' "noPerms/myFileL"
+                       "movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
 
     -- custom failures --
-    it "recreateSymLink (Strict), source and destination are the same file" $
+    it "recreateSymLink (Overwrite), source and destination are the same file" $
       recreateSymlink' "myFileL"
                        "myFileL"
-                       Strict
+                       Overwrite
         `shouldThrow`
         isSameFile
 

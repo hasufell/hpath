@@ -9,7 +9,6 @@
 --
 -- Provides error handling.
 
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module HPath.IO.Errors
@@ -27,6 +26,7 @@ module HPath.IO.Errors
   , isInvalidOperation
   , isCan'tOpenDirectory
   , isCopyFailed
+  , isRecursiveFailure
 
   -- * Path based functions
   , throwFileDoesExist
@@ -70,10 +70,6 @@ import Data.ByteString.UTF8
   (
     toString
   )
-import Data.Data
-  (
-    Data(..)
-  )
 import Data.Typeable
 import Foreign.C.Error
   (
@@ -114,7 +110,8 @@ data HPathIOException = FileDoesNotExist ByteString
                       | InvalidOperation String
                       | Can'tOpenDirectory ByteString
                       | CopyFailed String
-  deriving (Typeable, Eq, Data)
+                      | RecursiveFailure [IOException]
+  deriving (Typeable, Eq)
 
 
 instance Show HPathIOException where
@@ -133,6 +130,22 @@ instance Show HPathIOException where
   show (Can'tOpenDirectory fp) = "Can't open directory: "
                                  ++ toString fp
   show (CopyFailed str) = "Copying failed: " ++ str
+  show (RecursiveFailure exs) = "Recursive operation failed: "
+    ++ show exs
+
+
+toConstr :: HPathIOException -> String
+toConstr FileDoesNotExist {} = "FileDoesNotExist"
+toConstr DirDoesNotExist {} = "DirDoesNotExist"
+toConstr SameFile {} = "SameFile"
+toConstr DestinationInSource {} = "DestinationInSource"
+toConstr FileDoesExist {} = "FileDoesExist"
+toConstr DirDoesExist {} = "DirDoesExist"
+toConstr InvalidOperation {} = "InvalidOperation"
+toConstr Can'tOpenDirectory {} = "Can'tOpenDirectory"
+toConstr CopyFailed {} = "CopyFailed"
+toConstr RecursiveFailure {} = "RecursiveFailure"
+
 
 
 
@@ -146,7 +159,7 @@ instance Exception HPathIOException
     --[ Exception identifiers ]--
     -----------------------------
 
-isFileDoesNotExist, isDirDoesNotExist, isSameFile, isDestinationInSource, isFileDoesExist, isDirDoesExist, isInvalidOperation, isCan'tOpenDirectory, isCopyFailed :: HPathIOException -> Bool
+isFileDoesNotExist, isDirDoesNotExist, isSameFile, isDestinationInSource, isFileDoesExist, isDirDoesExist, isInvalidOperation, isCan'tOpenDirectory, isCopyFailed, isRecursiveFailure :: HPathIOException -> Bool
 isFileDoesNotExist ex = toConstr (ex :: HPathIOException) == toConstr FileDoesNotExist{}
 isDirDoesNotExist ex = toConstr (ex :: HPathIOException) == toConstr DirDoesNotExist{}
 isSameFile ex = toConstr (ex :: HPathIOException) == toConstr SameFile{}
@@ -156,7 +169,7 @@ isDirDoesExist ex = toConstr (ex :: HPathIOException) == toConstr DirDoesExist{}
 isInvalidOperation ex = toConstr (ex :: HPathIOException) == toConstr InvalidOperation{}
 isCan'tOpenDirectory ex = toConstr (ex :: HPathIOException) == toConstr Can'tOpenDirectory{}
 isCopyFailed ex = toConstr (ex :: HPathIOException) == toConstr CopyFailed{}
-
+isRecursiveFailure ex = toConstr (ex :: HPathIOException) == toConstr RecursiveFailure{}
 
 
 

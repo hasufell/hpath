@@ -37,14 +37,13 @@ module HPath.IO
   (
   -- * Types
     FileType(..)
+  , RecursiveMode(..)
+  , CopyMode(..)
   -- * File copying
   , copyDirRecursive
-  , copyDirRecursiveOverwrite
   , recreateSymlink
   , copyFile
-  , copyFileOverwrite
   , easyCopy
-  , easyCopyOverwrite
   -- * File deletion
   , deleteFile
   , deleteDir
@@ -60,7 +59,6 @@ module HPath.IO
   -- * File renaming/moving
   , renameFile
   , moveFile
-  , moveFileOverwrite
   -- * File permissions
   , newFilePerms
   , newDirPerms
@@ -80,12 +78,14 @@ import Control.Applicative
   )
 import Control.Exception
   (
-    bracket
+    IOException
+  , bracket
   , throwIO
   )
 import Control.Monad
   (
-    void
+    unless
+  , void
   , when
   )
 import Data.ByteString
@@ -95,6 +95,13 @@ import Data.ByteString
 import Data.Foldable
   (
     for_
+  )
+import Data.IORef
+  (
+    IORef
+  , modifyIORef
+  , newIORef
+  , readIORef
   )
 import Data.Maybe
   (
@@ -131,7 +138,6 @@ import GHC.IO.Exception
 import HPath
 import HPath.Internal
 import HPath.IO.Errors
-import HPath.IO.Utils
 import Prelude hiding (readFile)
 import System.IO.Error
   (
@@ -213,6 +219,27 @@ data FileType = Directory
 
 
 
+-- |The mode for any recursive operation.
+--
+-- On `FailEarly` the whole operation fails immediately if any of the
+-- recursive sub-operations fail, which is sort of the default
+-- for IO operations.
+--
+-- On `CollectFailures` skips and collects the failed sub-operation
+-- and keeps on
+-- recursing. At the end an exception describing the collected
+-- failures will still be raised.
+data RecursiveMode = FailEarly
+                   | CollectFailures
+
+
+-- |The mode for copy and file moves.
+-- Overwrite mode is usually not very well defined, but is a convenience
+-- shortcut.
+data CopyMode = Strict    -- ^ fail if any target exists
+              | Overwrite -- ^ overwrite targets
+
+
 
 
     --------------------
@@ -227,6 +254,10 @@ data FileType = Directory
 -- For directory contents, this has the same behavior as `easyCopy`
 -- and thus will ignore any file type that is not `RegularFile`,
 -- `SymbolicLink` or `Directory`.
+--
+-- For `Overwrite` mode this does not prune destination directory contents,
+-- so the destination might contain more files than the source after
+-- the operation has completed.
 --
 -- Safety/reliability concerns:
 --
@@ -244,27 +275,51 @@ data FileType = Directory
 --    - `PermissionDenied` if source directory can't be opened
 --    - `InvalidArgument` if source directory is wrong type (symlink)
 --    - `InvalidArgument` if source directory is wrong type (regular file)
---    - `AlreadyExists` if destination already exists
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --    - `DestinationInSource` if destination is contained in source (`HPathIOException`)
+--    - `RecursiveFailure` if any sub-operation failed (for `CollectFailures` RecursiveMode only)
+--
+-- Throws in `Strict` CopyMode only:
+--
+--    - `AlreadyExists` if destination already exists
+--
+-- Throws in `CollectFailures` RecursiveMode only:
+--
+--    - `AlreadyExists` if destination already exists
 copyDirRecursive :: Path Abs  -- ^ source dir
                  -> Path Abs  -- ^ full destination
+                 -> CopyMode
+                 -> RecursiveMode
                  -> IO ()
-copyDirRecursive fromp destdirp
+copyDirRecursive fromp destdirp cm rm
   = do
+    ce <- newIORef []
     -- for performance, sanity checks are only done for the top dir
     throwSameFile fromp destdirp
     throwDestinationInSource fromp destdirp
-    go fromp destdirp
+    go ce fromp destdirp
+    collectedExceptions <- readIORef ce
+    unless (null collectedExceptions)
+           (throwIO . RecursiveFailure $ collectedExceptions)
   where
-    go :: Path Abs -> Path Abs -> IO ()
-    go fromp' destdirp' = do
+    go :: IORef [IOException] -> Path Abs -> Path Abs -> IO ()
+    go ce fromp' destdirp' = do
+
       -- order is important here, so we don't get empty directories
       -- on failure
-      contents <- getDirsFiles fromp'
+      contents <- handleIOE ce [] $ do
+        contents <- getDirsFiles fromp'
 
-      fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
-      createDirectory (fromAbs destdirp') fmode'
+        fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
+        case cm of
+          Strict    -> createDirectory (fromAbs destdirp') fmode'
+          Overwrite -> catchIOError (createDirectory (fromAbs destdirp') fmode')
+                         $ \e ->
+                           case ioeGetErrorType e of
+                             AlreadyExists -> setFileMode (fromAbs destdirp')
+                                                          fmode'
+                             _             -> ioError e
+        return contents
 
       -- we can't use `easyCopy` here, because we want to call `go`
       -- recursively to skip the top-level sanity checks
@@ -272,81 +327,51 @@ copyDirRecursive fromp destdirp
         ftype <- getFileType f
         newdest <- (destdirp' </>) <$> basename f
         case ftype of
-          SymbolicLink -> recreateSymlink f newdest
-          Directory    -> go f newdest
-          RegularFile  -> copyFile f newdest
+          SymbolicLink -> handleIOE ce ()
+                            $ recreateSymlink f newdest cm
+          Directory    -> go ce f newdest
+          RegularFile  -> handleIOE ce () $ copyFile f newdest cm
           _            -> return ()
-
-
--- |Like `copyDirRecursive` except it overwrites contents of directories
--- if any.
---
--- For directory contents, this has the same behavior as `easyCopyOverwrite`
--- and thus will ignore any file type that is not `RegularFile`,
--- `SymbolicLink` or `Directory`.
---
--- Throws:
---
---    - `NoSuchThing` if source directory does not exist
---    - `PermissionDenied` if output directory is not writable
---    - `PermissionDenied` if source directory can't be opened
---    - `InvalidArgument` if source directory is wrong type (symlink)
---    - `InvalidArgument` if source directory is wrong type (regular file)
---    - `SameFile` if source and destination are the same file (`HPathIOException`)
---    - `DestinationInSource` if destination is contained in source (`HPathIOException`)
-copyDirRecursiveOverwrite :: Path Abs  -- ^ source dir
-                          -> Path Abs  -- ^ full destination
-                          -> IO ()
-copyDirRecursiveOverwrite fromp destdirp
-  = do
-    -- for performance, sanity checks are only done for the top dir
-    throwSameFile fromp destdirp
-    throwDestinationInSource fromp destdirp
-    go fromp destdirp
-  where
-    go :: Path Abs -> Path Abs -> IO ()
-    go fromp' destdirp' = do
-      -- order is important here, so we don't get empty directories
-      -- on failure
-      contents <- getDirsFiles fromp'
-
-      fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
-      catchIOError (createDirectory (fromAbs destdirp') fmode') $ \e ->
-        case ioeGetErrorType e of
-          AlreadyExists -> setFileMode (fromAbs destdirp') fmode'
-          _             -> ioError e
-
-      -- we can't use `easyCopyOverwrite` here, because we want to call `go`
-      -- recursively to skip the top-level sanity checks
-      for_ contents $ \f -> do
-        ftype <- getFileType f
-        newdest <- (destdirp' </>) <$> basename f
-        case ftype of
-          SymbolicLink -> whenM (doesFileExist newdest) (deleteFile newdest)
-                          >> recreateSymlink f newdest
-          Directory    -> go f newdest
-          RegularFile  -> copyFileOverwrite f newdest
-          _            -> return ()
+    handleIOE :: IORef [IOException] -> a -> IO a -> IO a
+    handleIOE ce def = case rm of
+      FailEarly -> handleIOError throwIO
+      CollectFailures -> handleIOError (\e -> modifyIORef ce (e:)
+                                         >> return def)
 
 
 -- |Recreate a symlink.
+--
+-- In `Overwrite` mode only files and empty directories are deleted.
+--
+-- Safety/reliability concerns:
+--
+--    * `Overwrite` mode is inherently non-atomic
 --
 -- Throws:
 --
 --    - `InvalidArgument` if source file is wrong type (not a symlink)
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `PermissionDenied` if source directory cannot be opened
---    - `AlreadyExists` if destination file already exists
+--    - `AlreadyExists` if destination file already exists (for `Strict` CopyMode only)
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --
 -- Note: calls `symlink`
 recreateSymlink :: Path Abs  -- ^ the old symlink file
                 -> Path Abs  -- ^ destination file
+                -> CopyMode
                 -> IO ()
-recreateSymlink symsource newsym
+recreateSymlink symsource newsym cm
   = do
     throwSameFile symsource newsym
     sympoint <- readSymbolicLink (fromAbs symsource)
+    case cm of
+      Strict -> return ()
+      Overwrite -> do
+        writable <- isWritable (dirname newsym)
+        isfile   <- doesFileExist newsym
+        isdir    <- doesDirectoryExist newsym
+        when (writable && isfile) (deleteFile newsym)
+        when (writable && isdir)  (deleteDir newsym)
     createSymbolicLink sympoint (fromAbs newsym)
 
 
@@ -358,8 +383,11 @@ recreateSymlink symsource newsym
 -- examine file types. For a more high-level version, use `easyCopy`
 -- instead.
 --
+-- In `Overwrite` mode only overwrites actual files, not directories.
+--
 -- Safety/reliability concerns:
 --
+--    * `Overwrite` mode is not atomic
 --    * when used on `CharacterDevice`, reads the "contents" and copies
 --      them to a regular file, which might take indefinitely
 --    * when used on `BlockDevice`, may either read the "contents"
@@ -374,61 +402,35 @@ recreateSymlink symsource newsym
 --    - `PermissionDenied` if output directory is not writable
 --    - `PermissionDenied` if source directory can't be opened
 --    - `InvalidArgument` if source file is wrong type (symlink or directory)
---    - `AlreadyExists` if destination already exists
+--    - `AlreadyExists` if destination already exists (for `Strict` CopyMode only)
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
 --
 -- Note: calls `sendfile` and possibly `read`/`write` as fallback
 copyFile :: Path Abs  -- ^ source file
          -> Path Abs  -- ^ destination file
+         -> CopyMode
          -> IO ()
-copyFile from to = do
+copyFile from to cm = do
   throwSameFile from to
-  _copyFile [SPDF.oNofollow]
-            [SPDF.oNofollow, SPDF.oExcl]
-            from to
-
-
--- |Like `copyFile` except it overwrites the destination if it already
--- exists.
---
--- Safety/reliability concerns:
---
---    * when used on `CharacterDevice`, reads the "contents" and copies
---      them to a regular file, which might take indefinitely
---    * when used on `BlockDevice`, may either read the "contents"
---      and copy them to a regular file (potentially hanging indefinitely)
---      or may create a regular empty destination file
---    * when used on `NamedPipe`, will hang indefinitely
---    * not atomic, since it uses read/write
---
--- Throws:
---
---    - `NoSuchThing` if source file does not exist
---    - `NoSuchThing` if source file is a `Socket`
---    - `PermissionDenied` if output directory is not writable
---    - `PermissionDenied` if source directory can't be opened
---    - `InvalidArgument` if source file is wrong type (symlink or directory)
---    - `SameFile` if source and destination are the same file (`HPathIOException`)
---
--- Note: calls `sendfile` and possibly `read`/`write` as fallback
-copyFileOverwrite :: Path Abs  -- ^ source file
-                  -> Path Abs  -- ^ destination file
-                  -> IO ()
-copyFileOverwrite from to = do
-  throwSameFile from to
-  catchIOError (_copyFile [SPDF.oNofollow]
-                          [SPDF.oNofollow, SPDF.oTrunc]
-                          from to) $ \e ->
-    case ioeGetErrorType e of
-      -- if the destination file is not writable, we need to
-      -- figure out if we can still copy by deleting it first
-      PermissionDenied -> do
-        exists   <- doesFileExist to
-        writable <- isWritable (dirname to)
-        if exists && writable
-          then deleteFile to >> copyFile from to
-          else ioError e
-      _ -> ioError e
+  
+  case cm of
+    Strict -> _copyFile [SPDF.oNofollow]
+                        [SPDF.oNofollow, SPDF.oExcl]
+                        from to
+    Overwrite -> 
+      catchIOError (_copyFile [SPDF.oNofollow]
+                              [SPDF.oNofollow, SPDF.oTrunc]
+                              from to) $ \e ->
+        case ioeGetErrorType e of
+          -- if the destination file is not writable, we need to
+          -- figure out if we can still copy by deleting it first
+          PermissionDenied -> do
+            exists   <- doesFileExist to
+            writable <- isWritable (dirname to)
+            if exists && writable
+              then deleteFile to >> copyFile from to Strict
+              else ioError e
+          _ -> ioError e
 
 
 _copyFile :: [SPDF.Flags]
@@ -490,36 +492,16 @@ _copyFile sflags dflags from to
 --    * calls `copyDirRecursive` for directories
 easyCopy :: Path Abs
          -> Path Abs
+         -> CopyMode
+         -> RecursiveMode
          -> IO ()
-easyCopy from to = do
+easyCopy from to cm rm = do
   ftype <- getFileType from
   case ftype of
-       SymbolicLink -> recreateSymlink from to
-       RegularFile  -> copyFile from to
-       Directory    -> copyDirRecursive from to
+       SymbolicLink -> recreateSymlink from to cm
+       RegularFile  -> copyFile from to cm
+       Directory    -> copyDirRecursive from to cm rm
        _            -> return ()
-
-
--- |Like `easyCopy` except it overwrites the destination if it already exists.
--- For directories, this overwrites contents without pruning them, so the resulting
--- directory may have more files than have been copied.
---
--- Safety/reliability concerns:
---
---    * examines filetypes explicitly
---    * calls `copyDirRecursive` for directories
-easyCopyOverwrite :: Path Abs
-                  -> Path Abs
-                  -> IO ()
-easyCopyOverwrite from to = do
-  ftype <- getFileType from
-  case ftype of
-       SymbolicLink -> whenM (doesFileExist to) (deleteFile to)
-                       >> recreateSymlink from to
-       RegularFile  -> copyFileOverwrite from to
-       Directory    -> copyDirRecursiveOverwrite from to
-       _            -> return ()
-
 
 
 
@@ -725,70 +707,53 @@ renameFile fromf tof = do
 --
 -- Safety/reliability concerns:
 --
+--    * `Overwrite` mode is not atomic
 --    * copy-delete fallback is inherently non-atomic
 --    * since this function calls `easyCopy` and `easyDelete` as a fallback
 --      to `renameFile`, file types that are not `RegularFile`, `SymbolicLink`
 --      or `Directory` may be ignored
+--    * for `Overwrite` mode, the destination will be deleted (not recursively)
+--      before moving
 --
 -- Throws:
 --
 --     - `NoSuchThing` if source file does not exist
 --     - `PermissionDenied` if output directory cannot be written to
 --     - `PermissionDenied` if source directory cannot be opened
---     - `FileDoesExist` if destination file already exists (`HPathIOException`)
+--     - `FileDoesExist` if destination file already exists (`HPathIOException`),
+--        only for `Strict` CopyMode
 --     - `DirDoesExist` if destination directory already exists (`HPathIOException`)
+--        only for `Strict` CopyMode
 --     - `SameFile` if destination and source are the same file (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
 moveFile :: Path Abs  -- ^ file to move
          -> Path Abs  -- ^ destination
+         -> CopyMode
          -> IO ()
-moveFile from to = do
+moveFile from to cm = do
   throwSameFile from to
-  catchErrno [eXDEV] (renameFile from to) $ do
-    easyCopy from to
-    easyDelete from
+  case cm of
+    Strict -> catchErrno [eXDEV] (renameFile from to) $ do
+                easyCopy from to Strict FailEarly
+                easyDelete from
+    Overwrite -> do
+      ft <- getFileType from
+      writable <- isWritable $ dirname to
+      case ft of
+        RegularFile -> do
+          exists <- doesFileExist to
+          when (exists && writable) (deleteFile to)
+        SymbolicLink -> do
+          exists <- doesFileExist to
+          when (exists && writable) (deleteFile to)
+        Directory -> do
+          exists <- doesDirectoryExist to
+          when (exists && writable) (deleteDir to)
+        _ -> return ()
+      moveFile from to Strict
 
 
--- |Like `moveFile`, but overwrites the destination if it exists.
---
--- Does not follow symbolic links, but renames the symbolic link file.
---
--- Ignores any file type that is not `RegularFile`, `SymbolicLink` or
--- `Directory`.
---
--- Safety/reliability concerns:
---
---    * copy-delete fallback is inherently non-atomic
---    * checks for file types and destination file existence explicitly
---
--- Throws:
---
---     - `NoSuchThing` if source file does not exist
---     - `PermissionDenied` if output directory cannot be written to
---     - `PermissionDenied` if source directory cannot be opened
---     - `SameFile` if destination and source are the same file (`HPathIOException`)
---
--- Note: calls `rename` (but does not allow to rename over existing files)
-moveFileOverwrite :: Path Abs  -- ^ file to move
-                  -> Path Abs  -- ^ destination
-                  -> IO ()
-moveFileOverwrite from to = do
-  throwSameFile from to
-  ft <- getFileType from
-  writable <- isWritable $ dirname to
-  case ft of
-    RegularFile -> do
-      exists <- doesFileExist to
-      when (exists && writable) (deleteFile to)
-    SymbolicLink -> do
-      exists <- doesFileExist to
-      when (exists && writable) (deleteFile to)
-    Directory -> do
-      exists <- doesDirectoryExist to
-      when (exists && writable) (deleteDir to)
-    _ -> return ()
-  moveFile from to
 
 
 

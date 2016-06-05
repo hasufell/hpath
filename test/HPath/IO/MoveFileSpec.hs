@@ -4,6 +4,7 @@ module HPath.IO.MoveFileSpec where
 
 
 import Test.Hspec
+import HPath.IO
 import HPath.IO.Errors
 import System.IO.Error
   (
@@ -14,8 +15,6 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()
@@ -51,63 +50,73 @@ spec = before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.moveFile" $ do
 
     -- successes --
-    it "moveFile, all fine" $
+    it "moveFile (Strict), all fine" $
       moveFile' "myFile"
                 "movedFile"
+                Strict
 
-    it "moveFile, all fine" $
+    it "moveFile (Strict), all fine" $
       moveFile' "myFile"
                 "dir/movedFile"
+                Strict
 
-    it "moveFile, all fine on symlink" $
+    it "moveFile (Strict), all fine on symlink" $
       moveFile' "myFileL"
                 "movedFile"
+                Strict
 
-    it "moveFile, all fine on directory" $
+    it "moveFile (Strict), all fine on directory" $
       moveFile' "dir"
                 "movedFile"
+                Strict
 
     -- posix failures --
-    it "moveFile, source file does not exist" $
+    it "moveFile (Strict), source file does not exist" $
       moveFile' "fileDoesNotExist"
                 "movedFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "moveFile, can't write to destination directory" $
+    it "moveFile (Strict), can't write to destination directory" $
       moveFile' "myFile"
                 "noWritePerm/movedFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "moveFile, can't open destination directory" $
+    it "moveFile (Strict), can't open destination directory" $
       moveFile' "myFile"
                 "noPerms/movedFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "moveFile, can't open source directory" $
+    it "moveFile (Strict), can't open source directory" $
       moveFile' "noPerms/myFile"
                 "movedFile"
+                Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     -- custom failures --
-    it "moveFile, destination file already exists" $
+    it "moveFile (Strict), destination file already exists" $
       moveFile' "myFile"
                 "alreadyExists"
+                Strict
         `shouldThrow`
         isFileDoesExist
 
-    it "moveFile, move from file to dir" $
+    it "moveFile (Strict), move from file to dir" $
       moveFile' "myFile"
                 "alreadyExistsD"
+                Strict
         `shouldThrow`
         isDirDoesExist
 
-    it "moveFile, source and dest are same file" $
+    it "moveFile (Strict), source and dest are same file" $
       moveFile' "myFile"
                 "myFile"
+                Strict
         `shouldThrow`
         isSameFile
-

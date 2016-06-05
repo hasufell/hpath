@@ -4,7 +4,6 @@ module HPath.IO.CreateSymlinkSpec where
 
 
 import Test.Hspec
-import HPath.IO.Errors
 import System.IO.Error
   (
     ioeGetErrorType
@@ -14,8 +13,6 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
 
 
 setupFiles :: IO ()

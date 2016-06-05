@@ -5,6 +5,7 @@ module HPath.IO.CopyDirRecursiveOverwriteSpec where
 
 
 import Test.Hspec
+import HPath.IO
 import HPath.IO.Errors
 import System.IO.Error
   (
@@ -17,8 +18,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import qualified Data.ByteString as BS
-import           Data.ByteString.UTF8 (toString)
+import Data.ByteString.UTF8 (toString)
 
 
 
@@ -82,88 +82,113 @@ cleanupFiles = do
 
 spec :: Spec
 spec = before_ setupFiles $ after_ cleanupFiles $
-  describe "HPath.IO.copyDirRecursiveOverwrite" $ do
+  describe "HPath.IO.copyDirRecursive" $ do
 
     -- successes --
-    it "copyDirRecursiveOverwrite, all fine" $ do
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "outputDir"
+    it "copyDirRecursive (Overwrite, FailEarly), all fine" $ do
+      copyDirRecursive' "inputDir"
+                        "outputDir"
+                        Overwrite
+                        FailEarly
       removeDirIfExists "outputDir"
 
-    it "copyDirRecursiveOverwrite, all fine and compare" $ do
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "outputDir"
+    it "copyDirRecursive (Overwrite, FailEarly), all fine and compare" $ do
+      copyDirRecursive' "inputDir"
+                        "outputDir"
+                        Overwrite
+                        FailEarly
       (system $ "diff -r --no-dereference "
                           ++ toString tmpDir ++ "inputDir" ++ " "
                           ++ toString tmpDir ++ "outputDir")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 
-    it "copyDirRecursiveOverwrite, destination dir already exists" $ do
+    it "copyDirRecursive (Overwrite, FailEarly), destination dir already exists" $ do
       (system $ "diff -r --no-dereference "
                           ++ toString tmpDir ++ "inputDir" ++ " "
                           ++ toString tmpDir ++ "alreadyExistsD")
         `shouldReturn` (ExitFailure 1)
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "alreadyExistsD"
+      copyDirRecursive' "inputDir"
+                        "alreadyExistsD"
+                        Overwrite
+                        FailEarly
       (system $ "diff -r --no-dereference "
                           ++ toString tmpDir ++ "inputDir" ++ " "
                           ++ toString tmpDir ++ "alreadyExistsD")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 
+
     -- posix failures --
-    it "copyDirRecursiveOverwrite, source directory does not exist" $
-      copyDirRecursiveOverwrite' "doesNotExist"
-                                 "outputDir"
+    it "copyDirRecursive, source directory does not exist" $
+      copyDirRecursive' "doesNotExist"
+                        "outputDir"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "copyDirRecursiveOverwrite, no write permission on output dir" $
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "noWritePerm/foo"
+    it "copyDirRecursive, no write permission on output dir" $
+      copyDirRecursive' "inputDir"
+                        "noWritePerm/foo"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyDirRecursiveOverwrite, cannot open output dir" $
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "noPerms/foo"
+    it "copyDirRecursive, cannot open output dir" $
+      copyDirRecursive' "inputDir"
+                        "noPerms/foo"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyDirRecursiveOverwrite, cannot open source dir" $
-      copyDirRecursiveOverwrite' "noPerms/inputDir"
-                                 "foo"
+    it "copyDirRecursive, cannot open source dir" $
+      copyDirRecursive' "noPerms/inputDir"
+                        "foo"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "copyDirRecursiveOverwrite, destination already exists and is a file" $
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "alreadyExists"
+    it "copyDirRecursive, destination already exists and is a file" $
+      copyDirRecursive' "inputDir"
+                        "alreadyExists"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         (\e -> ioeGetErrorType e == InappropriateType)
 
-    it "copyDirRecursiveOverwrite, wrong input (regular file)" $
-      copyDirRecursiveOverwrite' "wrongInput"
-                                 "outputDir"
+    it "copyDirRecursive, wrong input (regular file)" $
+      copyDirRecursive' "wrongInput"
+                        "outputDir"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         (\e -> ioeGetErrorType e == InappropriateType)
 
-    it "copyDirRecursiveOverwrite, wrong input (symlink to directory)" $
-      copyDirRecursiveOverwrite' "wrongInputSymL"
-                                 "outputDir"
+    it "copyDirRecursive, wrong input (symlink to directory)" $
+      copyDirRecursive' "wrongInputSymL"
+                        "outputDir"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
     -- custom failures
-    it "copyDirRecursiveOverwrite, destination in source" $
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "inputDir/foo"
+    it "copyDirRecursive (Overwrite, FailEarly), destination in source" $
+      copyDirRecursive' "inputDir"
+                        "inputDir/foo"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         isDestinationInSource
 
-    it "copyDirRecursiveOverwrite, destination and source same directory" $
-      copyDirRecursiveOverwrite' "inputDir"
-                                 "inputDir"
+    it "copyDirRecursive (Overwrite, FailEarly), destination and source same directory" $
+      copyDirRecursive' "inputDir"
+                        "inputDir"
+                        Overwrite
+                        FailEarly
         `shouldThrow`
         isSameFile
