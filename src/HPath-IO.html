@@ -258,660 +258,661 @@
 <a name="line-249"></a>
 <a name="line-250"></a>
 <a name="line-251"></a>
-<a name="line-252"></a><a name="copyDirRecursive"></a><span class='hs-comment'>-- |Copies the contents of a directory recursively to the given destination.</span>
-<a name="line-253"></a><span class='hs-comment'>-- Does not follow symbolic links. This behaves more or less like:</span>
-<a name="line-254"></a><span class='hs-comment'>--</span>
-<a name="line-255"></a><span class='hs-comment'>-- @</span>
-<a name="line-256"></a><span class='hs-comment'>--   mkdir \/destination\/dir</span>
-<a name="line-257"></a><span class='hs-comment'>--   cp -R \/source\/dir\/* \/destination\/dir\/</span>
-<a name="line-258"></a><span class='hs-comment'>-- @</span>
-<a name="line-259"></a><span class='hs-comment'>--</span>
-<a name="line-260"></a><span class='hs-comment'>-- For directory contents, this will ignore any file type that is not</span>
-<a name="line-261"></a><span class='hs-comment'>-- `RegularFile`, `SymbolicLink` or `Directory`.</span>
-<a name="line-262"></a><span class='hs-comment'>--</span>
-<a name="line-263"></a><span class='hs-comment'>-- For `Overwrite` copy mode this does not prune destination directory</span>
-<a name="line-264"></a><span class='hs-comment'>-- contents, so the destination might contain more files than the source after</span>
-<a name="line-265"></a><span class='hs-comment'>-- the operation has completed. Permissions of existing directories are</span>
-<a name="line-266"></a><span class='hs-comment'>-- fixed.</span>
-<a name="line-267"></a><span class='hs-comment'>--</span>
-<a name="line-268"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-269"></a><span class='hs-comment'>--</span>
-<a name="line-270"></a><span class='hs-comment'>--    * not atomic</span>
-<a name="line-271"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
-<a name="line-272"></a><span class='hs-comment'>--    * an explicit check `throwDestinationInSource` is carried out for the</span>
-<a name="line-273"></a><span class='hs-comment'>--      top directory for basic sanity, because otherwise we might end up</span>
-<a name="line-274"></a><span class='hs-comment'>--      with an infinite copy loop... however, this operation is not</span>
-<a name="line-275"></a><span class='hs-comment'>--      carried out recursively (because it's slow)</span>
-<a name="line-276"></a><span class='hs-comment'>--</span>
-<a name="line-277"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-278"></a><span class='hs-comment'>--</span>
-<a name="line-279"></a><span class='hs-comment'>--    - `NoSuchThing` if source directory does not exist</span>
-<a name="line-280"></a><span class='hs-comment'>--    - `PermissionDenied` if source directory can't be opened</span>
-<a name="line-281"></a><span class='hs-comment'>--    - `SameFile` if source and destination are the same file</span>
-<a name="line-282"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
-<a name="line-283"></a><span class='hs-comment'>--    - `DestinationInSource` if destination is contained in source</span>
-<a name="line-284"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
-<a name="line-285"></a><span class='hs-comment'>--</span>
-<a name="line-286"></a><span class='hs-comment'>-- Throws in `FailEarly` RecursiveErrorMode only:</span>
-<a name="line-287"></a><span class='hs-comment'>--</span>
-<a name="line-288"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory is not writable</span>
-<a name="line-289"></a><span class='hs-comment'>--    - `InvalidArgument` if source directory is wrong type (symlink)</span>
-<a name="line-290"></a><span class='hs-comment'>--    - `InappropriateType` if source directory is wrong type (regular file)</span>
-<a name="line-291"></a><span class='hs-comment'>--</span>
-<a name="line-292"></a><span class='hs-comment'>-- Throws in `CollectFailures` RecursiveErrorMode only:</span>
-<a name="line-293"></a><span class='hs-comment'>--</span>
-<a name="line-294"></a><span class='hs-comment'>--    - `RecursiveFailure` if any of the recursive operations that are not</span>
-<a name="line-295"></a><span class='hs-comment'>--      part of the top-directory sanity-checks fail (`HPathIOException`)</span>
-<a name="line-296"></a><span class='hs-comment'>--</span>
-<a name="line-297"></a><span class='hs-comment'>-- Throws in `Strict` CopyMode only:</span>
-<a name="line-298"></a><span class='hs-comment'>--</span>
-<a name="line-299"></a><span class='hs-comment'>--    - `AlreadyExists` if destination already exists</span>
-<a name="line-300"></a><span class='hs-definition'>copyDirRecursive</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ copy contents of this source dir</span>
-<a name="line-301"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ to this full destination (parent dirs</span>
-<a name="line-302"></a>                              <span class='hs-comment'>--   are not automatically created)</span>
-<a name="line-303"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
-<a name="line-304"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveErrorMode</span>
-<a name="line-305"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-306"></a><span class='hs-definition'>copyDirRecursive</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span>
-<a name="line-307"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-308"></a>    <span class='hs-varid'>ce</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>newIORef</span> <span class='hs-conid'>[]</span>
-<a name="line-309"></a>    <span class='hs-comment'>-- for performance, sanity checks are only done for the top dir</span>
-<a name="line-310"></a>    <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span>
-<a name="line-311"></a>    <span class='hs-varid'>throwDestinationInSource</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span>
-<a name="line-312"></a>    <span class='hs-varid'>go</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span>
-<a name="line-313"></a>    <span class='hs-varid'>collectedExceptions</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>readIORef</span> <span class='hs-varid'>ce</span>
-<a name="line-314"></a>    <span class='hs-varid'>unless</span> <span class='hs-layout'>(</span><span class='hs-varid'>null</span> <span class='hs-varid'>collectedExceptions</span><span class='hs-layout'>)</span>
-<a name="line-315"></a>           <span class='hs-layout'>(</span><span class='hs-varid'>throwIO</span> <span class='hs-varop'>.</span> <span class='hs-conid'>RecursiveFailure</span> <span class='hs-varop'>$</span> <span class='hs-varid'>collectedExceptions</span><span class='hs-layout'>)</span>
-<a name="line-316"></a>  <span class='hs-keyword'>where</span>
-<a name="line-317"></a>    <span class='hs-varid'>go</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IORef</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>IOException</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-318"></a>    <span class='hs-varid'>go</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>fromp'</span> <span class='hs-varid'>destdirp'</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-319"></a>
-<a name="line-320"></a>      <span class='hs-comment'>-- order is important here, so we don't get empty directories</span>
-<a name="line-321"></a>      <span class='hs-comment'>-- on failure</span>
-<a name="line-322"></a>      <span class='hs-varid'>contents</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-conid'>[]</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
-<a name="line-323"></a>        <span class='hs-varid'>contents</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getDirsFiles</span> <span class='hs-varid'>fromp'</span>
-<a name="line-324"></a>
-<a name="line-325"></a>        <span class='hs-varid'>fmode'</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>fileMode</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>getSymbolicLinkStatus</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>fromp'</span><span class='hs-layout'>)</span>
-<a name="line-326"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
-<a name="line-327"></a>          <span class='hs-conid'>Strict</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>createDirectory</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>destdirp'</span><span class='hs-layout'>)</span> <span class='hs-varid'>fmode'</span>
-<a name="line-328"></a>          <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>catchIOError</span> <span class='hs-layout'>(</span><span class='hs-varid'>createDirectory</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>destdirp'</span><span class='hs-layout'>)</span>
-<a name="line-329"></a>                                                     <span class='hs-varid'>fmode'</span><span class='hs-layout'>)</span>
-<a name="line-330"></a>                         <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>e</span> <span class='hs-keyglyph'>-&gt;</span>
-<a name="line-331"></a>                           <span class='hs-keyword'>case</span> <span class='hs-varid'>ioeGetErrorType</span> <span class='hs-varid'>e</span> <span class='hs-keyword'>of</span>
-<a name="line-332"></a>                             <span class='hs-conid'>AlreadyExists</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>setFileMode</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>destdirp'</span><span class='hs-layout'>)</span>
-<a name="line-333"></a>                                                          <span class='hs-varid'>fmode'</span>
-<a name="line-334"></a>                             <span class='hs-keyword'>_</span>             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>ioError</span> <span class='hs-varid'>e</span>
-<a name="line-335"></a>        <span class='hs-varid'>return</span> <span class='hs-varid'>contents</span>
-<a name="line-336"></a>
-<a name="line-337"></a>      <span class='hs-comment'>-- we can't use `easyCopy` here, because we want to call `go`</span>
-<a name="line-338"></a>      <span class='hs-comment'>-- recursively to skip the top-level sanity checks</span>
-<a name="line-339"></a>      <span class='hs-varid'>for_</span> <span class='hs-varid'>contents</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>f</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-340"></a>        <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>f</span>
-<a name="line-341"></a>        <span class='hs-varid'>newdest</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-layout'>(</span><span class='hs-varid'>destdirp'</span> <span class='hs-varop'>&lt;/&gt;</span><span class='hs-layout'>)</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-varid'>basename</span> <span class='hs-varid'>f</span>
-<a name="line-342"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
-<a name="line-343"></a>          <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-conid'>()</span>
-<a name="line-344"></a>                            <span class='hs-varop'>$</span> <span class='hs-varid'>recreateSymlink</span> <span class='hs-varid'>f</span> <span class='hs-varid'>newdest</span> <span class='hs-varid'>cm</span>
-<a name="line-345"></a>          <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>go</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>f</span> <span class='hs-varid'>newdest</span>
-<a name="line-346"></a>          <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-conid'>()</span> <span class='hs-varop'>$</span> <span class='hs-varid'>copyFile</span> <span class='hs-varid'>f</span> <span class='hs-varid'>newdest</span> <span class='hs-varid'>cm</span>
-<a name="line-347"></a>          <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
-<a name="line-348"></a>    <span class='hs-varid'>handleIOE</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IORef</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>IOException</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
-<a name="line-349"></a>    <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>def</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>case</span> <span class='hs-varid'>rm</span> <span class='hs-keyword'>of</span>
-<a name="line-350"></a>      <span class='hs-conid'>FailEarly</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOError</span> <span class='hs-varid'>throwIO</span>
-<a name="line-351"></a>      <span class='hs-conid'>CollectFailures</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOError</span> <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>e</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>modifyIORef</span> <span class='hs-varid'>ce</span> <span class='hs-layout'>(</span><span class='hs-varid'>e</span><span class='hs-conop'>:</span><span class='hs-layout'>)</span>
-<a name="line-352"></a>                                         <span class='hs-varop'>&gt;&gt;</span> <span class='hs-varid'>return</span> <span class='hs-varid'>def</span><span class='hs-layout'>)</span>
-<a name="line-353"></a>
+<a name="line-252"></a><a name="copyDirRecursive"></a><span class='hs-comment'>-- |Copies the contents of a directory recursively to the given destination, while preserving permissions.</span>
+<a name="line-253"></a><span class='hs-comment'>-- Does not follow symbolic links. This behaves more or less like</span>
+<a name="line-254"></a><span class='hs-comment'>-- the following, without descending into the destination if it</span>
+<a name="line-255"></a><span class='hs-comment'>-- already exists:</span>
+<a name="line-256"></a><span class='hs-comment'>--</span>
+<a name="line-257"></a><span class='hs-comment'>-- @</span>
+<a name="line-258"></a><span class='hs-comment'>--   cp -a \/source\/dir \/destination\/somedir</span>
+<a name="line-259"></a><span class='hs-comment'>-- @</span>
+<a name="line-260"></a><span class='hs-comment'>--</span>
+<a name="line-261"></a><span class='hs-comment'>-- For directory contents, this will ignore any file type that is not</span>
+<a name="line-262"></a><span class='hs-comment'>-- `RegularFile`, `SymbolicLink` or `Directory`.</span>
+<a name="line-263"></a><span class='hs-comment'>--</span>
+<a name="line-264"></a><span class='hs-comment'>-- For `Overwrite` copy mode this does not prune destination directory</span>
+<a name="line-265"></a><span class='hs-comment'>-- contents, so the destination might contain more files than the source after</span>
+<a name="line-266"></a><span class='hs-comment'>-- the operation has completed. Permissions of existing directories are</span>
+<a name="line-267"></a><span class='hs-comment'>-- fixed.</span>
+<a name="line-268"></a><span class='hs-comment'>--</span>
+<a name="line-269"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-270"></a><span class='hs-comment'>--</span>
+<a name="line-271"></a><span class='hs-comment'>--    * not atomic</span>
+<a name="line-272"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
+<a name="line-273"></a><span class='hs-comment'>--    * an explicit check `throwDestinationInSource` is carried out for the</span>
+<a name="line-274"></a><span class='hs-comment'>--      top directory for basic sanity, because otherwise we might end up</span>
+<a name="line-275"></a><span class='hs-comment'>--      with an infinite copy loop... however, this operation is not</span>
+<a name="line-276"></a><span class='hs-comment'>--      carried out recursively (because it's slow)</span>
+<a name="line-277"></a><span class='hs-comment'>--</span>
+<a name="line-278"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-279"></a><span class='hs-comment'>--</span>
+<a name="line-280"></a><span class='hs-comment'>--    - `NoSuchThing` if source directory does not exist</span>
+<a name="line-281"></a><span class='hs-comment'>--    - `PermissionDenied` if source directory can't be opened</span>
+<a name="line-282"></a><span class='hs-comment'>--    - `SameFile` if source and destination are the same file</span>
+<a name="line-283"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
+<a name="line-284"></a><span class='hs-comment'>--    - `DestinationInSource` if destination is contained in source</span>
+<a name="line-285"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
+<a name="line-286"></a><span class='hs-comment'>--</span>
+<a name="line-287"></a><span class='hs-comment'>-- Throws in `FailEarly` RecursiveErrorMode only:</span>
+<a name="line-288"></a><span class='hs-comment'>--</span>
+<a name="line-289"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory is not writable</span>
+<a name="line-290"></a><span class='hs-comment'>--    - `InvalidArgument` if source directory is wrong type (symlink)</span>
+<a name="line-291"></a><span class='hs-comment'>--    - `InappropriateType` if source directory is wrong type (regular file)</span>
+<a name="line-292"></a><span class='hs-comment'>--</span>
+<a name="line-293"></a><span class='hs-comment'>-- Throws in `CollectFailures` RecursiveErrorMode only:</span>
+<a name="line-294"></a><span class='hs-comment'>--</span>
+<a name="line-295"></a><span class='hs-comment'>--    - `RecursiveFailure` if any of the recursive operations that are not</span>
+<a name="line-296"></a><span class='hs-comment'>--      part of the top-directory sanity-checks fail (`HPathIOException`)</span>
+<a name="line-297"></a><span class='hs-comment'>--</span>
+<a name="line-298"></a><span class='hs-comment'>-- Throws in `Strict` CopyMode only:</span>
+<a name="line-299"></a><span class='hs-comment'>--</span>
+<a name="line-300"></a><span class='hs-comment'>--    - `AlreadyExists` if destination already exists</span>
+<a name="line-301"></a><span class='hs-definition'>copyDirRecursive</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ source dir</span>
+<a name="line-302"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination (parent dirs</span>
+<a name="line-303"></a>                              <span class='hs-comment'>--   are not automatically created)</span>
+<a name="line-304"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
+<a name="line-305"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveErrorMode</span>
+<a name="line-306"></a>                 <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-307"></a><span class='hs-definition'>copyDirRecursive</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span>
+<a name="line-308"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-309"></a>    <span class='hs-varid'>ce</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>newIORef</span> <span class='hs-conid'>[]</span>
+<a name="line-310"></a>    <span class='hs-comment'>-- for performance, sanity checks are only done for the top dir</span>
+<a name="line-311"></a>    <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span>
+<a name="line-312"></a>    <span class='hs-varid'>throwDestinationInSource</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span>
+<a name="line-313"></a>    <span class='hs-varid'>go</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>fromp</span> <span class='hs-varid'>destdirp</span>
+<a name="line-314"></a>    <span class='hs-varid'>collectedExceptions</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>readIORef</span> <span class='hs-varid'>ce</span>
+<a name="line-315"></a>    <span class='hs-varid'>unless</span> <span class='hs-layout'>(</span><span class='hs-varid'>null</span> <span class='hs-varid'>collectedExceptions</span><span class='hs-layout'>)</span>
+<a name="line-316"></a>           <span class='hs-layout'>(</span><span class='hs-varid'>throwIO</span> <span class='hs-varop'>.</span> <span class='hs-conid'>RecursiveFailure</span> <span class='hs-varop'>$</span> <span class='hs-varid'>collectedExceptions</span><span class='hs-layout'>)</span>
+<a name="line-317"></a>  <span class='hs-keyword'>where</span>
+<a name="line-318"></a>    <span class='hs-varid'>go</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IORef</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>IOException</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-319"></a>    <span class='hs-varid'>go</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>fromp'</span> <span class='hs-varid'>destdirp'</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-320"></a>
+<a name="line-321"></a>      <span class='hs-comment'>-- order is important here, so we don't get empty directories</span>
+<a name="line-322"></a>      <span class='hs-comment'>-- on failure</span>
+<a name="line-323"></a>      <span class='hs-varid'>contents</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-conid'>[]</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<a name="line-324"></a>        <span class='hs-varid'>contents</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getDirsFiles</span> <span class='hs-varid'>fromp'</span>
+<a name="line-325"></a>
+<a name="line-326"></a>        <span class='hs-varid'>fmode'</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>fileMode</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>getSymbolicLinkStatus</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>fromp'</span><span class='hs-layout'>)</span>
+<a name="line-327"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
+<a name="line-328"></a>          <span class='hs-conid'>Strict</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>createDirectory</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>destdirp'</span><span class='hs-layout'>)</span> <span class='hs-varid'>fmode'</span>
+<a name="line-329"></a>          <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>catchIOError</span> <span class='hs-layout'>(</span><span class='hs-varid'>createDirectory</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>destdirp'</span><span class='hs-layout'>)</span>
+<a name="line-330"></a>                                                     <span class='hs-varid'>fmode'</span><span class='hs-layout'>)</span>
+<a name="line-331"></a>                         <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>e</span> <span class='hs-keyglyph'>-&gt;</span>
+<a name="line-332"></a>                           <span class='hs-keyword'>case</span> <span class='hs-varid'>ioeGetErrorType</span> <span class='hs-varid'>e</span> <span class='hs-keyword'>of</span>
+<a name="line-333"></a>                             <span class='hs-conid'>AlreadyExists</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>setFileMode</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>destdirp'</span><span class='hs-layout'>)</span>
+<a name="line-334"></a>                                                          <span class='hs-varid'>fmode'</span>
+<a name="line-335"></a>                             <span class='hs-keyword'>_</span>             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>ioError</span> <span class='hs-varid'>e</span>
+<a name="line-336"></a>        <span class='hs-varid'>return</span> <span class='hs-varid'>contents</span>
+<a name="line-337"></a>
+<a name="line-338"></a>      <span class='hs-comment'>-- we can't use `easyCopy` here, because we want to call `go`</span>
+<a name="line-339"></a>      <span class='hs-comment'>-- recursively to skip the top-level sanity checks</span>
+<a name="line-340"></a>      <span class='hs-varid'>for_</span> <span class='hs-varid'>contents</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>f</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-341"></a>        <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>f</span>
+<a name="line-342"></a>        <span class='hs-varid'>newdest</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-layout'>(</span><span class='hs-varid'>destdirp'</span> <span class='hs-varop'>&lt;/&gt;</span><span class='hs-layout'>)</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-varid'>basename</span> <span class='hs-varid'>f</span>
+<a name="line-343"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
+<a name="line-344"></a>          <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-conid'>()</span>
+<a name="line-345"></a>                            <span class='hs-varop'>$</span> <span class='hs-varid'>recreateSymlink</span> <span class='hs-varid'>f</span> <span class='hs-varid'>newdest</span> <span class='hs-varid'>cm</span>
+<a name="line-346"></a>          <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>go</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>f</span> <span class='hs-varid'>newdest</span>
+<a name="line-347"></a>          <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-conid'>()</span> <span class='hs-varop'>$</span> <span class='hs-varid'>copyFile</span> <span class='hs-varid'>f</span> <span class='hs-varid'>newdest</span> <span class='hs-varid'>cm</span>
+<a name="line-348"></a>          <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
+<a name="line-349"></a>    <span class='hs-varid'>handleIOE</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>IORef</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>IOException</span><span class='hs-keyglyph'>]</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
+<a name="line-350"></a>    <span class='hs-varid'>handleIOE</span> <span class='hs-varid'>ce</span> <span class='hs-varid'>def</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>case</span> <span class='hs-varid'>rm</span> <span class='hs-keyword'>of</span>
+<a name="line-351"></a>      <span class='hs-conid'>FailEarly</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOError</span> <span class='hs-varid'>throwIO</span>
+<a name="line-352"></a>      <span class='hs-conid'>CollectFailures</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>handleIOError</span> <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>e</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>modifyIORef</span> <span class='hs-varid'>ce</span> <span class='hs-layout'>(</span><span class='hs-varid'>e</span><span class='hs-conop'>:</span><span class='hs-layout'>)</span>
+<a name="line-353"></a>                                         <span class='hs-varop'>&gt;&gt;</span> <span class='hs-varid'>return</span> <span class='hs-varid'>def</span><span class='hs-layout'>)</span>
 <a name="line-354"></a>
-<a name="line-355"></a><a name="recreateSymlink"></a><span class='hs-comment'>-- |Recreate a symlink.</span>
-<a name="line-356"></a><span class='hs-comment'>--</span>
-<a name="line-357"></a><span class='hs-comment'>-- In `Overwrite` copy mode only files and empty directories are deleted.</span>
-<a name="line-358"></a><span class='hs-comment'>--</span>
-<a name="line-359"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-360"></a><span class='hs-comment'>--</span>
-<a name="line-361"></a><span class='hs-comment'>--    * `Overwrite` mode is inherently non-atomic</span>
-<a name="line-362"></a><span class='hs-comment'>--</span>
-<a name="line-363"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-364"></a><span class='hs-comment'>--</span>
-<a name="line-365"></a><span class='hs-comment'>--    - `InvalidArgument` if source file is wrong type (not a symlink)</span>
-<a name="line-366"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
-<a name="line-367"></a><span class='hs-comment'>--    - `PermissionDenied` if source directory cannot be opened</span>
-<a name="line-368"></a><span class='hs-comment'>--    - `SameFile` if source and destination are the same file</span>
-<a name="line-369"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
-<a name="line-370"></a><span class='hs-comment'>--</span>
+<a name="line-355"></a>
+<a name="line-356"></a><a name="recreateSymlink"></a><span class='hs-comment'>-- |Recreate a symlink.</span>
+<a name="line-357"></a><span class='hs-comment'>--</span>
+<a name="line-358"></a><span class='hs-comment'>-- In `Overwrite` copy mode only files and empty directories are deleted.</span>
+<a name="line-359"></a><span class='hs-comment'>--</span>
+<a name="line-360"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-361"></a><span class='hs-comment'>--</span>
+<a name="line-362"></a><span class='hs-comment'>--    * `Overwrite` mode is inherently non-atomic</span>
+<a name="line-363"></a><span class='hs-comment'>--</span>
+<a name="line-364"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-365"></a><span class='hs-comment'>--</span>
+<a name="line-366"></a><span class='hs-comment'>--    - `InvalidArgument` if source file is wrong type (not a symlink)</span>
+<a name="line-367"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
+<a name="line-368"></a><span class='hs-comment'>--    - `PermissionDenied` if source directory cannot be opened</span>
+<a name="line-369"></a><span class='hs-comment'>--    - `SameFile` if source and destination are the same file</span>
+<a name="line-370"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
 <a name="line-371"></a><span class='hs-comment'>--</span>
-<a name="line-372"></a><span class='hs-comment'>-- Throws in `Strict` mode only:</span>
-<a name="line-373"></a><span class='hs-comment'>--</span>
-<a name="line-374"></a><span class='hs-comment'>--    - `AlreadyExists` if destination file already exists</span>
-<a name="line-375"></a><span class='hs-comment'>--</span>
-<a name="line-376"></a><span class='hs-comment'>-- Throws in `Overwrite` mode only:</span>
-<a name="line-377"></a><span class='hs-comment'>--</span>
-<a name="line-378"></a><span class='hs-comment'>--    - `UnsatisfiedConstraints` if destination file is non-empty directory</span>
-<a name="line-379"></a><span class='hs-comment'>--</span>
-<a name="line-380"></a><span class='hs-comment'>-- Note: calls `symlink`</span>
-<a name="line-381"></a><span class='hs-definition'>recreateSymlink</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ the old symlink file</span>
-<a name="line-382"></a>                <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination file</span>
-<a name="line-383"></a>                <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
-<a name="line-384"></a>                <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-385"></a><span class='hs-definition'>recreateSymlink</span> <span class='hs-varid'>symsource</span> <span class='hs-varid'>newsym</span> <span class='hs-varid'>cm</span>
-<a name="line-386"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-387"></a>    <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>symsource</span> <span class='hs-varid'>newsym</span>
-<a name="line-388"></a>    <span class='hs-varid'>sympoint</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>readSymbolicLink</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>symsource</span><span class='hs-layout'>)</span>
-<a name="line-389"></a>    <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
-<a name="line-390"></a>      <span class='hs-conid'>Strict</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
-<a name="line-391"></a>      <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-392"></a>        <span class='hs-varid'>writable</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>isWritable</span> <span class='hs-layout'>(</span><span class='hs-varid'>dirname</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
-<a name="line-393"></a>        <span class='hs-varid'>isfile</span>   <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>newsym</span>
-<a name="line-394"></a>        <span class='hs-varid'>isdir</span>    <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesDirectoryExist</span> <span class='hs-varid'>newsym</span>
-<a name="line-395"></a>        <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>writable</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>isfile</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteFile</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
-<a name="line-396"></a>        <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>writable</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>isdir</span><span class='hs-layout'>)</span>  <span class='hs-layout'>(</span><span class='hs-varid'>deleteDir</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
-<a name="line-397"></a>    <span class='hs-varid'>createSymbolicLink</span> <span class='hs-varid'>sympoint</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
-<a name="line-398"></a>
+<a name="line-372"></a><span class='hs-comment'>--</span>
+<a name="line-373"></a><span class='hs-comment'>-- Throws in `Strict` mode only:</span>
+<a name="line-374"></a><span class='hs-comment'>--</span>
+<a name="line-375"></a><span class='hs-comment'>--    - `AlreadyExists` if destination file already exists</span>
+<a name="line-376"></a><span class='hs-comment'>--</span>
+<a name="line-377"></a><span class='hs-comment'>-- Throws in `Overwrite` mode only:</span>
+<a name="line-378"></a><span class='hs-comment'>--</span>
+<a name="line-379"></a><span class='hs-comment'>--    - `UnsatisfiedConstraints` if destination file is non-empty directory</span>
+<a name="line-380"></a><span class='hs-comment'>--</span>
+<a name="line-381"></a><span class='hs-comment'>-- Note: calls `symlink`</span>
+<a name="line-382"></a><span class='hs-definition'>recreateSymlink</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ the old symlink file</span>
+<a name="line-383"></a>                <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination file</span>
+<a name="line-384"></a>                <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
+<a name="line-385"></a>                <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-386"></a><span class='hs-definition'>recreateSymlink</span> <span class='hs-varid'>symsource</span> <span class='hs-varid'>newsym</span> <span class='hs-varid'>cm</span>
+<a name="line-387"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-388"></a>    <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>symsource</span> <span class='hs-varid'>newsym</span>
+<a name="line-389"></a>    <span class='hs-varid'>sympoint</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>readSymbolicLink</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>symsource</span><span class='hs-layout'>)</span>
+<a name="line-390"></a>    <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
+<a name="line-391"></a>      <span class='hs-conid'>Strict</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
+<a name="line-392"></a>      <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-393"></a>        <span class='hs-varid'>writable</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>isWritable</span> <span class='hs-layout'>(</span><span class='hs-varid'>dirname</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
+<a name="line-394"></a>        <span class='hs-varid'>isfile</span>   <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>newsym</span>
+<a name="line-395"></a>        <span class='hs-varid'>isdir</span>    <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesDirectoryExist</span> <span class='hs-varid'>newsym</span>
+<a name="line-396"></a>        <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>writable</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>isfile</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteFile</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
+<a name="line-397"></a>        <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>writable</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>isdir</span><span class='hs-layout'>)</span>  <span class='hs-layout'>(</span><span class='hs-varid'>deleteDir</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
+<a name="line-398"></a>    <span class='hs-varid'>createSymbolicLink</span> <span class='hs-varid'>sympoint</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>newsym</span><span class='hs-layout'>)</span>
 <a name="line-399"></a>
-<a name="line-400"></a><a name="copyFile"></a><span class='hs-comment'>-- |Copies the given regular file to the given destination.</span>
-<a name="line-401"></a><span class='hs-comment'>-- Neither follows symbolic links, nor accepts them.</span>
-<a name="line-402"></a><span class='hs-comment'>-- For "copying" symbolic links, use `recreateSymlink` instead.</span>
-<a name="line-403"></a><span class='hs-comment'>--</span>
-<a name="line-404"></a><span class='hs-comment'>-- Note that this is still sort of a low-level function and doesn't</span>
-<a name="line-405"></a><span class='hs-comment'>-- examine file types. For a more high-level version, use `easyCopy`</span>
-<a name="line-406"></a><span class='hs-comment'>-- instead.</span>
-<a name="line-407"></a><span class='hs-comment'>--</span>
-<a name="line-408"></a><span class='hs-comment'>-- In `Overwrite` copy mode only overwrites actual files, not directories.</span>
-<a name="line-409"></a><span class='hs-comment'>--</span>
-<a name="line-410"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-411"></a><span class='hs-comment'>--</span>
-<a name="line-412"></a><span class='hs-comment'>--    * `Overwrite` mode is not atomic</span>
-<a name="line-413"></a><span class='hs-comment'>--    * when used on `CharacterDevice`, reads the "contents" and copies</span>
-<a name="line-414"></a><span class='hs-comment'>--      them to a regular file, which might take indefinitely</span>
-<a name="line-415"></a><span class='hs-comment'>--    * when used on `BlockDevice`, may either read the "contents"</span>
-<a name="line-416"></a><span class='hs-comment'>--      and copy them to a regular file (potentially hanging indefinitely)</span>
-<a name="line-417"></a><span class='hs-comment'>--      or may create a regular empty destination file</span>
-<a name="line-418"></a><span class='hs-comment'>--    * when used on `NamedPipe`, will hang indefinitely</span>
-<a name="line-419"></a><span class='hs-comment'>--</span>
-<a name="line-420"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-421"></a><span class='hs-comment'>--</span>
-<a name="line-422"></a><span class='hs-comment'>--    - `NoSuchThing` if source file does not exist</span>
-<a name="line-423"></a><span class='hs-comment'>--    - `NoSuchThing` if source file is a a `Socket`</span>
-<a name="line-424"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory is not writable</span>
-<a name="line-425"></a><span class='hs-comment'>--    - `PermissionDenied` if source directory can't be opened</span>
-<a name="line-426"></a><span class='hs-comment'>--    - `InvalidArgument` if source file is wrong type (symlink or directory)</span>
-<a name="line-427"></a><span class='hs-comment'>--    - `SameFile` if source and destination are the same file</span>
-<a name="line-428"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
-<a name="line-429"></a><span class='hs-comment'>--</span>
-<a name="line-430"></a><span class='hs-comment'>-- Throws in `Strict` mode only:</span>
-<a name="line-431"></a><span class='hs-comment'>--</span>
-<a name="line-432"></a><span class='hs-comment'>--    - `AlreadyExists` if destination already exists</span>
-<a name="line-433"></a><span class='hs-comment'>--</span>
-<a name="line-434"></a><span class='hs-comment'>-- Note: calls `sendfile` and possibly `read`/`write` as fallback</span>
-<a name="line-435"></a><span class='hs-definition'>copyFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ source file</span>
-<a name="line-436"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination file</span>
-<a name="line-437"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
-<a name="line-438"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-439"></a><span class='hs-definition'>copyFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-440"></a>  <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
-<a name="line-441"></a>  
-<a name="line-442"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
-<a name="line-443"></a>    <span class='hs-conid'>Strict</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-sel'>_copyFile</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-keyglyph'>]</span>
-<a name="line-444"></a>                        <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-layout'>,</span> <span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oExcl</span><span class='hs-keyglyph'>]</span>
-<a name="line-445"></a>                        <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
-<a name="line-446"></a>    <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> 
-<a name="line-447"></a>      <span class='hs-varid'>catchIOError</span> <span class='hs-layout'>(</span><span class='hs-sel'>_copyFile</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-keyglyph'>]</span>
-<a name="line-448"></a>                              <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-layout'>,</span> <span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oTrunc</span><span class='hs-keyglyph'>]</span>
-<a name="line-449"></a>                              <span class='hs-varid'>from</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>e</span> <span class='hs-keyglyph'>-&gt;</span>
-<a name="line-450"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>ioeGetErrorType</span> <span class='hs-varid'>e</span> <span class='hs-keyword'>of</span>
-<a name="line-451"></a>          <span class='hs-comment'>-- if the destination file is not writable, we need to</span>
-<a name="line-452"></a>          <span class='hs-comment'>-- figure out if we can still copy by deleting it first</span>
-<a name="line-453"></a>          <span class='hs-conid'>PermissionDenied</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-454"></a>            <span class='hs-varid'>exists</span>   <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>to</span>
-<a name="line-455"></a>            <span class='hs-varid'>writable</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>isWritable</span> <span class='hs-layout'>(</span><span class='hs-varid'>dirname</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
-<a name="line-456"></a>            <span class='hs-keyword'>if</span> <span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span>
-<a name="line-457"></a>              <span class='hs-keyword'>then</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span> <span class='hs-varop'>&gt;&gt;</span> <span class='hs-varid'>copyFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-conid'>Strict</span>
-<a name="line-458"></a>              <span class='hs-keyword'>else</span> <span class='hs-varid'>ioError</span> <span class='hs-varid'>e</span>
-<a name="line-459"></a>          <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>ioError</span> <span class='hs-varid'>e</span>
-<a name="line-460"></a>
+<a name="line-400"></a>
+<a name="line-401"></a><a name="copyFile"></a><span class='hs-comment'>-- |Copies the given regular file to the given destination.</span>
+<a name="line-402"></a><span class='hs-comment'>-- Neither follows symbolic links, nor accepts them.</span>
+<a name="line-403"></a><span class='hs-comment'>-- For "copying" symbolic links, use `recreateSymlink` instead.</span>
+<a name="line-404"></a><span class='hs-comment'>--</span>
+<a name="line-405"></a><span class='hs-comment'>-- Note that this is still sort of a low-level function and doesn't</span>
+<a name="line-406"></a><span class='hs-comment'>-- examine file types. For a more high-level version, use `easyCopy`</span>
+<a name="line-407"></a><span class='hs-comment'>-- instead.</span>
+<a name="line-408"></a><span class='hs-comment'>--</span>
+<a name="line-409"></a><span class='hs-comment'>-- In `Overwrite` copy mode only overwrites actual files, not directories.</span>
+<a name="line-410"></a><span class='hs-comment'>--</span>
+<a name="line-411"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-412"></a><span class='hs-comment'>--</span>
+<a name="line-413"></a><span class='hs-comment'>--    * `Overwrite` mode is not atomic</span>
+<a name="line-414"></a><span class='hs-comment'>--    * when used on `CharacterDevice`, reads the "contents" and copies</span>
+<a name="line-415"></a><span class='hs-comment'>--      them to a regular file, which might take indefinitely</span>
+<a name="line-416"></a><span class='hs-comment'>--    * when used on `BlockDevice`, may either read the "contents"</span>
+<a name="line-417"></a><span class='hs-comment'>--      and copy them to a regular file (potentially hanging indefinitely)</span>
+<a name="line-418"></a><span class='hs-comment'>--      or may create a regular empty destination file</span>
+<a name="line-419"></a><span class='hs-comment'>--    * when used on `NamedPipe`, will hang indefinitely</span>
+<a name="line-420"></a><span class='hs-comment'>--</span>
+<a name="line-421"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-422"></a><span class='hs-comment'>--</span>
+<a name="line-423"></a><span class='hs-comment'>--    - `NoSuchThing` if source file does not exist</span>
+<a name="line-424"></a><span class='hs-comment'>--    - `NoSuchThing` if source file is a a `Socket`</span>
+<a name="line-425"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory is not writable</span>
+<a name="line-426"></a><span class='hs-comment'>--    - `PermissionDenied` if source directory can't be opened</span>
+<a name="line-427"></a><span class='hs-comment'>--    - `InvalidArgument` if source file is wrong type (symlink or directory)</span>
+<a name="line-428"></a><span class='hs-comment'>--    - `SameFile` if source and destination are the same file</span>
+<a name="line-429"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
+<a name="line-430"></a><span class='hs-comment'>--</span>
+<a name="line-431"></a><span class='hs-comment'>-- Throws in `Strict` mode only:</span>
+<a name="line-432"></a><span class='hs-comment'>--</span>
+<a name="line-433"></a><span class='hs-comment'>--    - `AlreadyExists` if destination already exists</span>
+<a name="line-434"></a><span class='hs-comment'>--</span>
+<a name="line-435"></a><span class='hs-comment'>-- Note: calls `sendfile` and possibly `read`/`write` as fallback</span>
+<a name="line-436"></a><span class='hs-definition'>copyFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ source file</span>
+<a name="line-437"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination file</span>
+<a name="line-438"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
+<a name="line-439"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-440"></a><span class='hs-definition'>copyFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-441"></a>  <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
+<a name="line-442"></a>  
+<a name="line-443"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
+<a name="line-444"></a>    <span class='hs-conid'>Strict</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-sel'>_copyFile</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-keyglyph'>]</span>
+<a name="line-445"></a>                        <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-layout'>,</span> <span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oExcl</span><span class='hs-keyglyph'>]</span>
+<a name="line-446"></a>                        <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
+<a name="line-447"></a>    <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> 
+<a name="line-448"></a>      <span class='hs-varid'>catchIOError</span> <span class='hs-layout'>(</span><span class='hs-sel'>_copyFile</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-keyglyph'>]</span>
+<a name="line-449"></a>                              <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-layout'>,</span> <span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oTrunc</span><span class='hs-keyglyph'>]</span>
+<a name="line-450"></a>                              <span class='hs-varid'>from</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>e</span> <span class='hs-keyglyph'>-&gt;</span>
+<a name="line-451"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>ioeGetErrorType</span> <span class='hs-varid'>e</span> <span class='hs-keyword'>of</span>
+<a name="line-452"></a>          <span class='hs-comment'>-- if the destination file is not writable, we need to</span>
+<a name="line-453"></a>          <span class='hs-comment'>-- figure out if we can still copy by deleting it first</span>
+<a name="line-454"></a>          <span class='hs-conid'>PermissionDenied</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-455"></a>            <span class='hs-varid'>exists</span>   <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>to</span>
+<a name="line-456"></a>            <span class='hs-varid'>writable</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>isWritable</span> <span class='hs-layout'>(</span><span class='hs-varid'>dirname</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
+<a name="line-457"></a>            <span class='hs-keyword'>if</span> <span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span>
+<a name="line-458"></a>              <span class='hs-keyword'>then</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span> <span class='hs-varop'>&gt;&gt;</span> <span class='hs-varid'>copyFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-conid'>Strict</span>
+<a name="line-459"></a>              <span class='hs-keyword'>else</span> <span class='hs-varid'>ioError</span> <span class='hs-varid'>e</span>
+<a name="line-460"></a>          <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>ioError</span> <span class='hs-varid'>e</span>
 <a name="line-461"></a>
-<a name="line-462"></a><span class='hs-sel'>_copyFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-conid'>Flags</span><span class='hs-keyglyph'>]</span>
-<a name="line-463"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-conid'>Flags</span><span class='hs-keyglyph'>]</span>
-<a name="line-464"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ source file</span>
-<a name="line-465"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination file</span>
-<a name="line-466"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-467"></a><span class='hs-sel'>_copyFile</span> <span class='hs-varid'>sflags</span> <span class='hs-varid'>dflags</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
-<a name="line-468"></a>  <span class='hs-keyglyph'>=</span>
-<a name="line-469"></a>    <span class='hs-comment'>-- from sendfile(2) manpage:</span>
-<a name="line-470"></a>    <span class='hs-comment'>--   Applications  may  wish  to  fall back to read(2)/write(2) in</span>
-<a name="line-471"></a>    <span class='hs-comment'>--   the case where sendfile() fails with EINVAL or ENOSYS.</span>
-<a name="line-472"></a>    <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>to</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>to'</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>from</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>from'</span> <span class='hs-keyglyph'>-&gt;</span>
-<a name="line-473"></a>      <span class='hs-varid'>catchErrno</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>eINVAL</span><span class='hs-layout'>,</span> <span class='hs-varid'>eNOSYS</span><span class='hs-keyglyph'>]</span>
-<a name="line-474"></a>                 <span class='hs-layout'>(</span><span class='hs-varid'>sendFileCopy</span> <span class='hs-varid'>from'</span> <span class='hs-varid'>to'</span><span class='hs-layout'>)</span>
-<a name="line-475"></a>                 <span class='hs-layout'>(</span><span class='hs-varid'>void</span> <span class='hs-varop'>$</span> <span class='hs-varid'>readWriteCopy</span> <span class='hs-varid'>from'</span> <span class='hs-varid'>to'</span><span class='hs-layout'>)</span>
-<a name="line-476"></a>  <span class='hs-keyword'>where</span>
-<a name="line-477"></a>    <span class='hs-varid'>copyWith</span> <span class='hs-varid'>copyAction</span> <span class='hs-varid'>source</span> <span class='hs-varid'>dest</span> <span class='hs-keyglyph'>=</span>
-<a name="line-478"></a>      <span class='hs-varid'>bracket</span> <span class='hs-layout'>(</span><span class='hs-varid'>openFd</span> <span class='hs-varid'>source</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>ReadOnly</span> <span class='hs-varid'>sflags</span> <span class='hs-conid'>Nothing</span><span class='hs-layout'>)</span>
-<a name="line-479"></a>              <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span>
-<a name="line-480"></a>              <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>sfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-481"></a>                <span class='hs-varid'>fileM</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>System</span><span class='hs-varop'>.</span><span class='hs-conid'>Posix</span><span class='hs-varop'>.</span><span class='hs-conid'>Files</span><span class='hs-varop'>.</span><span class='hs-conid'>ByteString</span><span class='hs-varop'>.</span><span class='hs-varid'>fileMode</span>
-<a name="line-482"></a>                         <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-varid'>getFdStatus</span> <span class='hs-varid'>sfd</span>
-<a name="line-483"></a>                <span class='hs-varid'>bracketeer</span> <span class='hs-layout'>(</span><span class='hs-varid'>openFd</span> <span class='hs-varid'>dest</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>WriteOnly</span>
-<a name="line-484"></a>                             <span class='hs-varid'>dflags</span> <span class='hs-varop'>$</span> <span class='hs-conid'>Just</span> <span class='hs-varid'>fileM</span><span class='hs-layout'>)</span>
-<a name="line-485"></a>                           <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span>
-<a name="line-486"></a>                           <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>fd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span> <span class='hs-varid'>fd</span> <span class='hs-varop'>&gt;&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
-<a name="line-487"></a>                           <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>dfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>copyAction</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span>
-<a name="line-488"></a>    <span class='hs-comment'>-- this is low-level stuff utilizing sendfile(2) for speed</span>
-<a name="line-489"></a>    <span class='hs-varid'>sendFileCopy</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-490"></a>    <span class='hs-varid'>sendFileCopy</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>copyWith</span>
-<a name="line-491"></a>      <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>sendfileFd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>sfd</span> <span class='hs-conid'>EntireFile</span> <span class='hs-varop'>$</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span><span class='hs-layout'>)</span>
-<a name="line-492"></a>    <span class='hs-comment'>-- low-level copy operation utilizing read(2)/write(2)</span>
-<a name="line-493"></a>    <span class='hs-comment'>-- in case `sendFileCopy` fails/is unsupported</span>
-<a name="line-494"></a>    <span class='hs-varid'>readWriteCopy</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>Int</span>
-<a name="line-495"></a>    <span class='hs-varid'>readWriteCopy</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>copyWith</span>
-<a name="line-496"></a>      <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>allocaBytes</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromIntegral</span> <span class='hs-varid'>bufSize</span><span class='hs-layout'>)</span>
-<a name="line-497"></a>                     <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>buf</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>write'</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-num'>0</span><span class='hs-layout'>)</span>
-<a name="line-498"></a>      <span class='hs-keyword'>where</span>
-<a name="line-499"></a>        <span class='hs-varid'>bufSize</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>CSize</span>
-<a name="line-500"></a>        <span class='hs-varid'>bufSize</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>8192</span>
-<a name="line-501"></a>        <span class='hs-varid'>write'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Fd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Fd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Ptr</span> <span class='hs-conid'>Word8</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>Int</span>
-<a name="line-502"></a>        <span class='hs-varid'>write'</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-varid'>totalsize</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-503"></a>            <span class='hs-varid'>size</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>SPB</span><span class='hs-varop'>.</span><span class='hs-varid'>fdReadBuf</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>buf</span> <span class='hs-varid'>bufSize</span>
-<a name="line-504"></a>            <span class='hs-keyword'>if</span> <span class='hs-varid'>size</span> <span class='hs-varop'>==</span> <span class='hs-num'>0</span>
-<a name="line-505"></a>              <span class='hs-keyword'>then</span> <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-varid'>fromIntegral</span> <span class='hs-varid'>totalsize</span>
-<a name="line-506"></a>              <span class='hs-keyword'>else</span> <span class='hs-keyword'>do</span> <span class='hs-varid'>rsize</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>SPB</span><span class='hs-varop'>.</span><span class='hs-varid'>fdWriteBuf</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-varid'>size</span>
-<a name="line-507"></a>                      <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>rsize</span> <span class='hs-varop'>/=</span> <span class='hs-varid'>size</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>throwIO</span> <span class='hs-varop'>.</span> <span class='hs-conid'>CopyFailed</span>
-<a name="line-508"></a>                                            <span class='hs-varop'>$</span> <span class='hs-str'>"wrong size!"</span><span class='hs-layout'>)</span>
-<a name="line-509"></a>                      <span class='hs-varid'>write'</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-layout'>(</span><span class='hs-varid'>totalsize</span> <span class='hs-varop'>+</span> <span class='hs-varid'>fromIntegral</span> <span class='hs-varid'>size</span><span class='hs-layout'>)</span>
-<a name="line-510"></a>
+<a name="line-462"></a>
+<a name="line-463"></a><span class='hs-sel'>_copyFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-conid'>Flags</span><span class='hs-keyglyph'>]</span>
+<a name="line-464"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-conid'>Flags</span><span class='hs-keyglyph'>]</span>
+<a name="line-465"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ source file</span>
+<a name="line-466"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination file</span>
+<a name="line-467"></a>          <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-468"></a><span class='hs-sel'>_copyFile</span> <span class='hs-varid'>sflags</span> <span class='hs-varid'>dflags</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
+<a name="line-469"></a>  <span class='hs-keyglyph'>=</span>
+<a name="line-470"></a>    <span class='hs-comment'>-- from sendfile(2) manpage:</span>
+<a name="line-471"></a>    <span class='hs-comment'>--   Applications  may  wish  to  fall back to read(2)/write(2) in</span>
+<a name="line-472"></a>    <span class='hs-comment'>--   the case where sendfile() fails with EINVAL or ENOSYS.</span>
+<a name="line-473"></a>    <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>to</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>to'</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>from</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>from'</span> <span class='hs-keyglyph'>-&gt;</span>
+<a name="line-474"></a>      <span class='hs-varid'>catchErrno</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>eINVAL</span><span class='hs-layout'>,</span> <span class='hs-varid'>eNOSYS</span><span class='hs-keyglyph'>]</span>
+<a name="line-475"></a>                 <span class='hs-layout'>(</span><span class='hs-varid'>sendFileCopy</span> <span class='hs-varid'>from'</span> <span class='hs-varid'>to'</span><span class='hs-layout'>)</span>
+<a name="line-476"></a>                 <span class='hs-layout'>(</span><span class='hs-varid'>void</span> <span class='hs-varop'>$</span> <span class='hs-varid'>readWriteCopy</span> <span class='hs-varid'>from'</span> <span class='hs-varid'>to'</span><span class='hs-layout'>)</span>
+<a name="line-477"></a>  <span class='hs-keyword'>where</span>
+<a name="line-478"></a>    <span class='hs-varid'>copyWith</span> <span class='hs-varid'>copyAction</span> <span class='hs-varid'>source</span> <span class='hs-varid'>dest</span> <span class='hs-keyglyph'>=</span>
+<a name="line-479"></a>      <span class='hs-varid'>bracket</span> <span class='hs-layout'>(</span><span class='hs-varid'>openFd</span> <span class='hs-varid'>source</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>ReadOnly</span> <span class='hs-varid'>sflags</span> <span class='hs-conid'>Nothing</span><span class='hs-layout'>)</span>
+<a name="line-480"></a>              <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span>
+<a name="line-481"></a>              <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>sfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-482"></a>                <span class='hs-varid'>fileM</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>System</span><span class='hs-varop'>.</span><span class='hs-conid'>Posix</span><span class='hs-varop'>.</span><span class='hs-conid'>Files</span><span class='hs-varop'>.</span><span class='hs-conid'>ByteString</span><span class='hs-varop'>.</span><span class='hs-varid'>fileMode</span>
+<a name="line-483"></a>                         <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-varid'>getFdStatus</span> <span class='hs-varid'>sfd</span>
+<a name="line-484"></a>                <span class='hs-varid'>bracketeer</span> <span class='hs-layout'>(</span><span class='hs-varid'>openFd</span> <span class='hs-varid'>dest</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>WriteOnly</span>
+<a name="line-485"></a>                             <span class='hs-varid'>dflags</span> <span class='hs-varop'>$</span> <span class='hs-conid'>Just</span> <span class='hs-varid'>fileM</span><span class='hs-layout'>)</span>
+<a name="line-486"></a>                           <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span>
+<a name="line-487"></a>                           <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>fd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span> <span class='hs-varid'>fd</span> <span class='hs-varop'>&gt;&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
+<a name="line-488"></a>                           <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>dfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>copyAction</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span>
+<a name="line-489"></a>    <span class='hs-comment'>-- this is low-level stuff utilizing sendfile(2) for speed</span>
+<a name="line-490"></a>    <span class='hs-varid'>sendFileCopy</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-491"></a>    <span class='hs-varid'>sendFileCopy</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>copyWith</span>
+<a name="line-492"></a>      <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>sendfileFd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>sfd</span> <span class='hs-conid'>EntireFile</span> <span class='hs-varop'>$</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span><span class='hs-layout'>)</span>
+<a name="line-493"></a>    <span class='hs-comment'>-- low-level copy operation utilizing read(2)/write(2)</span>
+<a name="line-494"></a>    <span class='hs-comment'>-- in case `sendFileCopy` fails/is unsupported</span>
+<a name="line-495"></a>    <span class='hs-varid'>readWriteCopy</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>Int</span>
+<a name="line-496"></a>    <span class='hs-varid'>readWriteCopy</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>copyWith</span>
+<a name="line-497"></a>      <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>allocaBytes</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromIntegral</span> <span class='hs-varid'>bufSize</span><span class='hs-layout'>)</span>
+<a name="line-498"></a>                     <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>buf</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>write'</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-num'>0</span><span class='hs-layout'>)</span>
+<a name="line-499"></a>      <span class='hs-keyword'>where</span>
+<a name="line-500"></a>        <span class='hs-varid'>bufSize</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>CSize</span>
+<a name="line-501"></a>        <span class='hs-varid'>bufSize</span> <span class='hs-keyglyph'>=</span> <span class='hs-num'>8192</span>
+<a name="line-502"></a>        <span class='hs-varid'>write'</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Fd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Fd</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Ptr</span> <span class='hs-conid'>Word8</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Int</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>Int</span>
+<a name="line-503"></a>        <span class='hs-varid'>write'</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-varid'>totalsize</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-504"></a>            <span class='hs-varid'>size</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>SPB</span><span class='hs-varop'>.</span><span class='hs-varid'>fdReadBuf</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>buf</span> <span class='hs-varid'>bufSize</span>
+<a name="line-505"></a>            <span class='hs-keyword'>if</span> <span class='hs-varid'>size</span> <span class='hs-varop'>==</span> <span class='hs-num'>0</span>
+<a name="line-506"></a>              <span class='hs-keyword'>then</span> <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-varid'>fromIntegral</span> <span class='hs-varid'>totalsize</span>
+<a name="line-507"></a>              <span class='hs-keyword'>else</span> <span class='hs-keyword'>do</span> <span class='hs-varid'>rsize</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>SPB</span><span class='hs-varop'>.</span><span class='hs-varid'>fdWriteBuf</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-varid'>size</span>
+<a name="line-508"></a>                      <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>rsize</span> <span class='hs-varop'>/=</span> <span class='hs-varid'>size</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>throwIO</span> <span class='hs-varop'>.</span> <span class='hs-conid'>CopyFailed</span>
+<a name="line-509"></a>                                            <span class='hs-varop'>$</span> <span class='hs-str'>"wrong size!"</span><span class='hs-layout'>)</span>
+<a name="line-510"></a>                      <span class='hs-varid'>write'</span> <span class='hs-varid'>sfd</span> <span class='hs-varid'>dfd</span> <span class='hs-varid'>buf</span> <span class='hs-layout'>(</span><span class='hs-varid'>totalsize</span> <span class='hs-varop'>+</span> <span class='hs-varid'>fromIntegral</span> <span class='hs-varid'>size</span><span class='hs-layout'>)</span>
 <a name="line-511"></a>
-<a name="line-512"></a><a name="easyCopy"></a><span class='hs-comment'>-- |Copies a regular file, directory or symbolic link. In case of a</span>
-<a name="line-513"></a><span class='hs-comment'>-- symbolic link it is just recreated, even if it points to a directory.</span>
-<a name="line-514"></a><span class='hs-comment'>-- Any other file type is ignored.</span>
-<a name="line-515"></a><span class='hs-comment'>--</span>
-<a name="line-516"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-517"></a><span class='hs-comment'>--</span>
-<a name="line-518"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
-<a name="line-519"></a><span class='hs-comment'>--    * calls `copyDirRecursive` for directories</span>
-<a name="line-520"></a><span class='hs-definition'>easyCopy</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
-<a name="line-521"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
-<a name="line-522"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
-<a name="line-523"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveErrorMode</span>
-<a name="line-524"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-525"></a><span class='hs-definition'>easyCopy</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-526"></a>  <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>from</span>
-<a name="line-527"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
-<a name="line-528"></a>       <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>recreateSymlink</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span>
-<a name="line-529"></a>       <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>copyFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span>
-<a name="line-530"></a>       <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>copyDirRecursive</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span>
-<a name="line-531"></a>       <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
-<a name="line-532"></a>
+<a name="line-512"></a>
+<a name="line-513"></a><a name="easyCopy"></a><span class='hs-comment'>-- |Copies a regular file, directory or symbolic link. In case of a</span>
+<a name="line-514"></a><span class='hs-comment'>-- symbolic link it is just recreated, even if it points to a directory.</span>
+<a name="line-515"></a><span class='hs-comment'>-- Any other file type is ignored.</span>
+<a name="line-516"></a><span class='hs-comment'>--</span>
+<a name="line-517"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-518"></a><span class='hs-comment'>--</span>
+<a name="line-519"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
+<a name="line-520"></a><span class='hs-comment'>--    * calls `copyDirRecursive` for directories</span>
+<a name="line-521"></a><span class='hs-definition'>easyCopy</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
+<a name="line-522"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
+<a name="line-523"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
+<a name="line-524"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>RecursiveErrorMode</span>
+<a name="line-525"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-526"></a><span class='hs-definition'>easyCopy</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-527"></a>  <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>from</span>
+<a name="line-528"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
+<a name="line-529"></a>       <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>recreateSymlink</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span>
+<a name="line-530"></a>       <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>copyFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span>
+<a name="line-531"></a>       <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>copyDirRecursive</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-varid'>rm</span>
+<a name="line-532"></a>       <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
 <a name="line-533"></a>
 <a name="line-534"></a>
 <a name="line-535"></a>
 <a name="line-536"></a>
-<a name="line-537"></a>    <span class='hs-comment'>---------------------</span>
-<a name="line-538"></a>    <span class='hs-comment'>--[ File Deletion ]--</span>
-<a name="line-539"></a>    <span class='hs-comment'>---------------------</span>
-<a name="line-540"></a>
+<a name="line-537"></a>
+<a name="line-538"></a>    <span class='hs-comment'>---------------------</span>
+<a name="line-539"></a>    <span class='hs-comment'>--[ File Deletion ]--</span>
+<a name="line-540"></a>    <span class='hs-comment'>---------------------</span>
 <a name="line-541"></a>
-<a name="line-542"></a><a name="deleteFile"></a><span class='hs-comment'>-- |Deletes the given file. Raises `eISDIR`</span>
-<a name="line-543"></a><span class='hs-comment'>-- if run on a directory. Does not follow symbolic links.</span>
-<a name="line-544"></a><span class='hs-comment'>--</span>
-<a name="line-545"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-546"></a><span class='hs-comment'>--</span>
-<a name="line-547"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (directory)</span>
-<a name="line-548"></a><span class='hs-comment'>--    - `NoSuchThing` if the file does not exist</span>
-<a name="line-549"></a><span class='hs-comment'>--    - `PermissionDenied` if the directory cannot be read</span>
-<a name="line-550"></a><span class='hs-definition'>deleteFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-551"></a><span class='hs-definition'>deleteFile</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varid'>removeLink</span>
-<a name="line-552"></a>
+<a name="line-542"></a>
+<a name="line-543"></a><a name="deleteFile"></a><span class='hs-comment'>-- |Deletes the given file. Raises `eISDIR`</span>
+<a name="line-544"></a><span class='hs-comment'>-- if run on a directory. Does not follow symbolic links.</span>
+<a name="line-545"></a><span class='hs-comment'>--</span>
+<a name="line-546"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-547"></a><span class='hs-comment'>--</span>
+<a name="line-548"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (directory)</span>
+<a name="line-549"></a><span class='hs-comment'>--    - `NoSuchThing` if the file does not exist</span>
+<a name="line-550"></a><span class='hs-comment'>--    - `PermissionDenied` if the directory cannot be read</span>
+<a name="line-551"></a><span class='hs-definition'>deleteFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-552"></a><span class='hs-definition'>deleteFile</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varid'>removeLink</span>
 <a name="line-553"></a>
-<a name="line-554"></a><a name="deleteDir"></a><span class='hs-comment'>-- |Deletes the given directory, which must be empty, never symlinks.</span>
-<a name="line-555"></a><span class='hs-comment'>--</span>
-<a name="line-556"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-557"></a><span class='hs-comment'>--</span>
-<a name="line-558"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (symlink to directory)</span>
-<a name="line-559"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (regular file)</span>
-<a name="line-560"></a><span class='hs-comment'>--    - `NoSuchThing` if directory does not exist</span>
-<a name="line-561"></a><span class='hs-comment'>--    - `UnsatisfiedConstraints` if directory is not empty</span>
-<a name="line-562"></a><span class='hs-comment'>--    - `PermissionDenied` if we can't open or write to parent directory</span>
-<a name="line-563"></a><span class='hs-comment'>--</span>
-<a name="line-564"></a><span class='hs-comment'>-- Notes: calls `rmdir`</span>
-<a name="line-565"></a><span class='hs-definition'>deleteDir</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-566"></a><span class='hs-definition'>deleteDir</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varid'>removeDirectory</span>
-<a name="line-567"></a>
+<a name="line-554"></a>
+<a name="line-555"></a><a name="deleteDir"></a><span class='hs-comment'>-- |Deletes the given directory, which must be empty, never symlinks.</span>
+<a name="line-556"></a><span class='hs-comment'>--</span>
+<a name="line-557"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-558"></a><span class='hs-comment'>--</span>
+<a name="line-559"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (symlink to directory)</span>
+<a name="line-560"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (regular file)</span>
+<a name="line-561"></a><span class='hs-comment'>--    - `NoSuchThing` if directory does not exist</span>
+<a name="line-562"></a><span class='hs-comment'>--    - `UnsatisfiedConstraints` if directory is not empty</span>
+<a name="line-563"></a><span class='hs-comment'>--    - `PermissionDenied` if we can't open or write to parent directory</span>
+<a name="line-564"></a><span class='hs-comment'>--</span>
+<a name="line-565"></a><span class='hs-comment'>-- Notes: calls `rmdir`</span>
+<a name="line-566"></a><span class='hs-definition'>deleteDir</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-567"></a><span class='hs-definition'>deleteDir</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varid'>removeDirectory</span>
 <a name="line-568"></a>
-<a name="line-569"></a><a name="deleteDirRecursive"></a><span class='hs-comment'>-- |Deletes the given directory recursively. Does not follow symbolic</span>
-<a name="line-570"></a><span class='hs-comment'>-- links. Tries `deleteDir` first before attemtping a recursive</span>
-<a name="line-571"></a><span class='hs-comment'>-- deletion.</span>
-<a name="line-572"></a><span class='hs-comment'>--</span>
-<a name="line-573"></a><span class='hs-comment'>-- On directory contents this behaves like `easyDelete`</span>
-<a name="line-574"></a><span class='hs-comment'>-- and thus will ignore any file type that is not `RegularFile`,</span>
-<a name="line-575"></a><span class='hs-comment'>-- `SymbolicLink` or `Directory`.</span>
-<a name="line-576"></a><span class='hs-comment'>--</span>
-<a name="line-577"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-578"></a><span class='hs-comment'>--</span>
-<a name="line-579"></a><span class='hs-comment'>--    * not atomic</span>
-<a name="line-580"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
-<a name="line-581"></a><span class='hs-comment'>--</span>
-<a name="line-582"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-583"></a><span class='hs-comment'>--</span>
-<a name="line-584"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (symlink to directory)</span>
-<a name="line-585"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (regular file)</span>
-<a name="line-586"></a><span class='hs-comment'>--    - `NoSuchThing` if directory does not exist</span>
-<a name="line-587"></a><span class='hs-comment'>--    - `PermissionDenied` if we can't open or write to parent directory</span>
-<a name="line-588"></a><span class='hs-definition'>deleteDirRecursive</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-589"></a><span class='hs-definition'>deleteDirRecursive</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span>
-<a name="line-590"></a>  <span class='hs-varid'>catchErrno</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>eNOTEMPTY</span><span class='hs-layout'>,</span> <span class='hs-varid'>eEXIST</span><span class='hs-keyglyph'>]</span>
-<a name="line-591"></a>             <span class='hs-layout'>(</span><span class='hs-varid'>deleteDir</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span>
-<a name="line-592"></a>    <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
-<a name="line-593"></a>      <span class='hs-varid'>files</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getDirsFiles</span> <span class='hs-varid'>p</span>
-<a name="line-594"></a>      <span class='hs-varid'>for_</span> <span class='hs-varid'>files</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>file</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-595"></a>        <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>file</span>
-<a name="line-596"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
-<a name="line-597"></a>          <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>file</span>
-<a name="line-598"></a>          <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteDirRecursive</span> <span class='hs-varid'>file</span>
-<a name="line-599"></a>          <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>file</span>
-<a name="line-600"></a>          <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
-<a name="line-601"></a>      <span class='hs-varid'>removeDirectory</span> <span class='hs-varop'>.</span> <span class='hs-varid'>toFilePath</span> <span class='hs-varop'>$</span> <span class='hs-varid'>p</span>
-<a name="line-602"></a>
+<a name="line-569"></a>
+<a name="line-570"></a><a name="deleteDirRecursive"></a><span class='hs-comment'>-- |Deletes the given directory recursively. Does not follow symbolic</span>
+<a name="line-571"></a><span class='hs-comment'>-- links. Tries `deleteDir` first before attemtping a recursive</span>
+<a name="line-572"></a><span class='hs-comment'>-- deletion.</span>
+<a name="line-573"></a><span class='hs-comment'>--</span>
+<a name="line-574"></a><span class='hs-comment'>-- On directory contents this behaves like `easyDelete`</span>
+<a name="line-575"></a><span class='hs-comment'>-- and thus will ignore any file type that is not `RegularFile`,</span>
+<a name="line-576"></a><span class='hs-comment'>-- `SymbolicLink` or `Directory`.</span>
+<a name="line-577"></a><span class='hs-comment'>--</span>
+<a name="line-578"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-579"></a><span class='hs-comment'>--</span>
+<a name="line-580"></a><span class='hs-comment'>--    * not atomic</span>
+<a name="line-581"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
+<a name="line-582"></a><span class='hs-comment'>--</span>
+<a name="line-583"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-584"></a><span class='hs-comment'>--</span>
+<a name="line-585"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (symlink to directory)</span>
+<a name="line-586"></a><span class='hs-comment'>--    - `InappropriateType` for wrong file type (regular file)</span>
+<a name="line-587"></a><span class='hs-comment'>--    - `NoSuchThing` if directory does not exist</span>
+<a name="line-588"></a><span class='hs-comment'>--    - `PermissionDenied` if we can't open or write to parent directory</span>
+<a name="line-589"></a><span class='hs-definition'>deleteDirRecursive</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-590"></a><span class='hs-definition'>deleteDirRecursive</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span>
+<a name="line-591"></a>  <span class='hs-varid'>catchErrno</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>eNOTEMPTY</span><span class='hs-layout'>,</span> <span class='hs-varid'>eEXIST</span><span class='hs-keyglyph'>]</span>
+<a name="line-592"></a>             <span class='hs-layout'>(</span><span class='hs-varid'>deleteDir</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span>
+<a name="line-593"></a>    <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<a name="line-594"></a>      <span class='hs-varid'>files</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getDirsFiles</span> <span class='hs-varid'>p</span>
+<a name="line-595"></a>      <span class='hs-varid'>for_</span> <span class='hs-varid'>files</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>file</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-596"></a>        <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>file</span>
+<a name="line-597"></a>        <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
+<a name="line-598"></a>          <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>file</span>
+<a name="line-599"></a>          <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteDirRecursive</span> <span class='hs-varid'>file</span>
+<a name="line-600"></a>          <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>file</span>
+<a name="line-601"></a>          <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
+<a name="line-602"></a>      <span class='hs-varid'>removeDirectory</span> <span class='hs-varop'>.</span> <span class='hs-varid'>toFilePath</span> <span class='hs-varop'>$</span> <span class='hs-varid'>p</span>
 <a name="line-603"></a>
-<a name="line-604"></a><a name="easyDelete"></a><span class='hs-comment'>-- |Deletes a file, directory or symlink.</span>
-<a name="line-605"></a><span class='hs-comment'>-- In case of directory, performs recursive deletion. In case of</span>
-<a name="line-606"></a><span class='hs-comment'>-- a symlink, the symlink file is deleted.</span>
-<a name="line-607"></a><span class='hs-comment'>-- Any other file type is ignored.</span>
-<a name="line-608"></a><span class='hs-comment'>--</span>
-<a name="line-609"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-610"></a><span class='hs-comment'>--</span>
-<a name="line-611"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
-<a name="line-612"></a><span class='hs-comment'>--    * calls `deleteDirRecursive` for directories</span>
-<a name="line-613"></a><span class='hs-definition'>easyDelete</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-614"></a><span class='hs-definition'>easyDelete</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-615"></a>  <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>p</span>
-<a name="line-616"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
-<a name="line-617"></a>    <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>p</span>
-<a name="line-618"></a>    <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteDirRecursive</span> <span class='hs-varid'>p</span>
-<a name="line-619"></a>    <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>p</span>
-<a name="line-620"></a>    <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
-<a name="line-621"></a>
+<a name="line-604"></a>
+<a name="line-605"></a><a name="easyDelete"></a><span class='hs-comment'>-- |Deletes a file, directory or symlink.</span>
+<a name="line-606"></a><span class='hs-comment'>-- In case of directory, performs recursive deletion. In case of</span>
+<a name="line-607"></a><span class='hs-comment'>-- a symlink, the symlink file is deleted.</span>
+<a name="line-608"></a><span class='hs-comment'>-- Any other file type is ignored.</span>
+<a name="line-609"></a><span class='hs-comment'>--</span>
+<a name="line-610"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-611"></a><span class='hs-comment'>--</span>
+<a name="line-612"></a><span class='hs-comment'>--    * examines filetypes explicitly</span>
+<a name="line-613"></a><span class='hs-comment'>--    * calls `deleteDirRecursive` for directories</span>
+<a name="line-614"></a><span class='hs-definition'>easyDelete</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-615"></a><span class='hs-definition'>easyDelete</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-616"></a>  <span class='hs-varid'>ftype</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>p</span>
+<a name="line-617"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>ftype</span> <span class='hs-keyword'>of</span>
+<a name="line-618"></a>    <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>p</span>
+<a name="line-619"></a>    <span class='hs-conid'>Directory</span>    <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteDirRecursive</span> <span class='hs-varid'>p</span>
+<a name="line-620"></a>    <span class='hs-conid'>RegularFile</span>  <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>deleteFile</span> <span class='hs-varid'>p</span>
+<a name="line-621"></a>    <span class='hs-keyword'>_</span>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
 <a name="line-622"></a>
 <a name="line-623"></a>
 <a name="line-624"></a>
-<a name="line-625"></a>    <span class='hs-comment'>--------------------</span>
-<a name="line-626"></a>    <span class='hs-comment'>--[ File Opening ]--</span>
-<a name="line-627"></a>    <span class='hs-comment'>--------------------</span>
-<a name="line-628"></a>
+<a name="line-625"></a>
+<a name="line-626"></a>    <span class='hs-comment'>--------------------</span>
+<a name="line-627"></a>    <span class='hs-comment'>--[ File Opening ]--</span>
+<a name="line-628"></a>    <span class='hs-comment'>--------------------</span>
 <a name="line-629"></a>
-<a name="line-630"></a><a name="openFile"></a><span class='hs-comment'>-- |Opens a file appropriately by invoking xdg-open. The file type</span>
-<a name="line-631"></a><span class='hs-comment'>-- is not checked. This forks a process.</span>
-<a name="line-632"></a><span class='hs-definition'>openFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
-<a name="line-633"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>ProcessID</span>
-<a name="line-634"></a><span class='hs-definition'>openFile</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span>
-<a name="line-635"></a>  <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>fp</span> <span class='hs-keyglyph'>-&gt;</span>
-<a name="line-636"></a>    <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>forkProcess</span> <span class='hs-varop'>$</span> <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>executeFile</span> <span class='hs-str'>"xdg-open"</span> <span class='hs-conid'>True</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>fp</span><span class='hs-keyglyph'>]</span> <span class='hs-conid'>Nothing</span>
-<a name="line-637"></a>
+<a name="line-630"></a>
+<a name="line-631"></a><a name="openFile"></a><span class='hs-comment'>-- |Opens a file appropriately by invoking xdg-open. The file type</span>
+<a name="line-632"></a><span class='hs-comment'>-- is not checked. This forks a process.</span>
+<a name="line-633"></a><span class='hs-definition'>openFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
+<a name="line-634"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>ProcessID</span>
+<a name="line-635"></a><span class='hs-definition'>openFile</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span>
+<a name="line-636"></a>  <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>fp</span> <span class='hs-keyglyph'>-&gt;</span>
+<a name="line-637"></a>    <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>forkProcess</span> <span class='hs-varop'>$</span> <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>executeFile</span> <span class='hs-str'>"xdg-open"</span> <span class='hs-conid'>True</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>fp</span><span class='hs-keyglyph'>]</span> <span class='hs-conid'>Nothing</span>
 <a name="line-638"></a>
-<a name="line-639"></a><a name="executeFile"></a><span class='hs-comment'>-- |Executes a program with the given arguments. This forks a process.</span>
-<a name="line-640"></a><span class='hs-definition'>executeFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>        <span class='hs-comment'>-- ^ program</span>
-<a name="line-641"></a>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>ByteString</span><span class='hs-keyglyph'>]</span>    <span class='hs-comment'>-- ^ arguments</span>
-<a name="line-642"></a>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>ProcessID</span>
-<a name="line-643"></a><span class='hs-definition'>executeFile</span> <span class='hs-varid'>fp</span> <span class='hs-varid'>args</span>
-<a name="line-644"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>fp</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>fpb</span> <span class='hs-keyglyph'>-&gt;</span>
-<a name="line-645"></a>      <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>forkProcess</span>
-<a name="line-646"></a>      <span class='hs-varop'>$</span> <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>executeFile</span> <span class='hs-varid'>fpb</span> <span class='hs-conid'>True</span> <span class='hs-varid'>args</span> <span class='hs-conid'>Nothing</span>
-<a name="line-647"></a>
+<a name="line-639"></a>
+<a name="line-640"></a><a name="executeFile"></a><span class='hs-comment'>-- |Executes a program with the given arguments. This forks a process.</span>
+<a name="line-641"></a><span class='hs-definition'>executeFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>        <span class='hs-comment'>-- ^ program</span>
+<a name="line-642"></a>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>ByteString</span><span class='hs-keyglyph'>]</span>    <span class='hs-comment'>-- ^ arguments</span>
+<a name="line-643"></a>            <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>ProcessID</span>
+<a name="line-644"></a><span class='hs-definition'>executeFile</span> <span class='hs-varid'>fp</span> <span class='hs-varid'>args</span>
+<a name="line-645"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>fp</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>fpb</span> <span class='hs-keyglyph'>-&gt;</span>
+<a name="line-646"></a>      <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>forkProcess</span>
+<a name="line-647"></a>      <span class='hs-varop'>$</span> <span class='hs-conid'>SPP</span><span class='hs-varop'>.</span><span class='hs-varid'>executeFile</span> <span class='hs-varid'>fpb</span> <span class='hs-conid'>True</span> <span class='hs-varid'>args</span> <span class='hs-conid'>Nothing</span>
 <a name="line-648"></a>
 <a name="line-649"></a>
 <a name="line-650"></a>
-<a name="line-651"></a>    <span class='hs-comment'>---------------------</span>
-<a name="line-652"></a>    <span class='hs-comment'>--[ File Creation ]--</span>
-<a name="line-653"></a>    <span class='hs-comment'>---------------------</span>
-<a name="line-654"></a>
+<a name="line-651"></a>
+<a name="line-652"></a>    <span class='hs-comment'>---------------------</span>
+<a name="line-653"></a>    <span class='hs-comment'>--[ File Creation ]--</span>
+<a name="line-654"></a>    <span class='hs-comment'>---------------------</span>
 <a name="line-655"></a>
-<a name="line-656"></a><a name="createRegularFile"></a><span class='hs-comment'>-- |Create an empty regular file at the given directory with the given</span>
-<a name="line-657"></a><span class='hs-comment'>-- filename.</span>
-<a name="line-658"></a><span class='hs-comment'>--</span>
-<a name="line-659"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-660"></a><span class='hs-comment'>--</span>
-<a name="line-661"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
-<a name="line-662"></a><span class='hs-comment'>--    - `AlreadyExists` if destination file already exists</span>
-<a name="line-663"></a><span class='hs-comment'>--    - `NoSuchThing` if any of the parent components of the path</span>
-<a name="line-664"></a><span class='hs-comment'>--      do not exist</span>
-<a name="line-665"></a><span class='hs-definition'>createRegularFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-666"></a><span class='hs-definition'>createRegularFile</span> <span class='hs-varid'>fm</span> <span class='hs-varid'>dest</span> <span class='hs-keyglyph'>=</span>
-<a name="line-667"></a>  <span class='hs-varid'>bracket</span> <span class='hs-layout'>(</span><span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>openFd</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>dest</span><span class='hs-layout'>)</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>WriteOnly</span> <span class='hs-layout'>(</span><span class='hs-conid'>Just</span> <span class='hs-varid'>fm</span><span class='hs-layout'>)</span>
-<a name="line-668"></a>                      <span class='hs-layout'>(</span><span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>defaultFileFlags</span> <span class='hs-layout'>{</span> <span class='hs-varid'>exclusive</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>True</span> <span class='hs-layout'>}</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span>
-<a name="line-669"></a>          <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span>
-<a name="line-670"></a>          <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span><span class='hs-layout'>)</span>
-<a name="line-671"></a>
+<a name="line-656"></a>
+<a name="line-657"></a><a name="createRegularFile"></a><span class='hs-comment'>-- |Create an empty regular file at the given directory with the given</span>
+<a name="line-658"></a><span class='hs-comment'>-- filename.</span>
+<a name="line-659"></a><span class='hs-comment'>--</span>
+<a name="line-660"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-661"></a><span class='hs-comment'>--</span>
+<a name="line-662"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
+<a name="line-663"></a><span class='hs-comment'>--    - `AlreadyExists` if destination file already exists</span>
+<a name="line-664"></a><span class='hs-comment'>--    - `NoSuchThing` if any of the parent components of the path</span>
+<a name="line-665"></a><span class='hs-comment'>--      do not exist</span>
+<a name="line-666"></a><span class='hs-definition'>createRegularFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-667"></a><span class='hs-definition'>createRegularFile</span> <span class='hs-varid'>fm</span> <span class='hs-varid'>dest</span> <span class='hs-keyglyph'>=</span>
+<a name="line-668"></a>  <span class='hs-varid'>bracket</span> <span class='hs-layout'>(</span><span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>openFd</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>dest</span><span class='hs-layout'>)</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>WriteOnly</span> <span class='hs-layout'>(</span><span class='hs-conid'>Just</span> <span class='hs-varid'>fm</span><span class='hs-layout'>)</span>
+<a name="line-669"></a>                      <span class='hs-layout'>(</span><span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>defaultFileFlags</span> <span class='hs-layout'>{</span> <span class='hs-varid'>exclusive</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>True</span> <span class='hs-layout'>}</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span>
+<a name="line-670"></a>          <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-varid'>closeFd</span>
+<a name="line-671"></a>          <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span><span class='hs-layout'>)</span>
 <a name="line-672"></a>
-<a name="line-673"></a><a name="createDir"></a><span class='hs-comment'>-- |Create an empty directory at the given directory with the given filename.</span>
-<a name="line-674"></a><span class='hs-comment'>--</span>
-<a name="line-675"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-676"></a><span class='hs-comment'>--</span>
-<a name="line-677"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
-<a name="line-678"></a><span class='hs-comment'>--    - `AlreadyExists` if destination directory already exists</span>
-<a name="line-679"></a><span class='hs-comment'>--    - `NoSuchThing` if any of the parent components of the path</span>
-<a name="line-680"></a><span class='hs-comment'>--      do not exist</span>
-<a name="line-681"></a><span class='hs-definition'>createDir</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-682"></a><span class='hs-definition'>createDir</span> <span class='hs-varid'>fm</span> <span class='hs-varid'>dest</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>createDirectory</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>dest</span><span class='hs-layout'>)</span> <span class='hs-varid'>fm</span>
-<a name="line-683"></a>
+<a name="line-673"></a>
+<a name="line-674"></a><a name="createDir"></a><span class='hs-comment'>-- |Create an empty directory at the given directory with the given filename.</span>
+<a name="line-675"></a><span class='hs-comment'>--</span>
+<a name="line-676"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-677"></a><span class='hs-comment'>--</span>
+<a name="line-678"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
+<a name="line-679"></a><span class='hs-comment'>--    - `AlreadyExists` if destination directory already exists</span>
+<a name="line-680"></a><span class='hs-comment'>--    - `NoSuchThing` if any of the parent components of the path</span>
+<a name="line-681"></a><span class='hs-comment'>--      do not exist</span>
+<a name="line-682"></a><span class='hs-definition'>createDir</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-683"></a><span class='hs-definition'>createDir</span> <span class='hs-varid'>fm</span> <span class='hs-varid'>dest</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>createDirectory</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>dest</span><span class='hs-layout'>)</span> <span class='hs-varid'>fm</span>
 <a name="line-684"></a>
-<a name="line-685"></a><a name="createSymlink"></a><span class='hs-comment'>-- |Create a symlink.</span>
-<a name="line-686"></a><span class='hs-comment'>--</span>
-<a name="line-687"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-688"></a><span class='hs-comment'>--</span>
-<a name="line-689"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
-<a name="line-690"></a><span class='hs-comment'>--    - `AlreadyExists` if destination file already exists</span>
-<a name="line-691"></a><span class='hs-comment'>--    - `NoSuchThing` if any of the parent components of the path</span>
-<a name="line-692"></a><span class='hs-comment'>--      do not exist</span>
-<a name="line-693"></a><span class='hs-comment'>--</span>
-<a name="line-694"></a><span class='hs-comment'>-- Note: calls `symlink`</span>
-<a name="line-695"></a><span class='hs-definition'>createSymlink</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>   <span class='hs-comment'>-- ^ destination file</span>
-<a name="line-696"></a>              <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-comment'>-- ^ path the symlink points to</span>
-<a name="line-697"></a>              <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-698"></a><span class='hs-definition'>createSymlink</span> <span class='hs-varid'>dest</span> <span class='hs-varid'>sympoint</span>
-<a name="line-699"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>createSymbolicLink</span> <span class='hs-varid'>sympoint</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>dest</span><span class='hs-layout'>)</span>
-<a name="line-700"></a>
+<a name="line-685"></a>
+<a name="line-686"></a><a name="createSymlink"></a><span class='hs-comment'>-- |Create a symlink.</span>
+<a name="line-687"></a><span class='hs-comment'>--</span>
+<a name="line-688"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-689"></a><span class='hs-comment'>--</span>
+<a name="line-690"></a><span class='hs-comment'>--    - `PermissionDenied` if output directory cannot be written to</span>
+<a name="line-691"></a><span class='hs-comment'>--    - `AlreadyExists` if destination file already exists</span>
+<a name="line-692"></a><span class='hs-comment'>--    - `NoSuchThing` if any of the parent components of the path</span>
+<a name="line-693"></a><span class='hs-comment'>--      do not exist</span>
+<a name="line-694"></a><span class='hs-comment'>--</span>
+<a name="line-695"></a><span class='hs-comment'>-- Note: calls `symlink`</span>
+<a name="line-696"></a><span class='hs-definition'>createSymlink</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>   <span class='hs-comment'>-- ^ destination file</span>
+<a name="line-697"></a>              <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-comment'>-- ^ path the symlink points to</span>
+<a name="line-698"></a>              <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-699"></a><span class='hs-definition'>createSymlink</span> <span class='hs-varid'>dest</span> <span class='hs-varid'>sympoint</span>
+<a name="line-700"></a>  <span class='hs-keyglyph'>=</span> <span class='hs-varid'>createSymbolicLink</span> <span class='hs-varid'>sympoint</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>dest</span><span class='hs-layout'>)</span>
 <a name="line-701"></a>
 <a name="line-702"></a>
-<a name="line-703"></a>    <span class='hs-comment'>----------------------------</span>
-<a name="line-704"></a>    <span class='hs-comment'>--[ File Renaming/Moving ]--</span>
-<a name="line-705"></a>    <span class='hs-comment'>----------------------------</span>
-<a name="line-706"></a>
+<a name="line-703"></a>
+<a name="line-704"></a>    <span class='hs-comment'>----------------------------</span>
+<a name="line-705"></a>    <span class='hs-comment'>--[ File Renaming/Moving ]--</span>
+<a name="line-706"></a>    <span class='hs-comment'>----------------------------</span>
 <a name="line-707"></a>
-<a name="line-708"></a><a name="renameFile"></a><span class='hs-comment'>-- |Rename a given file with the provided filename. Destination and source</span>
-<a name="line-709"></a><span class='hs-comment'>-- must be on the same device, otherwise `eXDEV` will be raised.</span>
-<a name="line-710"></a><span class='hs-comment'>--</span>
-<a name="line-711"></a><span class='hs-comment'>-- Does not follow symbolic links, but renames the symbolic link file.</span>
-<a name="line-712"></a><span class='hs-comment'>--</span>
-<a name="line-713"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-714"></a><span class='hs-comment'>--</span>
-<a name="line-715"></a><span class='hs-comment'>--    * has a separate set of exception handling, apart from the syscall</span>
-<a name="line-716"></a><span class='hs-comment'>--</span>
-<a name="line-717"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-718"></a><span class='hs-comment'>--</span>
-<a name="line-719"></a><span class='hs-comment'>--     - `NoSuchThing` if source file does not exist</span>
-<a name="line-720"></a><span class='hs-comment'>--     - `PermissionDenied` if output directory cannot be written to</span>
-<a name="line-721"></a><span class='hs-comment'>--     - `PermissionDenied` if source directory cannot be opened</span>
-<a name="line-722"></a><span class='hs-comment'>--     - `UnsupportedOperation` if source and destination are on different</span>
-<a name="line-723"></a><span class='hs-comment'>--       devices</span>
-<a name="line-724"></a><span class='hs-comment'>--     - `FileDoesExist` if destination file already exists</span>
-<a name="line-725"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
-<a name="line-726"></a><span class='hs-comment'>--     - `DirDoesExist` if destination directory already exists</span>
-<a name="line-727"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
-<a name="line-728"></a><span class='hs-comment'>--     - `SameFile` if destination and source are the same file</span>
-<a name="line-729"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
-<a name="line-730"></a><span class='hs-comment'>--</span>
-<a name="line-731"></a><span class='hs-comment'>-- Note: calls `rename` (but does not allow to rename over existing files)</span>
-<a name="line-732"></a><span class='hs-definition'>renameFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-733"></a><span class='hs-definition'>renameFile</span> <span class='hs-varid'>fromf</span> <span class='hs-varid'>tof</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-734"></a>  <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>fromf</span> <span class='hs-varid'>tof</span>
-<a name="line-735"></a>  <span class='hs-varid'>throwFileDoesExist</span> <span class='hs-varid'>tof</span>
-<a name="line-736"></a>  <span class='hs-varid'>throwDirDoesExist</span> <span class='hs-varid'>tof</span>
-<a name="line-737"></a>  <span class='hs-varid'>rename</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>fromf</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>tof</span><span class='hs-layout'>)</span>
-<a name="line-738"></a>
+<a name="line-708"></a>
+<a name="line-709"></a><a name="renameFile"></a><span class='hs-comment'>-- |Rename a given file with the provided filename. Destination and source</span>
+<a name="line-710"></a><span class='hs-comment'>-- must be on the same device, otherwise `eXDEV` will be raised.</span>
+<a name="line-711"></a><span class='hs-comment'>--</span>
+<a name="line-712"></a><span class='hs-comment'>-- Does not follow symbolic links, but renames the symbolic link file.</span>
+<a name="line-713"></a><span class='hs-comment'>--</span>
+<a name="line-714"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-715"></a><span class='hs-comment'>--</span>
+<a name="line-716"></a><span class='hs-comment'>--    * has a separate set of exception handling, apart from the syscall</span>
+<a name="line-717"></a><span class='hs-comment'>--</span>
+<a name="line-718"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-719"></a><span class='hs-comment'>--</span>
+<a name="line-720"></a><span class='hs-comment'>--     - `NoSuchThing` if source file does not exist</span>
+<a name="line-721"></a><span class='hs-comment'>--     - `PermissionDenied` if output directory cannot be written to</span>
+<a name="line-722"></a><span class='hs-comment'>--     - `PermissionDenied` if source directory cannot be opened</span>
+<a name="line-723"></a><span class='hs-comment'>--     - `UnsupportedOperation` if source and destination are on different</span>
+<a name="line-724"></a><span class='hs-comment'>--       devices</span>
+<a name="line-725"></a><span class='hs-comment'>--     - `FileDoesExist` if destination file already exists</span>
+<a name="line-726"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
+<a name="line-727"></a><span class='hs-comment'>--     - `DirDoesExist` if destination directory already exists</span>
+<a name="line-728"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
+<a name="line-729"></a><span class='hs-comment'>--     - `SameFile` if destination and source are the same file</span>
+<a name="line-730"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
+<a name="line-731"></a><span class='hs-comment'>--</span>
+<a name="line-732"></a><span class='hs-comment'>-- Note: calls `rename` (but does not allow to rename over existing files)</span>
+<a name="line-733"></a><span class='hs-definition'>renameFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-734"></a><span class='hs-definition'>renameFile</span> <span class='hs-varid'>fromf</span> <span class='hs-varid'>tof</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-735"></a>  <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>fromf</span> <span class='hs-varid'>tof</span>
+<a name="line-736"></a>  <span class='hs-varid'>throwFileDoesExist</span> <span class='hs-varid'>tof</span>
+<a name="line-737"></a>  <span class='hs-varid'>throwDirDoesExist</span> <span class='hs-varid'>tof</span>
+<a name="line-738"></a>  <span class='hs-varid'>rename</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>fromf</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>tof</span><span class='hs-layout'>)</span>
 <a name="line-739"></a>
-<a name="line-740"></a><a name="moveFile"></a><span class='hs-comment'>-- |Move a file. This also works across devices by copy-delete fallback.</span>
-<a name="line-741"></a><span class='hs-comment'>-- And also works on directories.</span>
-<a name="line-742"></a><span class='hs-comment'>--</span>
-<a name="line-743"></a><span class='hs-comment'>-- Does not follow symbolic links, but renames the symbolic link file.</span>
-<a name="line-744"></a><span class='hs-comment'>--</span>
+<a name="line-740"></a>
+<a name="line-741"></a><a name="moveFile"></a><span class='hs-comment'>-- |Move a file. This also works across devices by copy-delete fallback.</span>
+<a name="line-742"></a><span class='hs-comment'>-- And also works on directories.</span>
+<a name="line-743"></a><span class='hs-comment'>--</span>
+<a name="line-744"></a><span class='hs-comment'>-- Does not follow symbolic links, but renames the symbolic link file.</span>
 <a name="line-745"></a><span class='hs-comment'>--</span>
-<a name="line-746"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
-<a name="line-747"></a><span class='hs-comment'>--</span>
-<a name="line-748"></a><span class='hs-comment'>--    * `Overwrite` mode is not atomic</span>
-<a name="line-749"></a><span class='hs-comment'>--    * copy-delete fallback is inherently non-atomic</span>
-<a name="line-750"></a><span class='hs-comment'>--    * since this function calls `easyCopy` and `easyDelete` as a fallback</span>
-<a name="line-751"></a><span class='hs-comment'>--      to `renameFile`, file types that are not `RegularFile`, `SymbolicLink`</span>
-<a name="line-752"></a><span class='hs-comment'>--      or `Directory` may be ignored</span>
-<a name="line-753"></a><span class='hs-comment'>--    * for `Overwrite` mode, the destination will be deleted (not recursively)</span>
-<a name="line-754"></a><span class='hs-comment'>--      before moving</span>
-<a name="line-755"></a><span class='hs-comment'>--</span>
-<a name="line-756"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-757"></a><span class='hs-comment'>--</span>
-<a name="line-758"></a><span class='hs-comment'>--     - `NoSuchThing` if source file does not exist</span>
-<a name="line-759"></a><span class='hs-comment'>--     - `PermissionDenied` if output directory cannot be written to</span>
-<a name="line-760"></a><span class='hs-comment'>--     - `PermissionDenied` if source directory cannot be opened</span>
-<a name="line-761"></a><span class='hs-comment'>--     - `SameFile` if destination and source are the same file</span>
-<a name="line-762"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
-<a name="line-763"></a><span class='hs-comment'>--</span>
-<a name="line-764"></a><span class='hs-comment'>-- Throws in `Strict` mode only:</span>
-<a name="line-765"></a><span class='hs-comment'>--</span>
-<a name="line-766"></a><span class='hs-comment'>--    - `FileDoesExist` if destination file already exists (`HPathIOException`)</span>
-<a name="line-767"></a><span class='hs-comment'>--    - `DirDoesExist` if destination directory already exists</span>
-<a name="line-768"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
-<a name="line-769"></a><span class='hs-comment'>--</span>
-<a name="line-770"></a><span class='hs-comment'>-- Note: calls `rename` (but does not allow to rename over existing files)</span>
-<a name="line-771"></a><span class='hs-definition'>moveFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ file to move</span>
-<a name="line-772"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination</span>
-<a name="line-773"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
-<a name="line-774"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
-<a name="line-775"></a><span class='hs-definition'>moveFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-776"></a>  <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
-<a name="line-777"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
-<a name="line-778"></a>    <span class='hs-conid'>Strict</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>catchErrno</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>eXDEV</span><span class='hs-keyglyph'>]</span> <span class='hs-layout'>(</span><span class='hs-varid'>renameFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
-<a name="line-779"></a>                <span class='hs-varid'>easyCopy</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-conid'>Strict</span> <span class='hs-conid'>FailEarly</span>
-<a name="line-780"></a>                <span class='hs-varid'>easyDelete</span> <span class='hs-varid'>from</span>
-<a name="line-781"></a>    <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-782"></a>      <span class='hs-varid'>ft</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>from</span>
-<a name="line-783"></a>      <span class='hs-varid'>writable</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>isWritable</span> <span class='hs-varop'>$</span> <span class='hs-varid'>dirname</span> <span class='hs-varid'>to</span>
-<a name="line-784"></a>      <span class='hs-keyword'>case</span> <span class='hs-varid'>ft</span> <span class='hs-keyword'>of</span>
-<a name="line-785"></a>        <span class='hs-conid'>RegularFile</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-786"></a>          <span class='hs-varid'>exists</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>to</span>
-<a name="line-787"></a>          <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
-<a name="line-788"></a>        <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-789"></a>          <span class='hs-varid'>exists</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>to</span>
-<a name="line-790"></a>          <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
-<a name="line-791"></a>        <span class='hs-conid'>Directory</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-792"></a>          <span class='hs-varid'>exists</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesDirectoryExist</span> <span class='hs-varid'>to</span>
-<a name="line-793"></a>          <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteDir</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
-<a name="line-794"></a>        <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
-<a name="line-795"></a>      <span class='hs-varid'>moveFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-conid'>Strict</span>
-<a name="line-796"></a>
+<a name="line-746"></a><span class='hs-comment'>--</span>
+<a name="line-747"></a><span class='hs-comment'>-- Safety/reliability concerns:</span>
+<a name="line-748"></a><span class='hs-comment'>--</span>
+<a name="line-749"></a><span class='hs-comment'>--    * `Overwrite` mode is not atomic</span>
+<a name="line-750"></a><span class='hs-comment'>--    * copy-delete fallback is inherently non-atomic</span>
+<a name="line-751"></a><span class='hs-comment'>--    * since this function calls `easyCopy` and `easyDelete` as a fallback</span>
+<a name="line-752"></a><span class='hs-comment'>--      to `renameFile`, file types that are not `RegularFile`, `SymbolicLink`</span>
+<a name="line-753"></a><span class='hs-comment'>--      or `Directory` may be ignored</span>
+<a name="line-754"></a><span class='hs-comment'>--    * for `Overwrite` mode, the destination will be deleted (not recursively)</span>
+<a name="line-755"></a><span class='hs-comment'>--      before moving</span>
+<a name="line-756"></a><span class='hs-comment'>--</span>
+<a name="line-757"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-758"></a><span class='hs-comment'>--</span>
+<a name="line-759"></a><span class='hs-comment'>--     - `NoSuchThing` if source file does not exist</span>
+<a name="line-760"></a><span class='hs-comment'>--     - `PermissionDenied` if output directory cannot be written to</span>
+<a name="line-761"></a><span class='hs-comment'>--     - `PermissionDenied` if source directory cannot be opened</span>
+<a name="line-762"></a><span class='hs-comment'>--     - `SameFile` if destination and source are the same file</span>
+<a name="line-763"></a><span class='hs-comment'>--       (`HPathIOException`)</span>
+<a name="line-764"></a><span class='hs-comment'>--</span>
+<a name="line-765"></a><span class='hs-comment'>-- Throws in `Strict` mode only:</span>
+<a name="line-766"></a><span class='hs-comment'>--</span>
+<a name="line-767"></a><span class='hs-comment'>--    - `FileDoesExist` if destination file already exists (`HPathIOException`)</span>
+<a name="line-768"></a><span class='hs-comment'>--    - `DirDoesExist` if destination directory already exists</span>
+<a name="line-769"></a><span class='hs-comment'>--      (`HPathIOException`)</span>
+<a name="line-770"></a><span class='hs-comment'>--</span>
+<a name="line-771"></a><span class='hs-comment'>-- Note: calls `rename` (but does not allow to rename over existing files)</span>
+<a name="line-772"></a><span class='hs-definition'>moveFile</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ file to move</span>
+<a name="line-773"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>  <span class='hs-comment'>-- ^ destination</span>
+<a name="line-774"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>CopyMode</span>
+<a name="line-775"></a>         <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>()</span>
+<a name="line-776"></a><span class='hs-definition'>moveFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-varid'>cm</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-777"></a>  <span class='hs-varid'>throwSameFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span>
+<a name="line-778"></a>  <span class='hs-keyword'>case</span> <span class='hs-varid'>cm</span> <span class='hs-keyword'>of</span>
+<a name="line-779"></a>    <span class='hs-conid'>Strict</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>catchErrno</span> <span class='hs-keyglyph'>[</span><span class='hs-varid'>eXDEV</span><span class='hs-keyglyph'>]</span> <span class='hs-layout'>(</span><span class='hs-varid'>renameFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span> <span class='hs-varop'>$</span> <span class='hs-keyword'>do</span>
+<a name="line-780"></a>                <span class='hs-varid'>easyCopy</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-conid'>Strict</span> <span class='hs-conid'>FailEarly</span>
+<a name="line-781"></a>                <span class='hs-varid'>easyDelete</span> <span class='hs-varid'>from</span>
+<a name="line-782"></a>    <span class='hs-conid'>Overwrite</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-783"></a>      <span class='hs-varid'>ft</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>getFileType</span> <span class='hs-varid'>from</span>
+<a name="line-784"></a>      <span class='hs-varid'>writable</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>isWritable</span> <span class='hs-varop'>$</span> <span class='hs-varid'>dirname</span> <span class='hs-varid'>to</span>
+<a name="line-785"></a>      <span class='hs-keyword'>case</span> <span class='hs-varid'>ft</span> <span class='hs-keyword'>of</span>
+<a name="line-786"></a>        <span class='hs-conid'>RegularFile</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-787"></a>          <span class='hs-varid'>exists</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>to</span>
+<a name="line-788"></a>          <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
+<a name="line-789"></a>        <span class='hs-conid'>SymbolicLink</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-790"></a>          <span class='hs-varid'>exists</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesFileExist</span> <span class='hs-varid'>to</span>
+<a name="line-791"></a>          <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteFile</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
+<a name="line-792"></a>        <span class='hs-conid'>Directory</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-793"></a>          <span class='hs-varid'>exists</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>doesDirectoryExist</span> <span class='hs-varid'>to</span>
+<a name="line-794"></a>          <span class='hs-varid'>when</span> <span class='hs-layout'>(</span><span class='hs-varid'>exists</span> <span class='hs-varop'>&amp;&amp;</span> <span class='hs-varid'>writable</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-varid'>deleteDir</span> <span class='hs-varid'>to</span><span class='hs-layout'>)</span>
+<a name="line-795"></a>        <span class='hs-keyword'>_</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>return</span> <span class='hs-conid'>()</span>
+<a name="line-796"></a>      <span class='hs-varid'>moveFile</span> <span class='hs-varid'>from</span> <span class='hs-varid'>to</span> <span class='hs-conid'>Strict</span>
 <a name="line-797"></a>
 <a name="line-798"></a>
 <a name="line-799"></a>
 <a name="line-800"></a>
 <a name="line-801"></a>
-<a name="line-802"></a>    <span class='hs-comment'>-----------------------</span>
-<a name="line-803"></a>    <span class='hs-comment'>--[ File Permissions]--</span>
-<a name="line-804"></a>    <span class='hs-comment'>-----------------------</span>
-<a name="line-805"></a>
+<a name="line-802"></a>
+<a name="line-803"></a>    <span class='hs-comment'>-----------------------</span>
+<a name="line-804"></a>    <span class='hs-comment'>--[ File Permissions]--</span>
+<a name="line-805"></a>    <span class='hs-comment'>-----------------------</span>
 <a name="line-806"></a>
-<a name="line-807"></a><a name="newFilePerms"></a><span class='hs-comment'>-- |Default permissions for a new file.</span>
-<a name="line-808"></a><span class='hs-definition'>newFilePerms</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span>
-<a name="line-809"></a><span class='hs-definition'>newFilePerms</span>
-<a name="line-810"></a>  <span class='hs-keyglyph'>=</span>                  <span class='hs-varid'>ownerWriteMode</span>
-<a name="line-811"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>ownerReadMode</span>
-<a name="line-812"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupWriteMode</span>
-<a name="line-813"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupReadMode</span>
-<a name="line-814"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherWriteMode</span>
-<a name="line-815"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherReadMode</span>
-<a name="line-816"></a>
+<a name="line-807"></a>
+<a name="line-808"></a><a name="newFilePerms"></a><span class='hs-comment'>-- |Default permissions for a new file.</span>
+<a name="line-809"></a><span class='hs-definition'>newFilePerms</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span>
+<a name="line-810"></a><span class='hs-definition'>newFilePerms</span>
+<a name="line-811"></a>  <span class='hs-keyglyph'>=</span>                  <span class='hs-varid'>ownerWriteMode</span>
+<a name="line-812"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>ownerReadMode</span>
+<a name="line-813"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupWriteMode</span>
+<a name="line-814"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupReadMode</span>
+<a name="line-815"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherWriteMode</span>
+<a name="line-816"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherReadMode</span>
 <a name="line-817"></a>
-<a name="line-818"></a><a name="newDirPerms"></a><span class='hs-comment'>-- |Default permissions for a new directory.</span>
-<a name="line-819"></a><span class='hs-definition'>newDirPerms</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span>
-<a name="line-820"></a><span class='hs-definition'>newDirPerms</span>
-<a name="line-821"></a>  <span class='hs-keyglyph'>=</span>                  <span class='hs-varid'>ownerModes</span>
-<a name="line-822"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupExecuteMode</span>
-<a name="line-823"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupReadMode</span>
-<a name="line-824"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherExecuteMode</span>
-<a name="line-825"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherReadMode</span>
-<a name="line-826"></a>
+<a name="line-818"></a>
+<a name="line-819"></a><a name="newDirPerms"></a><span class='hs-comment'>-- |Default permissions for a new directory.</span>
+<a name="line-820"></a><span class='hs-definition'>newDirPerms</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>FileMode</span>
+<a name="line-821"></a><span class='hs-definition'>newDirPerms</span>
+<a name="line-822"></a>  <span class='hs-keyglyph'>=</span>                  <span class='hs-varid'>ownerModes</span>
+<a name="line-823"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupExecuteMode</span>
+<a name="line-824"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>groupReadMode</span>
+<a name="line-825"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherExecuteMode</span>
+<a name="line-826"></a>    <span class='hs-varop'>`unionFileModes`</span> <span class='hs-varid'>otherReadMode</span>
 <a name="line-827"></a>
 <a name="line-828"></a>
-<a name="line-829"></a>    <span class='hs-comment'>-------------------------</span>
-<a name="line-830"></a>    <span class='hs-comment'>--[ Directory reading ]--</span>
-<a name="line-831"></a>    <span class='hs-comment'>-------------------------</span>
-<a name="line-832"></a>
+<a name="line-829"></a>
+<a name="line-830"></a>    <span class='hs-comment'>-------------------------</span>
+<a name="line-831"></a>    <span class='hs-comment'>--[ Directory reading ]--</span>
+<a name="line-832"></a>    <span class='hs-comment'>-------------------------</span>
 <a name="line-833"></a>
-<a name="line-834"></a><a name="getDirsFiles"></a><span class='hs-comment'>-- |Gets all filenames of the given directory. This excludes "." and "..".</span>
-<a name="line-835"></a><span class='hs-comment'>-- This version does not follow symbolic links.</span>
-<a name="line-836"></a><span class='hs-comment'>--</span>
-<a name="line-837"></a><span class='hs-comment'>-- The contents are not sorted and there is no guarantee on the ordering.</span>
-<a name="line-838"></a><span class='hs-comment'>--</span>
-<a name="line-839"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-840"></a><span class='hs-comment'>--</span>
-<a name="line-841"></a><span class='hs-comment'>--     - `NoSuchThing` if directory does not exist</span>
-<a name="line-842"></a><span class='hs-comment'>--     - `InappropriateType` if file type is wrong (file)</span>
-<a name="line-843"></a><span class='hs-comment'>--     - `InappropriateType` if file type is wrong (symlink to file)</span>
-<a name="line-844"></a><span class='hs-comment'>--     - `InappropriateType` if file type is wrong (symlink to dir)</span>
-<a name="line-845"></a><span class='hs-comment'>--     - `PermissionDenied` if directory cannot be opened</span>
-<a name="line-846"></a><span class='hs-definition'>getDirsFiles</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>        <span class='hs-comment'>-- ^ dir to read</span>
-<a name="line-847"></a>             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span><span class='hs-keyglyph'>]</span>
-<a name="line-848"></a><span class='hs-definition'>getDirsFiles</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span>
-<a name="line-849"></a>  <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>fp</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
-<a name="line-850"></a>    <span class='hs-varid'>fd</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>openFd</span> <span class='hs-varid'>fp</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>ReadOnly</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-keyglyph'>]</span> <span class='hs-conid'>Nothing</span>
-<a name="line-851"></a>    <span class='hs-varid'>return</span>
-<a name="line-852"></a>      <span class='hs-varop'>.</span> <span class='hs-varid'>catMaybes</span>
-<a name="line-853"></a>      <span class='hs-varop'>.</span>   <span class='hs-varid'>fmap</span> <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>x</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-varop'>&lt;/&gt;</span><span class='hs-layout'>)</span> <span class='hs-varid'>p</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>parseMaybe</span> <span class='hs-varop'>.</span> <span class='hs-varid'>snd</span> <span class='hs-varop'>$</span> <span class='hs-varid'>x</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span>
-<a name="line-854"></a>      <span class='hs-varop'>=&lt;&lt;</span> <span class='hs-varid'>getDirectoryContents'</span> <span class='hs-varid'>fd</span>
-<a name="line-855"></a>  <span class='hs-keyword'>where</span>
-<a name="line-856"></a>    <span class='hs-varid'>parseMaybe</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Maybe</span> <span class='hs-layout'>(</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Fn</span><span class='hs-layout'>)</span>
-<a name="line-857"></a>    <span class='hs-varid'>parseMaybe</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>parseFn</span>
-<a name="line-858"></a>
+<a name="line-834"></a>
+<a name="line-835"></a><a name="getDirsFiles"></a><span class='hs-comment'>-- |Gets all filenames of the given directory. This excludes "." and "..".</span>
+<a name="line-836"></a><span class='hs-comment'>-- This version does not follow symbolic links.</span>
+<a name="line-837"></a><span class='hs-comment'>--</span>
+<a name="line-838"></a><span class='hs-comment'>-- The contents are not sorted and there is no guarantee on the ordering.</span>
+<a name="line-839"></a><span class='hs-comment'>--</span>
+<a name="line-840"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-841"></a><span class='hs-comment'>--</span>
+<a name="line-842"></a><span class='hs-comment'>--     - `NoSuchThing` if directory does not exist</span>
+<a name="line-843"></a><span class='hs-comment'>--     - `InappropriateType` if file type is wrong (file)</span>
+<a name="line-844"></a><span class='hs-comment'>--     - `InappropriateType` if file type is wrong (symlink to file)</span>
+<a name="line-845"></a><span class='hs-comment'>--     - `InappropriateType` if file type is wrong (symlink to dir)</span>
+<a name="line-846"></a><span class='hs-comment'>--     - `PermissionDenied` if directory cannot be opened</span>
+<a name="line-847"></a><span class='hs-definition'>getDirsFiles</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>        <span class='hs-comment'>-- ^ dir to read</span>
+<a name="line-848"></a>             <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span><span class='hs-keyglyph'>]</span>
+<a name="line-849"></a><span class='hs-definition'>getDirsFiles</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span>
+<a name="line-850"></a>  <span class='hs-varid'>withAbsPath</span> <span class='hs-varid'>p</span> <span class='hs-varop'>$</span> <span class='hs-keyglyph'>\</span><span class='hs-varid'>fp</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-keyword'>do</span>
+<a name="line-851"></a>    <span class='hs-varid'>fd</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-varid'>openFd</span> <span class='hs-varid'>fp</span> <span class='hs-conid'>SPI</span><span class='hs-varop'>.</span><span class='hs-conid'>ReadOnly</span> <span class='hs-keyglyph'>[</span><span class='hs-conid'>SPDF</span><span class='hs-varop'>.</span><span class='hs-varid'>oNofollow</span><span class='hs-keyglyph'>]</span> <span class='hs-conid'>Nothing</span>
+<a name="line-852"></a>    <span class='hs-varid'>return</span>
+<a name="line-853"></a>      <span class='hs-varop'>.</span> <span class='hs-varid'>catMaybes</span>
+<a name="line-854"></a>      <span class='hs-varop'>.</span>   <span class='hs-varid'>fmap</span> <span class='hs-layout'>(</span><span class='hs-keyglyph'>\</span><span class='hs-varid'>x</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-varop'>&lt;/&gt;</span><span class='hs-layout'>)</span> <span class='hs-varid'>p</span> <span class='hs-varop'>&lt;$&gt;</span> <span class='hs-layout'>(</span><span class='hs-varid'>parseMaybe</span> <span class='hs-varop'>.</span> <span class='hs-varid'>snd</span> <span class='hs-varop'>$</span> <span class='hs-varid'>x</span><span class='hs-layout'>)</span><span class='hs-layout'>)</span>
+<a name="line-855"></a>      <span class='hs-varop'>=&lt;&lt;</span> <span class='hs-varid'>getDirectoryContents'</span> <span class='hs-varid'>fd</span>
+<a name="line-856"></a>  <span class='hs-keyword'>where</span>
+<a name="line-857"></a>    <span class='hs-varid'>parseMaybe</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Maybe</span> <span class='hs-layout'>(</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Fn</span><span class='hs-layout'>)</span>
+<a name="line-858"></a>    <span class='hs-varid'>parseMaybe</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>parseFn</span>
 <a name="line-859"></a>
 <a name="line-860"></a>
 <a name="line-861"></a>
-<a name="line-862"></a>    <span class='hs-comment'>---------------------------</span>
-<a name="line-863"></a>    <span class='hs-comment'>--[ FileType operations ]--</span>
-<a name="line-864"></a>    <span class='hs-comment'>---------------------------</span>
-<a name="line-865"></a>
+<a name="line-862"></a>
+<a name="line-863"></a>    <span class='hs-comment'>---------------------------</span>
+<a name="line-864"></a>    <span class='hs-comment'>--[ FileType operations ]--</span>
+<a name="line-865"></a>    <span class='hs-comment'>---------------------------</span>
 <a name="line-866"></a>
-<a name="line-867"></a><a name="getFileType"></a><span class='hs-comment'>-- |Get the file type of the file located at the given path. Does</span>
-<a name="line-868"></a><span class='hs-comment'>-- not follow symbolic links.</span>
-<a name="line-869"></a><span class='hs-comment'>--</span>
-<a name="line-870"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-871"></a><span class='hs-comment'>--</span>
-<a name="line-872"></a><span class='hs-comment'>--    - `NoSuchThing` if the file does not exist</span>
-<a name="line-873"></a><span class='hs-comment'>--    - `PermissionDenied` if any part of the path is not accessible</span>
-<a name="line-874"></a><span class='hs-definition'>getFileType</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>FileType</span>
-<a name="line-875"></a><span class='hs-definition'>getFileType</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-876"></a>  <span class='hs-varid'>fs</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>getSymbolicLinkStatus</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span>
-<a name="line-877"></a>  <span class='hs-varid'>decide</span> <span class='hs-varid'>fs</span>
-<a name="line-878"></a>  <span class='hs-keyword'>where</span>
-<a name="line-879"></a>    <span class='hs-varid'>decide</span> <span class='hs-varid'>fs</span>
-<a name="line-880"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isDirectory</span> <span class='hs-varid'>fs</span>       <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Directory</span>
-<a name="line-881"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isRegularFile</span> <span class='hs-varid'>fs</span>     <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>RegularFile</span>
-<a name="line-882"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isSymbolicLink</span> <span class='hs-varid'>fs</span>    <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>SymbolicLink</span>
-<a name="line-883"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isBlockDevice</span> <span class='hs-varid'>fs</span>     <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>BlockDevice</span>
-<a name="line-884"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isCharacterDevice</span> <span class='hs-varid'>fs</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>CharacterDevice</span>
-<a name="line-885"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isNamedPipe</span> <span class='hs-varid'>fs</span>       <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>NamedPipe</span>
-<a name="line-886"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isSocket</span> <span class='hs-varid'>fs</span>          <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Socket</span>
-<a name="line-887"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>               <span class='hs-keyglyph'>=</span> <span class='hs-varid'>ioError</span> <span class='hs-varop'>$</span> <span class='hs-varid'>userError</span> <span class='hs-str'>"No filetype?!"</span>
-<a name="line-888"></a>
+<a name="line-867"></a>
+<a name="line-868"></a><a name="getFileType"></a><span class='hs-comment'>-- |Get the file type of the file located at the given path. Does</span>
+<a name="line-869"></a><span class='hs-comment'>-- not follow symbolic links.</span>
+<a name="line-870"></a><span class='hs-comment'>--</span>
+<a name="line-871"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-872"></a><span class='hs-comment'>--</span>
+<a name="line-873"></a><span class='hs-comment'>--    - `NoSuchThing` if the file does not exist</span>
+<a name="line-874"></a><span class='hs-comment'>--    - `PermissionDenied` if any part of the path is not accessible</span>
+<a name="line-875"></a><span class='hs-definition'>getFileType</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-conid'>FileType</span>
+<a name="line-876"></a><span class='hs-definition'>getFileType</span> <span class='hs-varid'>p</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-877"></a>  <span class='hs-varid'>fs</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>getSymbolicLinkStatus</span> <span class='hs-layout'>(</span><span class='hs-varid'>fromAbs</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span>
+<a name="line-878"></a>  <span class='hs-varid'>decide</span> <span class='hs-varid'>fs</span>
+<a name="line-879"></a>  <span class='hs-keyword'>where</span>
+<a name="line-880"></a>    <span class='hs-varid'>decide</span> <span class='hs-varid'>fs</span>
+<a name="line-881"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isDirectory</span> <span class='hs-varid'>fs</span>       <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Directory</span>
+<a name="line-882"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isRegularFile</span> <span class='hs-varid'>fs</span>     <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>RegularFile</span>
+<a name="line-883"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isSymbolicLink</span> <span class='hs-varid'>fs</span>    <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>SymbolicLink</span>
+<a name="line-884"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isBlockDevice</span> <span class='hs-varid'>fs</span>     <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>BlockDevice</span>
+<a name="line-885"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isCharacterDevice</span> <span class='hs-varid'>fs</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>CharacterDevice</span>
+<a name="line-886"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isNamedPipe</span> <span class='hs-varid'>fs</span>       <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>NamedPipe</span>
+<a name="line-887"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-conid'>PF</span><span class='hs-varop'>.</span><span class='hs-varid'>isSocket</span> <span class='hs-varid'>fs</span>          <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-conid'>Socket</span>
+<a name="line-888"></a>      <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>               <span class='hs-keyglyph'>=</span> <span class='hs-varid'>ioError</span> <span class='hs-varop'>$</span> <span class='hs-varid'>userError</span> <span class='hs-str'>"No filetype?!"</span>
 <a name="line-889"></a>
 <a name="line-890"></a>
-<a name="line-891"></a>    <span class='hs-comment'>--------------</span>
-<a name="line-892"></a>    <span class='hs-comment'>--[ Others ]--</span>
-<a name="line-893"></a>    <span class='hs-comment'>--------------</span>
-<a name="line-894"></a>
+<a name="line-891"></a>
+<a name="line-892"></a>    <span class='hs-comment'>--------------</span>
+<a name="line-893"></a>    <span class='hs-comment'>--[ Others ]--</span>
+<a name="line-894"></a>    <span class='hs-comment'>--------------</span>
 <a name="line-895"></a>
 <a name="line-896"></a>
-<a name="line-897"></a><a name="canonicalizePath"></a><span class='hs-comment'>-- |Applies `realpath` on the given absolute path.</span>
-<a name="line-898"></a><span class='hs-comment'>--</span>
-<a name="line-899"></a><span class='hs-comment'>-- Throws:</span>
-<a name="line-900"></a><span class='hs-comment'>--</span>
-<a name="line-901"></a><span class='hs-comment'>--    - `NoSuchThing` if the file at the given path does not exist</span>
-<a name="line-902"></a><span class='hs-comment'>--    - `NoSuchThing` if the symlink is broken</span>
-<a name="line-903"></a><span class='hs-definition'>canonicalizePath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-layout'>(</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span><span class='hs-layout'>)</span>
-<a name="line-904"></a><span class='hs-definition'>canonicalizePath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>l</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
-<a name="line-905"></a>  <span class='hs-varid'>nl</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>SPDT</span><span class='hs-varop'>.</span><span class='hs-varid'>realpath</span> <span class='hs-varid'>l</span>
-<a name="line-906"></a>  <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-conid'>MkPath</span> <span class='hs-varid'>nl</span>
+<a name="line-897"></a>
+<a name="line-898"></a><a name="canonicalizePath"></a><span class='hs-comment'>-- |Applies `realpath` on the given absolute path.</span>
+<a name="line-899"></a><span class='hs-comment'>--</span>
+<a name="line-900"></a><span class='hs-comment'>-- Throws:</span>
+<a name="line-901"></a><span class='hs-comment'>--</span>
+<a name="line-902"></a><span class='hs-comment'>--    - `NoSuchThing` if the file at the given path does not exist</span>
+<a name="line-903"></a><span class='hs-comment'>--    - `NoSuchThing` if the symlink is broken</span>
+<a name="line-904"></a><span class='hs-definition'>canonicalizePath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-layout'>(</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span><span class='hs-layout'>)</span>
+<a name="line-905"></a><span class='hs-definition'>canonicalizePath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>l</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-keyword'>do</span>
+<a name="line-906"></a>  <span class='hs-varid'>nl</span> <span class='hs-keyglyph'>&lt;-</span> <span class='hs-conid'>SPDT</span><span class='hs-varop'>.</span><span class='hs-varid'>realpath</span> <span class='hs-varid'>l</span>
+<a name="line-907"></a>  <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-conid'>MkPath</span> <span class='hs-varid'>nl</span>
 </pre></body>
 </html>
