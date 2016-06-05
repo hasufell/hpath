@@ -3,7 +3,6 @@
 module HPath.IO.RecreateSymlinkSpec where
 
 
--- TODO: exception if destination exists but is not a file + `OverWrite` CopyMode
 
 
 import Test.Hspec

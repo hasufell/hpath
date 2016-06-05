@@ -29,6 +29,8 @@ setupFiles = do
   createDir' "dir"
   createDir' "noPerms"
   createDir' "noWritePerm"
+  createDir' "alreadyExistsD2"
+  createRegularFile' "alreadyExistsD2/lala"
   noPerms "noPerms"
   noWritableDirPerms "noWritePerm"
   writeFile' "myFile" "Blahfaselgagaga"
@@ -41,7 +43,9 @@ cleanupFiles = do
   deleteFile' "myFile"
   deleteFile' "myFileL"
   deleteFile' "alreadyExists"
+  deleteFile' "alreadyExistsD2/lala"
   deleteDir' "alreadyExistsD"
+  deleteDir' "alreadyExistsD2"
   deleteDir' "dir"
   deleteDir' "noPerms"
   deleteDir' "noWritePerm"
@@ -69,7 +73,7 @@ spec = before_ setupFiles $ after_ cleanupFiles $
                        "alreadyExists"
                        Overwrite
 
-    it "recreateSymLink (Overwrite), destination already exists and is a dir" $ do
+    it "recreateSymLink (Overwrite), destination already exists and is an empty dir" $ do
       recreateSymlink' "myFileL"
                        "alreadyExistsD"
                        Overwrite
@@ -77,6 +81,13 @@ spec = before_ setupFiles $ after_ cleanupFiles $
       createDir' "alreadyExistsD"
 
     -- posix failures --
+    it "recreateSymLink (Overwrite), destination already exists and is a non-empty dir" $ do
+      recreateSymlink' "myFileL"
+                       "alreadyExistsD2"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == UnsatisfiedConstraints)
+
     it "recreateSymLink (Overwrite), wrong input type (file)" $
       recreateSymlink' "myFile"
                        "movedFile"
