@@ -287,7 +287,7 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- Throws in `CollectFailures` RecursiveMode only:
 --
 --    - `RecursiveFailure` if any of the recursive operations that are not
---      part of the top-directory sanity-checks fails (`HPathIOException`)
+--      part of the top-directory sanity-checks fail (`HPathIOException`)
 --
 -- Throws in `Strict` CopyMode only:
 --
