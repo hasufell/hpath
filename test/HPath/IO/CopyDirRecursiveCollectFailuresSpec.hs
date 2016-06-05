@@ -180,10 +180,10 @@ spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
                           ,"outputDir1/foo2/foo4"
                           ,"outputDir1/foo2/foo4/inputFile6"
                           ,"outputDir1/foo2/foo4/inputFile4"])
-      sort c `shouldBe` sort shouldC
       deleteFile' "outputDir1/foo2/inputFile1"
       deleteFile' "outputDir1/foo2/inputFile2"
       deleteFile' "outputDir1/foo2/inputFile3"
+      sort c `shouldBe` sort shouldC
 
 
     it "copyDirRecursive (Strict, CollectFailures), no write permission on output dir" $

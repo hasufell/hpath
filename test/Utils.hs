@@ -34,10 +34,7 @@ import System.IO.Unsafe
   (
     unsafePerformIO
   )
-import System.Posix.Directory.Traversals
-  (
-    allDirectoryContents
-  )
+import qualified System.Posix.Directory.Traversals as DT
 import System.Posix.Env.ByteString
   (
     getEnv
@@ -283,5 +280,5 @@ writeFile' ip bs =
 allDirectoryContents' :: ByteString -> IO [ByteString]
 {-# NOINLINE allDirectoryContents' #-}
 allDirectoryContents' ip =
-  withTmpDir ip $ \p -> allDirectoryContents (P.fromAbs p)
+  withTmpDir ip $ \p -> DT.allDirectoryContents' (P.fromAbs p)
 
