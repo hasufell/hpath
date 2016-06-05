@@ -81,7 +81,7 @@ spec = before_ setupFiles $ after_ cleanupFiles $
       createDir' "alreadyExistsD"
 
     -- posix failures --
-    it "recreateSymLink (Overwrite), destination already exists and is a non-empty dir" $ do
+    it "recreateSymLink (Overwrite), destination already exists and is a non-empty dir" $
       recreateSymlink' "myFileL"
                        "alreadyExistsD2"
                        Overwrite
