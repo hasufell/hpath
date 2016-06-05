@@ -249,12 +249,13 @@ data CopyMode = Strict    -- ^ fail if any target exists
 
 
 
--- |Copies the contents of a directory recursively to the given destination.
--- Does not follow symbolic links. This behaves more or less like:
+-- |Copies the contents of a directory recursively to the given destination, while preserving permissions.
+-- Does not follow symbolic links. This behaves more or less like
+-- the following, without descending into the destination if it
+-- already exists:
 --
 -- @
---   mkdir \/destination\/dir
---   cp -R \/source\/dir\/* \/destination\/dir\/
+--   cp -a \/source\/dir \/destination\/somedir
 -- @
 --
 -- For directory contents, this will ignore any file type that is not
@@ -297,8 +298,8 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyDirRecursive :: Path Abs  -- ^ copy contents of this source dir
-                 -> Path Abs  -- ^ to this full destination (parent dirs
+copyDirRecursive :: Path Abs  -- ^ source dir
+                 -> Path Abs  -- ^ destination (parent dirs
                               --   are not automatically created)
                  -> CopyMode
                  -> RecursiveErrorMode
