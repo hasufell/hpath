@@ -40,7 +40,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
   describe "HPath.IO.canonicalizePath" $ do
 
     -- successes --
