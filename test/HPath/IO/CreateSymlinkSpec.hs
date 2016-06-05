@@ -49,6 +49,11 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       removeFileIfExists "newSymL"
 
     -- posix failures --
+    it "createSymlink, parent directories do not exist" $
+      createSymlink' "some/thing/dada" "lala"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == NoSuchThing)
+
     it "createSymlink, can't write to destination directory" $
       createSymlink' "noWritePerms/newDir" "lala"
         `shouldThrow`

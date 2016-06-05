@@ -50,6 +50,11 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       removeDirIfExists "newDir"
 
     -- posix failures --
+    it "createDir, parent directories do not exist" $
+      createDir' "some/thing/dada"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == NoSuchThing)
+
     it "createDir, can't write to output directory" $
       createDir' "noWritePerms/newDir"
         `shouldThrow`

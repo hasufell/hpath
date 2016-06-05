@@ -661,6 +661,8 @@ executeFile fp args
 --
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `AlreadyExists` if destination file already exists
+--    - `NoSuchThing` if any of the parent components of the path
+--      do not exist
 createRegularFile :: FileMode -> Path Abs -> IO ()
 createRegularFile fm dest =
   bracket (SPI.openFd (fromAbs dest) SPI.WriteOnly (Just fm)
@@ -675,6 +677,8 @@ createRegularFile fm dest =
 --
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `AlreadyExists` if destination directory already exists
+--    - `NoSuchThing` if any of the parent components of the path
+--      do not exist
 createDir :: FileMode -> Path Abs -> IO ()
 createDir fm dest = createDirectory (fromAbs dest) fm
 
@@ -685,6 +689,8 @@ createDir fm dest = createDirectory (fromAbs dest) fm
 --
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `AlreadyExists` if destination file already exists
+--    - `NoSuchThing` if any of the parent components of the path
+--      do not exist
 --
 -- Note: calls `symlink`
 createSymlink :: Path Abs   -- ^ destination file

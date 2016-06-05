@@ -48,6 +48,11 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       removeFileIfExists "newDir"
 
     -- posix failures --
+    it "createRegularFile, parent directories do not exist" $
+      createRegularFile' "some/thing/dada"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == NoSuchThing)
+
     it "createRegularFile, can't write to destination directory" $
       createRegularFile' "noWritePerms/newDir"
         `shouldThrow`
