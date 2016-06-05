@@ -164,9 +164,9 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Overwrite
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [e1, e2]) -> 
-          ioeGetErrorType e1 == InappropriateType &&
-          ioeGetErrorType e2 == PermissionDenied)
+        (\(RecursiveFailure ex@[_, _]) ->
+          any (\e -> ioeGetErrorType e == InappropriateType) ex &&
+          any (\e -> ioeGetErrorType e == PermissionDenied) ex)
       normalDirPerms "outputDir1/foo2/foo4"
       normalDirPerms "outputDir1/foo2/foo4/inputFile4"
       c <- allDirectoryContents' "outputDir1"
