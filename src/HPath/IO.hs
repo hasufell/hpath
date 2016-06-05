@@ -248,7 +248,7 @@ data CopyMode = Strict    -- ^ fail if any target exists
 
 
 -- |Copies the contents of a directory recursively to the given destination.
--- Does not follow symbolic links. This behaves like:
+-- Does not follow symbolic links. This behaves more or less like:
 --
 -- @
 --   mkdir \/destination\/dir
@@ -258,9 +258,10 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- For directory contents, this will ignore any file type that is not
 -- `RegularFile`, `SymbolicLink` or `Directory`.
 --
--- For `Overwrite` copy mode this does not prune destination directory contents,
--- so the destination might contain more files than the source after
--- the operation has completed.
+-- For `Overwrite` copy mode this does not prune destination directory
+-- contents, so the destination might contain more files than the source after
+-- the operation has completed. Permissions of existing directories are
+-- fixed.
 --
 -- Note that there is no guaranteed ordering of the exceptions
 -- contained within `RecursiveFailure` in `CollectFailures` RecursiveErrorMode.
