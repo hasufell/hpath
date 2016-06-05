@@ -18,6 +18,16 @@ import System.Exit
 import System.Process
 import Utils
 import Data.ByteString.UTF8 (toString)
+import Data.IORef
+  (
+    readIORef
+  )
+
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "CopyFileOverwriteSpec"
+  createTmpDir
 
 
 setupFiles :: IO ()
@@ -51,7 +61,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.copyFile" $ do
 
     -- successes --
@@ -62,21 +72,23 @@ spec = before_ setupFiles $ after_ cleanupFiles $
       removeFileIfExists "outputFile"
 
     it "copyFile (Overwrite), output file already exists, all clear" $ do
+      tmpDir' <- getRawTmpDir
       copyFile' "alreadyExists" "alreadyExists.bak" Strict
       copyFile' "inputFile" "alreadyExists" Overwrite
-      (system $ "cmp -s " ++ toString tmpDir ++ "inputFile" ++ " "
-                          ++ toString tmpDir ++ "alreadyExists")
+      (system $ "cmp -s " ++ toString tmpDir' ++ "inputFile" ++ " "
+                          ++ toString tmpDir' ++ "alreadyExists")
         `shouldReturn` ExitSuccess
       removeFileIfExists "alreadyExists"
       copyFile' "alreadyExists.bak" "alreadyExists" Strict
       removeFileIfExists "alreadyExists.bak"
 
     it "copyFile (Overwrite), and compare" $ do
+      tmpDir' <- getRawTmpDir
       copyFile' "inputFile"
                 "outputFile"
                 Overwrite
-      (system $ "cmp -s " ++ toString tmpDir ++ "inputFile" ++ " "
-                          ++ toString tmpDir ++ "outputFile")
+      (system $ "cmp -s " ++ toString tmpDir' ++ "inputFile" ++ " "
+                          ++ toString tmpDir' ++ "outputFile")
         `shouldReturn` ExitSuccess
       removeFileIfExists "outputFile"
 

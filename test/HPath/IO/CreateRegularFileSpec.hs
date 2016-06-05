@@ -15,6 +15,12 @@ import GHC.IO.Exception
 import Utils
 
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "CreateRegularFileSpec"
+  createTmpDir
+
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "alreadyExists"
@@ -22,8 +28,6 @@ setupFiles = do
   createDir' "noWritePerms"
   noPerms "noPerms"
   noWritableDirPerms "noWritePerms"
-
-
 
 cleanupFiles :: IO ()
 cleanupFiles = do
@@ -35,7 +39,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.createRegularFile" $ do
 
     -- successes --

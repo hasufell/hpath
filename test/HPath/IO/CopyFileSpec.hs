@@ -19,7 +19,16 @@ import System.Exit
 import System.Process
 import Utils
 import Data.ByteString.UTF8 (toString)
+import Data.IORef
+  (
+    readIORef
+  )
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "CopyFileSpec"
+  createTmpDir
 
 setupFiles :: IO ()
 setupFiles = do
@@ -51,7 +60,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.copyFile" $ do
 
     -- successes --
@@ -62,11 +71,12 @@ spec = before_ setupFiles $ after_ cleanupFiles $
       removeFileIfExists "outputFile"
 
     it "copyFile (Strict), and compare" $ do
+      tmpDir' <- getRawTmpDir
       copyFile' "inputFile"
                 "outputFile"
                 Strict
-      (system $ "cmp -s " ++ toString tmpDir ++ "inputFile" ++ " "
-                          ++ toString tmpDir ++ "outputFile")
+      (system $ "cmp -s " ++ toString tmpDir' ++ "inputFile" ++ " "
+                          ++ toString tmpDir' ++ "outputFile")
         `shouldReturn` ExitSuccess
       removeFileIfExists "outputFile"
 

@@ -19,6 +19,13 @@ import GHC.IO.Exception
 import Utils
 
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "DeleteDirRecursiveSpec"
+  createTmpDir
+
+
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "file"
@@ -44,7 +51,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.deleteDirRecursive" $ do
 
     -- successes --

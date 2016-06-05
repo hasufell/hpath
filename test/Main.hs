@@ -14,10 +14,6 @@ main :: IO ()
 main =
   hspecWith
     defaultConfig { configFormatter = Just progress }
-    $ before_ up
-    $ after_ down
+    $ beforeAll_ createBaseTmpDir
+    $ afterAll_ deleteBaseTmpDir
     $ Spec.spec
-  where
-    up = createTmpDir
-    down = deleteTmpDir
-

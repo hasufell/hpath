@@ -19,8 +19,17 @@ import System.Exit
 import System.Process
 import Utils
 import Data.ByteString.UTF8 (toString)
+import Data.IORef
+  (
+    readIORef
+  )
 
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "CopyDirRecursiveSpec"
+  createTmpDir
 
 setupFiles :: IO ()
 setupFiles = do
@@ -67,7 +76,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.copyDirRecursive" $ do
 
     -- successes --
@@ -79,13 +88,14 @@ spec = before_ setupFiles $ after_ cleanupFiles $
       removeDirIfExists "outputDir"
 
     it "copyDirRecursive (Strict, FailEarly), all fine and compare" $ do
+      tmpDir' <- getRawTmpDir
       copyDirRecursive' "inputDir"
                         "outputDir"
                         Strict
                         FailEarly
       (system $ "diff -r --no-dereference "
-                          ++ toString tmpDir ++ "inputDir" ++ " "
-                          ++ toString tmpDir ++ "outputDir")
+                          ++ toString tmpDir' ++ "inputDir" ++ " "
+                          ++ toString tmpDir' ++ "outputDir")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 

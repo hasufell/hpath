@@ -20,6 +20,12 @@ import GHC.IO.Exception
 import Utils
 
 
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "DeleteFileSpec"
+  createTmpDir
+
+
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "foo"
@@ -40,7 +46,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.deleteFile" $ do
 
     -- successes --

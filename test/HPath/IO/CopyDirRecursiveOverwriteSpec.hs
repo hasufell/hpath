@@ -19,7 +19,16 @@ import System.Exit
 import System.Process
 import Utils
 import Data.ByteString.UTF8 (toString)
+import Data.IORef
+  (
+    readIORef
+  )
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "CopyDirRecursiveOverwriteSpec"
+  createTmpDir
 
 
 setupFiles :: IO ()
@@ -81,7 +90,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.copyDirRecursive" $ do
 
     -- successes --
@@ -93,28 +102,30 @@ spec = before_ setupFiles $ after_ cleanupFiles $
       removeDirIfExists "outputDir"
 
     it "copyDirRecursive (Overwrite, FailEarly), all fine and compare" $ do
+      tmpDir' <- getRawTmpDir
       copyDirRecursive' "inputDir"
                         "outputDir"
                         Overwrite
                         FailEarly
       (system $ "diff -r --no-dereference "
-                          ++ toString tmpDir ++ "inputDir" ++ " "
-                          ++ toString tmpDir ++ "outputDir")
+                          ++ toString tmpDir' ++ "inputDir" ++ " "
+                          ++ toString tmpDir' ++ "outputDir")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 
     it "copyDirRecursive (Overwrite, FailEarly), destination dir already exists" $ do
+      tmpDir' <- getRawTmpDir
       (system $ "diff -r --no-dereference "
-                          ++ toString tmpDir ++ "inputDir" ++ " "
-                          ++ toString tmpDir ++ "alreadyExistsD")
+                          ++ toString tmpDir' ++ "inputDir" ++ " "
+                          ++ toString tmpDir' ++ "alreadyExistsD")
         `shouldReturn` (ExitFailure 1)
       copyDirRecursive' "inputDir"
                         "alreadyExistsD"
                         Overwrite
                         FailEarly
       (system $ "diff -r --no-dereference "
-                          ++ toString tmpDir ++ "inputDir" ++ " "
-                          ++ toString tmpDir ++ "alreadyExistsD")
+                          ++ toString tmpDir' ++ "inputDir" ++ " "
+                          ++ toString tmpDir' ++ "alreadyExistsD")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 

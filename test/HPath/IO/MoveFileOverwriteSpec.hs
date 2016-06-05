@@ -17,6 +17,13 @@ import GHC.IO.Exception
 import Utils
 
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "MoveFileOverwriteSpec"
+  createTmpDir
+
+
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "myFile"
@@ -44,7 +51,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.moveFile" $ do
 
     -- successes --

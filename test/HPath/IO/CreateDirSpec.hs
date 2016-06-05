@@ -15,6 +15,12 @@ import GHC.IO.Exception
 import Utils
 
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "CreateDirSpec"
+  createTmpDir
+
 setupFiles :: IO ()
 setupFiles = do
   createDir' "alreadyExists"
@@ -35,7 +41,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.createDir" $ do
 
     -- successes --

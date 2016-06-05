@@ -16,6 +16,13 @@ import GHC.IO.Exception
 import Utils
 
 
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "GetFileTypeSpec"
+  createTmpDir
+
+
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "regularfile"
@@ -40,7 +47,7 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.getFileType" $ do
 
     -- successes --

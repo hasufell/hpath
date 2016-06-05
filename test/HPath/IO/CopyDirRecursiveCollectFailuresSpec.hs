@@ -26,8 +26,16 @@ import System.Posix.Env.ByteString
 import Utils
 import qualified Data.ByteString as BS
 import Data.ByteString.UTF8 (toString)
+import Data.IORef
+  (
+    readIORef
+  )
 
 
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "CopyDirRecursiveCollectFailuresSpec"
+  createTmpDir
 
 setupFiles :: IO ()
 setupFiles = do
@@ -115,18 +123,19 @@ cleanupFiles = do
 
 
 spec :: Spec
-spec = before_ setupFiles $ after_ cleanupFiles $
+spec = beforeAll_ upTmpDir $ before_ setupFiles $ after_ cleanupFiles $
   describe "HPath.IO.copyDirRecursive" $ do
 
     -- successes --
     it "copyDirRecursive (Strict, CollectFailures), all fine and compare" $ do
+      tmpDir' <- getRawTmpDir
       copyDirRecursive' "inputDir"
                         "outputDir"
                         Strict
                         CollectFailures
       (system $ "diff -r --no-dereference "
-                          ++ toString tmpDir ++ "inputDir" ++ " "
-                          ++ toString tmpDir ++ "outputDir")
+                          ++ toString tmpDir' ++ "inputDir" ++ " "
+                          ++ toString tmpDir' ++ "outputDir")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 
@@ -161,9 +170,8 @@ spec = before_ setupFiles $ after_ cleanupFiles $
       normalDirPerms "outputDir1/foo2/foo4"
       normalDirPerms "outputDir1/foo2/foo4/inputFile4"
       c <- allDirectoryContents' "outputDir1"
-      pwd <- fromJust <$> getEnv "PWD"
-      let shouldC = (fmap (\x -> pwd `BS.append` "/" `BS.append`
-                                 tmpDir `BS.append` x)
+      tmpDir' <- getRawTmpDir
+      let shouldC = (fmap (\x -> tmpDir' `BS.append` x)
                           ["outputDir1"
                           ,"outputDir1/foo2"
                           ,"outputDir1/foo2/inputFile1"
