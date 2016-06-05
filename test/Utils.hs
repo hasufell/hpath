@@ -86,7 +86,7 @@ createTmpDir :: IO ()
 createTmpDir = do
   pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
   tmp <- P.parseRel =<< readIORef tmpDir
-  void $ createDir (pwd P.</> tmp)
+  void $ createDir newDirPerms (pwd P.</> tmp)
 
 
 deleteTmpDir :: IO ()
@@ -102,7 +102,7 @@ createBaseTmpDir :: IO ()
 createBaseTmpDir = do
   pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
   tmp <- P.parseRel baseTmpDir
-  void $ createDir (pwd P.</> tmp)
+  void $ createDir newDirPerms (pwd P.</> tmp)
 
 
 deleteBaseTmpDir :: IO ()
@@ -177,12 +177,12 @@ copyDirRecursive' inputDirP outputDirP cm rm =
 
 createDir' :: ByteString -> IO ()
 {-# NOINLINE createDir' #-}
-createDir' dest = withTmpDir dest createDir
+createDir' dest = withTmpDir dest (createDir newDirPerms)
 
 
 createRegularFile' :: ByteString -> IO ()
 {-# NOINLINE createRegularFile' #-}
-createRegularFile' dest = withTmpDir dest createRegularFile
+createRegularFile' dest = withTmpDir dest (createRegularFile newFilePerms)
 
 
 createSymlink' :: ByteString -> ByteString -> IO ()
