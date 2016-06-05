@@ -352,8 +352,16 @@ copyDirRecursive fromp destdirp cm rm
 --    - `InvalidArgument` if source file is wrong type (not a symlink)
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `PermissionDenied` if source directory cannot be opened
---    - `AlreadyExists` if destination file already exists (for `Strict` CopyMode only)
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
+--
+--
+-- Throws in `Strict` mode only:
+--
+--    - `AlreadyExists` if destination file already exists
+--
+-- Throws in `Overwrite` mode only:
+--
+--    - `UnsatisfiedConstraints` if destination file is non-empty directory
 --
 -- Note: calls `symlink`
 recreateSymlink :: Path Abs  -- ^ the old symlink file
@@ -402,8 +410,11 @@ recreateSymlink symsource newsym cm
 --    - `PermissionDenied` if output directory is not writable
 --    - `PermissionDenied` if source directory can't be opened
 --    - `InvalidArgument` if source file is wrong type (symlink or directory)
---    - `AlreadyExists` if destination already exists (for `Strict` CopyMode only)
 --    - `SameFile` if source and destination are the same file (`HPathIOException`)
+--
+-- Throws in `Strict` mode only:
+--
+--    - `AlreadyExists` if destination already exists
 --
 -- Note: calls `sendfile` and possibly `read`/`write` as fallback
 copyFile :: Path Abs  -- ^ source file
@@ -720,11 +731,12 @@ renameFile fromf tof = do
 --     - `NoSuchThing` if source file does not exist
 --     - `PermissionDenied` if output directory cannot be written to
 --     - `PermissionDenied` if source directory cannot be opened
---     - `FileDoesExist` if destination file already exists (`HPathIOException`),
---        only for `Strict` CopyMode
---     - `DirDoesExist` if destination directory already exists (`HPathIOException`)
---        only for `Strict` CopyMode
 --     - `SameFile` if destination and source are the same file (`HPathIOException`)
+--
+-- Throws in `Strict` mode only:
+--
+--    - `FileDoesExist` if destination file already exists (`HPathIOException`)
+--    - `DirDoesExist` if destination directory already exists (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
 moveFile :: Path Abs  -- ^ file to move
