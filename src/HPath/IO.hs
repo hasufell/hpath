@@ -225,10 +225,9 @@ data FileType = Directory
 -- recursive sub-operations fail, which is sort of the default
 -- for IO operations.
 --
--- On `CollectFailures` skips and collects the failed sub-operation
--- and keeps on
--- recursing. At the end an exception describing the collected
--- failures will still be raised.
+-- On `CollectFailures` skips errors in the recursion and keeps on recursing.
+-- However all errors are collected in the `RecursiveFailure` error type,
+-- which is raised finally if there was any error.
 data RecursiveMode = FailEarly
                    | CollectFailures
 
@@ -251,13 +250,15 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- |Copies a directory recursively to the given destination.
 -- Does not follow symbolic links.
 --
--- For directory contents, this has the same behavior as `easyCopy`
--- and thus will ignore any file type that is not `RegularFile`,
--- `SymbolicLink` or `Directory`.
+-- For directory contents, this will ignore any file type that is not
+-- `RegularFile`, `SymbolicLink` or `Directory`.
 --
 -- For `Overwrite` mode this does not prune destination directory contents,
 -- so the destination might contain more files than the source after
 -- the operation has completed.
+--
+-- Note that there is no guaranteed ordering of the exceptions
+-- contained within `RecursiveFailure` in `CollectFailures` RecursiveMode.
 --
 -- Safety/reliability concerns:
 --
@@ -271,19 +272,24 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- Throws:
 --
 --    - `NoSuchThing` if source directory does not exist
---    - `PermissionDenied` if output directory is not writable
 --    - `PermissionDenied` if source directory can't be opened
+--    - `SameFile` if source and destination are the same file
+--      (`HPathIOException`)
+--    - `DestinationInSource` if destination is contained in source
+--      (`HPathIOException`)
+--
+-- Throws in `FailEarly` RecursiveMode only:
+--
+--    - `PermissionDenied` if output directory is not writable
 --    - `InvalidArgument` if source directory is wrong type (symlink)
---    - `InvalidArgument` if source directory is wrong type (regular file)
---    - `SameFile` if source and destination are the same file (`HPathIOException`)
---    - `DestinationInSource` if destination is contained in source (`HPathIOException`)
---    - `RecursiveFailure` if any sub-operation failed (for `CollectFailures` RecursiveMode only)
---
--- Throws in `Strict` CopyMode only:
---
---    - `AlreadyExists` if destination already exists
+--    - `InappropriateType` if source directory is wrong type (regular file)
 --
 -- Throws in `CollectFailures` RecursiveMode only:
+--
+--    - `RecursiveFailure` if any of the recursive operations that are not
+--      part of the top-directory sanity-checks fails (`HPathIOException`)
+--
+-- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
 copyDirRecursive :: Path Abs  -- ^ source dir
@@ -313,7 +319,8 @@ copyDirRecursive fromp destdirp cm rm
         fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
         case cm of
           Strict    -> createDirectory (fromAbs destdirp') fmode'
-          Overwrite -> catchIOError (createDirectory (fromAbs destdirp') fmode')
+          Overwrite -> catchIOError (createDirectory (fromAbs destdirp')
+                                                     fmode')
                          $ \e ->
                            case ioeGetErrorType e of
                              AlreadyExists -> setFileMode (fromAbs destdirp')
@@ -352,7 +359,8 @@ copyDirRecursive fromp destdirp cm rm
 --    - `InvalidArgument` if source file is wrong type (not a symlink)
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `PermissionDenied` if source directory cannot be opened
---    - `SameFile` if source and destination are the same file (`HPathIOException`)
+--    - `SameFile` if source and destination are the same file
+--      (`HPathIOException`)
 --
 --
 -- Throws in `Strict` mode only:
@@ -410,7 +418,8 @@ recreateSymlink symsource newsym cm
 --    - `PermissionDenied` if output directory is not writable
 --    - `PermissionDenied` if source directory can't be opened
 --    - `InvalidArgument` if source file is wrong type (symlink or directory)
---    - `SameFile` if source and destination are the same file (`HPathIOException`)
+--    - `SameFile` if source and destination are the same file
+--      (`HPathIOException`)
 --
 -- Throws in `Strict` mode only:
 --
@@ -452,8 +461,8 @@ _copyFile :: [SPDF.Flags]
 _copyFile sflags dflags from to
   =
     -- from sendfile(2) manpage:
-    --   Applications  may  wish  to  fall back to read(2)/write(2) in the case
-    --   where sendfile() fails with EINVAL or ENOSYS.
+    --   Applications  may  wish  to  fall back to read(2)/write(2) in
+    --   the case where sendfile() fails with EINVAL or ENOSYS.
     withAbsPath to $ \to' -> withAbsPath from $ \from' ->
       catchErrno [eINVAL, eNOSYS]
                  (sendFileCopy from' to')
@@ -489,7 +498,8 @@ _copyFile sflags dflags from to
             if size == 0
               then return $ fromIntegral totalsize
               else do rsize <- SPB.fdWriteBuf dfd buf size
-                      when (rsize /= size) (throwIO . CopyFailed $ "wrong size!")
+                      when (rsize /= size) (throwIO . CopyFailed
+                                            $ "wrong size!")
                       write' sfd dfd buf (totalsize + fromIntegral size)
 
 
@@ -637,7 +647,8 @@ executeFile fp args
     ---------------------
 
 
--- |Create an empty regular file at the given directory with the given filename.
+-- |Create an empty regular file at the given directory with the given
+-- filename.
 --
 -- Throws:
 --
@@ -696,10 +707,14 @@ createSymlink dest sympoint
 --     - `NoSuchThing` if source file does not exist
 --     - `PermissionDenied` if output directory cannot be written to
 --     - `PermissionDenied` if source directory cannot be opened
---     - `UnsupportedOperation` if source and destination are on different devices
---     - `FileDoesExist` if destination file already exists (`HPathIOException`)
---     - `DirDoesExist` if destination directory already exists (`HPathIOException`)
---     - `SameFile` if destination and source are the same file (`HPathIOException`)
+--     - `UnsupportedOperation` if source and destination are on different
+--       devices
+--     - `FileDoesExist` if destination file already exists
+--       (`HPathIOException`)
+--     - `DirDoesExist` if destination directory already exists
+--       (`HPathIOException`)
+--     - `SameFile` if destination and source are the same file
+--       (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
 renameFile :: Path Abs -> Path Abs -> IO ()
@@ -731,12 +746,14 @@ renameFile fromf tof = do
 --     - `NoSuchThing` if source file does not exist
 --     - `PermissionDenied` if output directory cannot be written to
 --     - `PermissionDenied` if source directory cannot be opened
---     - `SameFile` if destination and source are the same file (`HPathIOException`)
+--     - `SameFile` if destination and source are the same file
+--       (`HPathIOException`)
 --
 -- Throws in `Strict` mode only:
 --
 --    - `FileDoesExist` if destination file already exists (`HPathIOException`)
---    - `DirDoesExist` if destination directory already exists (`HPathIOException`)
+--    - `DirDoesExist` if destination directory already exists
+--      (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
 moveFile :: Path Abs  -- ^ file to move
@@ -804,6 +821,8 @@ newDirPerms
 
 -- |Gets all filenames of the given directory. This excludes "." and "..".
 -- This version does not follow symbolic links.
+--
+-- The contents are not sorted and there is no guarantee on the ordering.
 --
 -- Throws:
 --
