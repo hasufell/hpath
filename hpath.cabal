@@ -82,6 +82,7 @@ test-suite spec
                         HPath.IO.CopyFileOverwriteSpec
                         HPath.IO.CopyFileSpec
                         HPath.IO.CreateDirSpec
+                        HPath.IO.CreateDirRecursiveSpec
                         HPath.IO.CreateRegularFileSpec
                         HPath.IO.CreateSymlinkSpec
                         HPath.IO.DeleteDirRecursiveSpec

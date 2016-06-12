@@ -182,6 +182,9 @@ createDir' :: ByteString -> IO ()
 {-# NOINLINE createDir' #-}
 createDir' dest = withTmpDir dest (createDir newDirPerms)
 
+createDirRecursive' :: ByteString -> IO ()
+{-# NOINLINE createDirRecursive' #-}
+createDirRecursive' dest = withTmpDir dest (createDirRecursive newDirPerms)
 
 createRegularFile' :: ByteString -> IO ()
 {-# NOINLINE createRegularFile' #-}

@@ -55,6 +55,7 @@ module HPath.IO
   -- * File creation
   , createRegularFile
   , createDir
+  , createDirRecursive
   , createSymlink
   -- * File renaming/moving
   , renameFile
@@ -115,9 +116,11 @@ import Foreign.C.Error
   (
     eEXIST
   , eINVAL
+  , eNOENT
   , eNOSYS
   , eNOTEMPTY
   , eXDEV
+  , getErrno
   )
 import Foreign.C.Types
   (
@@ -681,6 +684,37 @@ createRegularFile fm dest =
 --      do not exist
 createDir :: FileMode -> Path Abs -> IO ()
 createDir fm dest = createDirectory (fromAbs dest) fm
+
+
+-- |Create an empty directory at the given directory with the given filename.
+--
+-- All parent directories are created with the same filemode. This
+-- basically behaves like:
+--
+-- @
+--   mkdir -p \/destination\/somedir
+-- @
+--
+-- Safety/reliability concerns:
+--
+--    * not atomic
+--
+-- Throws:
+--
+--    - `PermissionDenied` if any part of the path components do not
+--      exist and cannot be written to
+--    - `AlreadyExists` if destination already exists and
+--      is not a directory
+createDirRecursive :: FileMode -> Path Abs -> IO ()
+createDirRecursive fm dest =
+  catchIOError (createDirectory (fromAbs dest) fm) $ \e -> do
+    errno <- getErrno
+    isd <- doesDirectoryExist dest
+    case errno of
+         en | en == eEXIST && isd -> return ()
+            | en == eNOENT -> createDirRecursive fm (dirname dest)
+                              >> createDirectory (fromAbs dest) fm
+            | otherwise    -> ioError e
 
 
 -- |Create a symlink.
