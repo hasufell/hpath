@@ -89,6 +89,10 @@ import Control.Monad
   , void
   , when
   )
+import Control.Monad.IfElse
+  (
+    unlessM
+  )
 import Data.ByteString
   (
     ByteString
@@ -687,12 +691,11 @@ createDir fm dest = createDirectory (fromAbs dest) fm
 
 
 -- |Create an empty directory at the given directory with the given filename.
---
 -- All parent directories are created with the same filemode. This
 -- basically behaves like:
 --
 -- @
---   mkdir -p \/destination\/somedir
+--   mkdir -p \/some\/dir
 -- @
 --
 -- Safety/reliability concerns:
@@ -709,9 +712,8 @@ createDirRecursive :: FileMode -> Path Abs -> IO ()
 createDirRecursive fm dest =
   catchIOError (createDirectory (fromAbs dest) fm) $ \e -> do
     errno <- getErrno
-    isd <- doesDirectoryExist dest
     case errno of
-         en | en == eEXIST && isd -> return ()
+         en | en == eEXIST -> unlessM (doesDirectoryExist dest) (ioError e)
             | en == eNOENT -> createDirRecursive fm (dirname dest)
                               >> createDirectory (fromAbs dest) fm
             | otherwise    -> ioError e
