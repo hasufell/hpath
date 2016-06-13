@@ -336,6 +336,8 @@ dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 --
 -- >>> basename (MkPath "/abc/def/dod") :: Maybe (Path Fn)
 -- Just "dod"
+-- >>> basename (MkPath "/abc/def/dod/") :: Maybe (Path Fn)
+-- Just "dod"
 -- >>> basename (MkPath "/")            :: Maybe (Path Fn)
 -- Nothing
 basename :: MonadThrow m => Path b -> m (Path Fn)
