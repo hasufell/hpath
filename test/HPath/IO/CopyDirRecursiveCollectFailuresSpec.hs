@@ -202,7 +202,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [(_, e)]) -> ioeGetErrorType e == AlreadyExists)
+        (\(RecursiveFailure [(CreateDirFailed{}, e)]) -> ioeGetErrorType e == AlreadyExists)
 
     it "copyDirRecursive (Strict, CollectFailures), destination already exists and is a file" $
       copyDirRecursive' "inputDir"
@@ -218,7 +218,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [(_, e)]) -> ioeGetErrorType e == InappropriateType)
+        (\(RecursiveFailure [(ReadContentsFailed{}, e)]) -> ioeGetErrorType e == InappropriateType)
 
     it "copyDirRecursive (Strict, CollectFailures), wrong input (symlink to directory)" $
       copyDirRecursive' "wrongInputSymL"
@@ -226,7 +226,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [(_, e)]) -> ioeGetErrorType e == InvalidArgument)
+        (\(RecursiveFailure [(ReadContentsFailed{}, e)]) -> ioeGetErrorType e == InvalidArgument)
 
     it "copyDirRecursive (Strict, CollectFailures), destination in source" $
       copyDirRecursive' "inputDir"
