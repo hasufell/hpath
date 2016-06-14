@@ -9,6 +9,7 @@
 --
 -- Provides error handling.
 
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module HPath.IO.Errors
