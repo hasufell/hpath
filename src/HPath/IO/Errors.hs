@@ -69,6 +69,10 @@ import Data.ByteString.UTF8
   (
     toString
   )
+import Data.Typeable
+  (
+    Typeable
+  )
 import Foreign.C.Error
   (
     getErrno
@@ -105,7 +109,7 @@ import qualified System.Posix.Files.ByteString as PF
 data HPathIOException = SameFile ByteString ByteString
                       | DestinationInSource ByteString ByteString
                       | RecursiveFailure [(RecursiveFailureHint, IOException)]
-  deriving (Eq, Show)
+  deriving (Eq, Show, Typeable)
 
 
 -- |A type for giving failure hints on recursive failure, which allows
