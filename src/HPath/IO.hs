@@ -226,7 +226,7 @@ data FileType = Directory
 
 
 
--- |The error mode for any recursive operation.
+-- |The error mode for recursive operations.
 --
 -- On `FailEarly` the whole operation fails immediately if any of the
 -- recursive sub-operations fail, which is sort of the default
@@ -322,41 +322,56 @@ copyDirRecursive fromp destdirp cm rm
     unless (null collectedExceptions)
            (throwIO . RecursiveFailure $ collectedExceptions)
   where
-    go :: IORef [IOException] -> Path Abs -> Path Abs -> IO ()
+    go :: IORef [(RecursiveFailureHint, IOException)]
+       -> Path Abs -> Path Abs -> IO ()
     go ce fromp' destdirp' = do
 
-      -- order is important here, so we don't get empty directories
+      -- NOTE: order is important here, so we don't get empty directories
       -- on failure
-      contents <- handleIOE ce [] $ do
+
+      -- get the contents of the source dir
+      contents <- handleIOE (ReadContentsFailed fromp' destdirp') ce [] $ do
         contents <- getDirsFiles fromp'
 
-        fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
-        case cm of
-          Strict    -> createDirectory (fromAbs destdirp') fmode'
-          Overwrite -> catchIOError (createDirectory (fromAbs destdirp')
-                                                     fmode')
-                         $ \e ->
-                           case ioeGetErrorType e of
-                             AlreadyExists -> setFileMode (fromAbs destdirp')
-                                                          fmode'
-                             _             -> ioError e
-        return contents
+        -- create the destination dir and
+        -- only return contents if we succeed
+        handleIOE (CreateDirFailed fromp' destdirp') ce [] $ do
+          fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
+          case cm of
+            Strict    -> createDirectory (fromAbs destdirp') fmode'
+            Overwrite -> catchIOError (createDirectory (fromAbs destdirp')
+                                                       fmode')
+                           $ \e ->
+                             case ioeGetErrorType e of
+                               AlreadyExists -> setFileMode (fromAbs destdirp')
+                                                            fmode'
+                               _             -> ioError e
+          return contents
 
-      -- we can't use `easyCopy` here, because we want to call `go`
+      -- NOTE: we can't use `easyCopy` here, because we want to call `go`
       -- recursively to skip the top-level sanity checks
+
+      -- if reading the contents and creating the destination dir worked,
+      -- then copy the contents to the destination too
       for_ contents $ \f -> do
         ftype <- getFileType f
         newdest <- (destdirp' </>) <$> basename f
         case ftype of
-          SymbolicLink -> handleIOE ce ()
+          SymbolicLink -> handleIOE (RecreateSymlinkFailed f newdest) ce ()
                             $ recreateSymlink f newdest cm
           Directory    -> go ce f newdest
-          RegularFile  -> handleIOE ce () $ copyFile f newdest cm
+          RegularFile  -> handleIOE (CopyFileFailed f newdest) ce ()
+                            $ copyFile f newdest cm
           _            -> return ()
-    handleIOE :: IORef [IOException] -> a -> IO a -> IO a
-    handleIOE ce def = case rm of
-      FailEarly -> handleIOError throwIO
-      CollectFailures -> handleIOError (\e -> modifyIORef ce (e:)
+
+    -- helper to handle errors for both RecursiveErrorModes and return a
+    -- default value
+    handleIOE :: RecursiveFailureHint
+              -> IORef [(RecursiveFailureHint, IOException)]
+              -> a -> IO a -> IO a
+    handleIOE hint ce def = case rm of
+      FailEarly       -> handleIOError throwIO
+      CollectFailures -> handleIOError (\e -> modifyIORef ce ((hint, e):)
                                          >> return def)
 
 
@@ -379,7 +394,7 @@ copyDirRecursive fromp destdirp cm rm
 --
 -- Throws in `Strict` mode only:
 --
---    - `AlreadyExists` if destination file already exists
+--    - `AlreadyExists` if destination already exists
 --
 -- Throws in `Overwrite` mode only:
 --
@@ -512,8 +527,8 @@ _copyFile sflags dflags from to
             if size == 0
               then return $ fromIntegral totalsize
               else do rsize <- SPB.fdWriteBuf dfd buf size
-                      when (rsize /= size) (throwIO . CopyFailed
-                                            $ "wrong size!")
+                      when (rsize /= size) (ioError $ userError
+                                                      "wrong size!")
                       write' sfd dfd buf (totalsize + fromIntegral size)
 
 
@@ -667,7 +682,7 @@ executeFile fp args
 -- Throws:
 --
 --    - `PermissionDenied` if output directory cannot be written to
---    - `AlreadyExists` if destination file already exists
+--    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
 createRegularFile :: FileMode -> Path Abs -> IO ()
@@ -683,7 +698,7 @@ createRegularFile fm dest =
 -- Throws:
 --
 --    - `PermissionDenied` if output directory cannot be written to
---    - `AlreadyExists` if destination directory already exists
+--    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
 createDir :: FileMode -> Path Abs -> IO ()
@@ -758,10 +773,7 @@ createSymlink dest sympoint
 --     - `PermissionDenied` if source directory cannot be opened
 --     - `UnsupportedOperation` if source and destination are on different
 --       devices
---     - `FileDoesExist` if destination file already exists
---       (`HPathIOException`)
---     - `DirDoesExist` if destination directory already exists
---       (`HPathIOException`)
+--     - `AlreadyExists` if destination already exists
 --     - `SameFile` if destination and source are the same file
 --       (`HPathIOException`)
 --
@@ -800,9 +812,7 @@ renameFile fromf tof = do
 --
 -- Throws in `Strict` mode only:
 --
---    - `FileDoesExist` if destination file already exists (`HPathIOException`)
---    - `DirDoesExist` if destination directory already exists
---      (`HPathIOException`)
+--    - `AlreadyExists` if destination already exists
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
 moveFile :: Path Abs  -- ^ file to move

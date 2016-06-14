@@ -116,7 +116,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                 "alreadyExistsD"
                 Overwrite
         `shouldThrow`
-        isDirDoesExist
+        (\e -> ioeGetErrorType e == AlreadyExists)
 
     it "moveFile (Overwrite), source and dest are same file" $
       moveFile' "myFile"

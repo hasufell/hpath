@@ -101,13 +101,13 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       renameFile' "myFile"
                   "alreadyExists"
         `shouldThrow`
-        isFileDoesExist
+        (\e -> ioeGetErrorType e == AlreadyExists)
 
     it "renameFile, move from file to dir" $
       renameFile' "myFile"
                   "alreadyExistsD"
         `shouldThrow`
-        isDirDoesExist
+        (\e -> ioeGetErrorType e == AlreadyExists)
 
     it "renameFile, source and dest are same file" $
       renameFile' "myFile"

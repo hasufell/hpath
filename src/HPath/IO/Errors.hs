@@ -9,31 +9,26 @@
 --
 -- Provides error handling.
 
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module HPath.IO.Errors
   (
   -- * Types
     HPathIOException(..)
+  , RecursiveFailureHint(..)
 
   -- * Exception identifiers
-  , isFileDoesNotExist
-  , isDirDoesNotExist
   , isSameFile
   , isDestinationInSource
-  , isFileDoesExist
-  , isDirDoesExist
-  , isInvalidOperation
-  , isCan'tOpenDirectory
-  , isCopyFailed
   , isRecursiveFailure
+  , isReadContentsFailed
+  , isCreateDirFailed
+  , isCopyFileFailed
+  , isRecreateSymlinkFailed
 
   -- * Path based functions
   , throwFileDoesExist
   , throwDirDoesExist
-  , throwFileDoesNotExist
-  , throwDirDoesNotExist
   , throwSameFile
   , sameFile
   , throwDestinationInSource
@@ -41,7 +36,6 @@ module HPath.IO.Errors
   , doesDirectoryExist
   , isWritable
   , canOpenDirectory
-  , throwCantOpenDirectory
 
   -- * Error handling functions
   , catchErrno
@@ -66,7 +60,6 @@ import Control.Monad
 import Control.Monad.IfElse
   (
     whenM
-  , unlessM
   )
 import Data.ByteString
   (
@@ -76,7 +69,6 @@ import Data.ByteString.UTF8
   (
     toString
   )
-import Data.Typeable
 import Foreign.C.Error
   (
     getErrno
@@ -93,8 +85,10 @@ import {-# SOURCE #-} HPath.IO
   )
 import System.IO.Error
   (
-    catchIOError
+    alreadyExistsErrorType
+  , catchIOError
   , ioeGetErrorType
+  , mkIOError
   )
 
 import qualified System.Posix.Directory.ByteString as PFD
@@ -106,55 +100,34 @@ import System.Posix.Files.ByteString
 import qualified System.Posix.Files.ByteString as PF
 
 
-data HPathIOException = FileDoesNotExist ByteString
-                      | DirDoesNotExist ByteString
-                      | SameFile ByteString ByteString
+-- |Additional generic IO exceptions that the posix functions
+-- do not provide.
+data HPathIOException = SameFile ByteString ByteString
                       | DestinationInSource ByteString ByteString
-                      | FileDoesExist ByteString
-                      | DirDoesExist ByteString
-                      | InvalidOperation String
-                      | Can'tOpenDirectory ByteString
-                      | CopyFailed String
-                      | RecursiveFailure [IOException]
-  deriving (Typeable, Eq)
+                      | RecursiveFailure [(RecursiveFailureHint, IOException)]
+  deriving (Eq, Show)
 
 
-instance Show HPathIOException where
-  show (FileDoesNotExist fp) = "File does not exist:" ++ toString fp
-  show (DirDoesNotExist fp) = "Directory does not exist: "
-                              ++ toString fp
-  show (SameFile fp1 fp2) = toString fp1
-                            ++ " and " ++ toString fp2
-                            ++ " are the same file!"
-  show (DestinationInSource fp1 fp2) = toString fp1
-                                       ++ " is contained in "
-                                       ++ toString fp2
-  show (FileDoesExist fp) = "File does exist: " ++ toString fp
-  show (DirDoesExist fp) = "Directory does exist: " ++ toString fp
-  show (InvalidOperation str) = "Invalid operation: " ++ str
-  show (Can'tOpenDirectory fp) = "Can't open directory: "
-                                 ++ toString fp
-  show (CopyFailed str) = "Copying failed: " ++ str
-  show (RecursiveFailure exs) = "Recursive operation failed: "
-    ++ show exs
-
-
-toConstr :: HPathIOException -> String
-toConstr FileDoesNotExist {} = "FileDoesNotExist"
-toConstr DirDoesNotExist {} = "DirDoesNotExist"
-toConstr SameFile {} = "SameFile"
-toConstr DestinationInSource {} = "DestinationInSource"
-toConstr FileDoesExist {} = "FileDoesExist"
-toConstr DirDoesExist {} = "DirDoesExist"
-toConstr InvalidOperation {} = "InvalidOperation"
-toConstr Can'tOpenDirectory {} = "Can'tOpenDirectory"
-toConstr CopyFailed {} = "CopyFailed"
-toConstr RecursiveFailure {} = "RecursiveFailure"
-
-
+-- |A type for giving failure hints on recursive failure, which allows
+-- to programmatically make choices without examining
+-- the weakly typed I/O error attributes (like `ioeGetFileName`).
+--
+-- The first argument to the data constructor is always the
+-- source and the second the destination.
+data RecursiveFailureHint = ReadContentsFailed    (Path Abs) (Path Abs)
+                          | CreateDirFailed       (Path Abs) (Path Abs)
+                          | CopyFileFailed        (Path Abs) (Path Abs)
+                          | RecreateSymlinkFailed (Path Abs) (Path Abs)
+  deriving (Eq, Show)
 
 
 instance Exception HPathIOException
+
+
+toConstr :: HPathIOException -> String
+toConstr SameFile {}            = "SameFile"
+toConstr DestinationInSource {} = "DestinationInSource"
+toConstr RecursiveFailure {}    = "RecursiveFailure"
 
 
 
@@ -164,17 +137,24 @@ instance Exception HPathIOException
     --[ Exception identifiers ]--
     -----------------------------
 
-isFileDoesNotExist, isDirDoesNotExist, isSameFile, isDestinationInSource, isFileDoesExist, isDirDoesExist, isInvalidOperation, isCan'tOpenDirectory, isCopyFailed, isRecursiveFailure :: HPathIOException -> Bool
-isFileDoesNotExist ex = toConstr (ex :: HPathIOException) == toConstr FileDoesNotExist{}
-isDirDoesNotExist ex = toConstr (ex :: HPathIOException) == toConstr DirDoesNotExist{}
+
+isSameFile, isDestinationInSource, isRecursiveFailure :: HPathIOException -> Bool
 isSameFile ex = toConstr (ex :: HPathIOException) == toConstr SameFile{}
 isDestinationInSource ex = toConstr (ex :: HPathIOException) == toConstr DestinationInSource{}
-isFileDoesExist ex = toConstr (ex :: HPathIOException) == toConstr FileDoesExist{}
-isDirDoesExist ex = toConstr (ex :: HPathIOException) == toConstr DirDoesExist{}
-isInvalidOperation ex = toConstr (ex :: HPathIOException) == toConstr InvalidOperation{}
-isCan'tOpenDirectory ex = toConstr (ex :: HPathIOException) == toConstr Can'tOpenDirectory{}
-isCopyFailed ex = toConstr (ex :: HPathIOException) == toConstr CopyFailed{}
 isRecursiveFailure ex = toConstr (ex :: HPathIOException) == toConstr RecursiveFailure{}
+
+
+isReadContentsFailed, isCreateDirFailed, isCopyFileFailed, isRecreateSymlinkFailed ::RecursiveFailureHint -> Bool
+isReadContentsFailed ReadContentsFailed{} = True
+isReadContentsFailed _ = False
+isCreateDirFailed CreateDirFailed{} = True
+isCreateDirFailed _ = False
+isCopyFileFailed CopyFileFailed{} = True
+isCopyFileFailed _ = False
+isRecreateSymlinkFailed RecreateSymlinkFailed{} = True
+isRecreateSymlinkFailed _ = False
+
+
 
 
 
@@ -183,28 +163,28 @@ isRecursiveFailure ex = toConstr (ex :: HPathIOException) == toConstr RecursiveF
     ----------------------------
 
 
+-- |Throws `AlreadyExists` `IOError` if file exists.
 throwFileDoesExist :: Path Abs -> IO ()
 throwFileDoesExist fp =
-  whenM (doesFileExist fp) (throwIO . FileDoesExist
-                                    . fromAbs $ fp)
+  whenM (doesFileExist fp)
+        (ioError . mkIOError
+                     alreadyExistsErrorType
+                     "File already exists"
+                     Nothing
+                   $ (Just (toString $ fromAbs fp))
+        )
 
 
+-- |Throws `AlreadyExists` `IOError` if directory exists.
 throwDirDoesExist :: Path Abs -> IO ()
 throwDirDoesExist fp =
-  whenM (doesDirectoryExist fp) (throwIO . DirDoesExist
-                                         . fromAbs $ fp)
-
-
-throwFileDoesNotExist :: Path Abs -> IO ()
-throwFileDoesNotExist fp =
-  unlessM (doesFileExist fp) (throwIO . FileDoesNotExist
-                                      . fromAbs $ fp)
-
-
-throwDirDoesNotExist :: Path Abs -> IO ()
-throwDirDoesNotExist fp =
-  unlessM (doesDirectoryExist fp) (throwIO . DirDoesNotExist
-                                           . fromAbs $ fp)
+  whenM (doesDirectoryExist fp)
+        (ioError . mkIOError
+                     alreadyExistsErrorType
+                     "Directory already exists"
+                     Nothing
+                   $ (Just (toString $ fromAbs fp))
+        )
 
 
 -- |Uses `isSameFile` and throws `SameFile` if it returns True.
@@ -289,13 +269,6 @@ canOpenDirectory fp =
     return True
 
 
--- |Throws a `Can'tOpenDirectory` HPathIOException if the directory at the given
--- path cannot be opened.
-throwCantOpenDirectory :: Path Abs -> IO ()
-throwCantOpenDirectory fp =
-  unlessM (canOpenDirectory fp)
-          (throwIO . Can'tOpenDirectory . fromAbs $ fp)
-
 
 
     --------------------------------
@@ -375,3 +348,4 @@ reactOnError a ios fmios =
                                 else y)
                (throwIO ex)
                fmios
+

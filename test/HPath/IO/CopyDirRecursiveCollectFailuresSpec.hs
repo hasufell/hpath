@@ -157,8 +157,10 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         CollectFailures
         `shouldThrow`
         (\(RecursiveFailure ex@[_, _]) ->
-          any (\e -> ioeGetErrorType e == InappropriateType) ex &&
-          any (\e -> ioeGetErrorType e == PermissionDenied) ex)
+          any (\(h, e) -> ioeGetErrorType e == InappropriateType
+                          && isCopyFileFailed h) ex &&
+          any (\(h, e) -> ioeGetErrorType e == PermissionDenied
+                          && isReadContentsFailed h) ex)
       normalDirPerms "outputDir1/foo2/foo4"
       normalDirPerms "outputDir1/foo2/foo4/inputFile4"
       c <- allDirectoryContents' "outputDir1"
@@ -184,7 +186,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [e]) -> ioeGetErrorType e == PermissionDenied)
+        (\(RecursiveFailure [(CreateDirFailed{}, e)]) -> ioeGetErrorType e == PermissionDenied)
 
     it "copyDirRecursive (Strict, CollectFailures), cannot open output dir" $
       copyDirRecursive' "inputDir"
@@ -200,7 +202,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [e]) -> ioeGetErrorType e == AlreadyExists)
+        (\(RecursiveFailure [(_, e)]) -> ioeGetErrorType e == AlreadyExists)
 
     it "copyDirRecursive (Strict, CollectFailures), destination already exists and is a file" $
       copyDirRecursive' "inputDir"
@@ -216,7 +218,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [e]) -> ioeGetErrorType e == InappropriateType)
+        (\(RecursiveFailure [(_, e)]) -> ioeGetErrorType e == InappropriateType)
 
     it "copyDirRecursive (Strict, CollectFailures), wrong input (symlink to directory)" $
       copyDirRecursive' "wrongInputSymL"
@@ -224,7 +226,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        (\(RecursiveFailure [e]) -> ioeGetErrorType e == InvalidArgument)
+        (\(RecursiveFailure [(_, e)]) -> ioeGetErrorType e == InvalidArgument)
 
     it "copyDirRecursive (Strict, CollectFailures), destination in source" $
       copyDirRecursive' "inputDir"

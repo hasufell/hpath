@@ -112,14 +112,14 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                 "alreadyExists"
                 Strict
         `shouldThrow`
-        isFileDoesExist
+        (\e -> ioeGetErrorType e == AlreadyExists)
 
     it "moveFile (Strict), move from file to dir" $
       moveFile' "myFile"
                 "alreadyExistsD"
                 Strict
         `shouldThrow`
-        isDirDoesExist
+        (\e -> ioeGetErrorType e == AlreadyExists)
 
     it "moveFile (Strict), source and dest are same file" $
       moveFile' "myFile"
