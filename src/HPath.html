@@ -323,63 +323,59 @@
 <a name="line-314"></a>
 <a name="line-315"></a><a name="dirname"></a><span class='hs-comment'>-- | Extract the directory name of a path.</span>
 <a name="line-316"></a><span class='hs-comment'>--</span>
-<a name="line-317"></a><span class='hs-comment'>-- The following properties hold:</span>
-<a name="line-318"></a><span class='hs-comment'>--</span>
-<a name="line-319"></a><span class='hs-comment'>-- @dirname (p \&lt;\/&gt; a) == dirname p@</span>
-<a name="line-320"></a><span class='hs-comment'>--</span>
-<a name="line-321"></a><span class='hs-comment'>-- &gt;&gt;&gt; dirname (MkPath "/abc/def/dod")</span>
-<a name="line-322"></a><span class='hs-comment'>-- "/abc/def"</span>
-<a name="line-323"></a><span class='hs-comment'>-- &gt;&gt;&gt; dirname (MkPath "/")</span>
-<a name="line-324"></a><span class='hs-comment'>-- "/"</span>
-<a name="line-325"></a><span class='hs-definition'>dirname</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
-<a name="line-326"></a><span class='hs-definition'>dirname</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>fp</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>MkPath</span> <span class='hs-layout'>(</span><span class='hs-varid'>takeDirectory</span> <span class='hs-varop'>$</span> <span class='hs-varid'>dropTrailingPathSeparator</span> <span class='hs-varid'>fp</span><span class='hs-layout'>)</span>
-<a name="line-327"></a>
-<a name="line-328"></a><a name="basename"></a><span class='hs-comment'>-- | Extract the file part of a path.</span>
-<a name="line-329"></a><span class='hs-comment'>--</span>
+<a name="line-317"></a><span class='hs-comment'>-- &gt;&gt;&gt; dirname (MkPath "/abc/def/dod")</span>
+<a name="line-318"></a><span class='hs-comment'>-- "/abc/def"</span>
+<a name="line-319"></a><span class='hs-comment'>-- &gt;&gt;&gt; dirname (MkPath "/")</span>
+<a name="line-320"></a><span class='hs-comment'>-- "/"</span>
+<a name="line-321"></a><span class='hs-definition'>dirname</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span>
+<a name="line-322"></a><span class='hs-definition'>dirname</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>fp</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>MkPath</span> <span class='hs-layout'>(</span><span class='hs-varid'>takeDirectory</span> <span class='hs-varop'>$</span> <span class='hs-varid'>dropTrailingPathSeparator</span> <span class='hs-varid'>fp</span><span class='hs-layout'>)</span>
+<a name="line-323"></a>
+<a name="line-324"></a><a name="basename"></a><span class='hs-comment'>-- | Extract the file part of a path.</span>
+<a name="line-325"></a><span class='hs-comment'>--</span>
+<a name="line-326"></a><span class='hs-comment'>--</span>
+<a name="line-327"></a><span class='hs-comment'>-- The following properties hold:</span>
+<a name="line-328"></a><span class='hs-comment'>--</span>
+<a name="line-329"></a><span class='hs-comment'>-- @basename (p \&lt;\/&gt; a) == basename a@</span>
 <a name="line-330"></a><span class='hs-comment'>--</span>
-<a name="line-331"></a><span class='hs-comment'>-- The following properties hold:</span>
+<a name="line-331"></a><span class='hs-comment'>-- Throws: `PathException` if given the root path "/"</span>
 <a name="line-332"></a><span class='hs-comment'>--</span>
-<a name="line-333"></a><span class='hs-comment'>-- @basename (p \&lt;\/&gt; a) == basename a@</span>
-<a name="line-334"></a><span class='hs-comment'>--</span>
-<a name="line-335"></a><span class='hs-comment'>-- Throws: `PathException` if given the root path "/"</span>
-<a name="line-336"></a><span class='hs-comment'>--</span>
-<a name="line-337"></a><span class='hs-comment'>-- &gt;&gt;&gt; basename (MkPath "/abc/def/dod") :: Maybe (Path Fn)</span>
-<a name="line-338"></a><span class='hs-comment'>-- Just "dod"</span>
-<a name="line-339"></a><span class='hs-comment'>-- &gt;&gt;&gt; basename (MkPath "/abc/def/dod/") :: Maybe (Path Fn)</span>
-<a name="line-340"></a><span class='hs-comment'>-- Just "dod"</span>
-<a name="line-341"></a><span class='hs-comment'>-- &gt;&gt;&gt; basename (MkPath "/")            :: Maybe (Path Fn)</span>
-<a name="line-342"></a><span class='hs-comment'>-- Nothing</span>
-<a name="line-343"></a><span class='hs-definition'>basename</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>MonadThrow</span> <span class='hs-varid'>m</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>m</span> <span class='hs-layout'>(</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Fn</span><span class='hs-layout'>)</span>
-<a name="line-344"></a><span class='hs-definition'>basename</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>l</span><span class='hs-layout'>)</span>
-<a name="line-345"></a>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>not</span> <span class='hs-layout'>(</span><span class='hs-varid'>isAbsolute</span> <span class='hs-varid'>rl</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-conid'>MkPath</span> <span class='hs-varid'>rl</span>
-<a name="line-346"></a>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>           <span class='hs-keyglyph'>=</span> <span class='hs-varid'>throwM</span> <span class='hs-conid'>RootDirHasNoBasename</span>
-<a name="line-347"></a>  <span class='hs-keyword'>where</span>
-<a name="line-348"></a>    <span class='hs-varid'>rl</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>last</span> <span class='hs-varop'>.</span> <span class='hs-varid'>splitPath</span> <span class='hs-varop'>.</span> <span class='hs-varid'>dropTrailingPathSeparator</span> <span class='hs-varop'>$</span> <span class='hs-varid'>l</span>
+<a name="line-333"></a><span class='hs-comment'>-- &gt;&gt;&gt; basename (MkPath "/abc/def/dod") :: Maybe (Path Fn)</span>
+<a name="line-334"></a><span class='hs-comment'>-- Just "dod"</span>
+<a name="line-335"></a><span class='hs-comment'>-- &gt;&gt;&gt; basename (MkPath "/abc/def/dod/") :: Maybe (Path Fn)</span>
+<a name="line-336"></a><span class='hs-comment'>-- Just "dod"</span>
+<a name="line-337"></a><span class='hs-comment'>-- &gt;&gt;&gt; basename (MkPath "/")            :: Maybe (Path Fn)</span>
+<a name="line-338"></a><span class='hs-comment'>-- Nothing</span>
+<a name="line-339"></a><span class='hs-definition'>basename</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>MonadThrow</span> <span class='hs-varid'>m</span> <span class='hs-keyglyph'>=&gt;</span> <span class='hs-conid'>Path</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-varid'>m</span> <span class='hs-layout'>(</span><span class='hs-conid'>Path</span> <span class='hs-conid'>Fn</span><span class='hs-layout'>)</span>
+<a name="line-340"></a><span class='hs-definition'>basename</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>l</span><span class='hs-layout'>)</span>
+<a name="line-341"></a>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>not</span> <span class='hs-layout'>(</span><span class='hs-varid'>isAbsolute</span> <span class='hs-varid'>rl</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>return</span> <span class='hs-varop'>$</span> <span class='hs-conid'>MkPath</span> <span class='hs-varid'>rl</span>
+<a name="line-342"></a>  <span class='hs-keyglyph'>|</span> <span class='hs-varid'>otherwise</span>           <span class='hs-keyglyph'>=</span> <span class='hs-varid'>throwM</span> <span class='hs-conid'>RootDirHasNoBasename</span>
+<a name="line-343"></a>  <span class='hs-keyword'>where</span>
+<a name="line-344"></a>    <span class='hs-varid'>rl</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>last</span> <span class='hs-varop'>.</span> <span class='hs-varid'>splitPath</span> <span class='hs-varop'>.</span> <span class='hs-varid'>dropTrailingPathSeparator</span> <span class='hs-varop'>$</span> <span class='hs-varid'>l</span>
+<a name="line-345"></a>
+<a name="line-346"></a>
+<a name="line-347"></a><span class='hs-comment'>--------------------------------------------------------------------------------</span>
+<a name="line-348"></a><span class='hs-comment'>-- Path IO helpers</span>
 <a name="line-349"></a>
 <a name="line-350"></a>
-<a name="line-351"></a><span class='hs-comment'>--------------------------------------------------------------------------------</span>
-<a name="line-352"></a><span class='hs-comment'>-- Path IO helpers</span>
+<a name="line-351"></a><a name="withAbsPath"></a><span class='hs-definition'>withAbsPath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
+<a name="line-352"></a><span class='hs-definition'>withAbsPath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span> <span class='hs-varid'>action</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>action</span> <span class='hs-varid'>p</span>
 <a name="line-353"></a>
 <a name="line-354"></a>
-<a name="line-355"></a><a name="withAbsPath"></a><span class='hs-definition'>withAbsPath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Abs</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
-<a name="line-356"></a><span class='hs-definition'>withAbsPath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span> <span class='hs-varid'>action</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>action</span> <span class='hs-varid'>p</span>
+<a name="line-355"></a><a name="withRelPath"></a><span class='hs-definition'>withRelPath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Rel</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
+<a name="line-356"></a><span class='hs-definition'>withRelPath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span> <span class='hs-varid'>action</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>action</span> <span class='hs-varid'>p</span>
 <a name="line-357"></a>
 <a name="line-358"></a>
-<a name="line-359"></a><a name="withRelPath"></a><span class='hs-definition'>withRelPath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Rel</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
-<a name="line-360"></a><span class='hs-definition'>withRelPath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span> <span class='hs-varid'>action</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>action</span> <span class='hs-varid'>p</span>
+<a name="line-359"></a><a name="withFnPath"></a><span class='hs-definition'>withFnPath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Fn</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
+<a name="line-360"></a><span class='hs-definition'>withFnPath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span> <span class='hs-varid'>action</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>action</span> <span class='hs-varid'>p</span>
 <a name="line-361"></a>
 <a name="line-362"></a>
-<a name="line-363"></a><a name="withFnPath"></a><span class='hs-definition'>withFnPath</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>Path</span> <span class='hs-conid'>Fn</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-layout'>(</span><span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>IO</span> <span class='hs-varid'>a</span>
-<a name="line-364"></a><span class='hs-definition'>withFnPath</span> <span class='hs-layout'>(</span><span class='hs-conid'>MkPath</span> <span class='hs-varid'>p</span><span class='hs-layout'>)</span> <span class='hs-varid'>action</span> <span class='hs-keyglyph'>=</span> <span class='hs-varid'>action</span> <span class='hs-varid'>p</span>
+<a name="line-363"></a><span class='hs-comment'>------------------------</span>
+<a name="line-364"></a><span class='hs-comment'>-- ByteString helpers</span>
 <a name="line-365"></a>
-<a name="line-366"></a>
-<a name="line-367"></a><span class='hs-comment'>------------------------</span>
-<a name="line-368"></a><span class='hs-comment'>-- ByteString helpers</span>
-<a name="line-369"></a>
-<a name="line-370"></a><span class='hs-cpp'>#if MIN_VERSION_bytestring(0,10,8)</span>
-<a name="line-371"></a><span class='hs-cpp'>#else</span>
-<a name="line-372"></a><a name="stripPrefix"></a><span class='hs-definition'>stripPrefix</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Maybe</span> <span class='hs-conid'>ByteString</span>
-<a name="line-373"></a><span class='hs-definition'>stripPrefix</span> <span class='hs-varid'>a</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>BS</span><span class='hs-varop'>.</span><span class='hs-varid'>pack</span> <span class='hs-varop'>`fmap`</span> <span class='hs-conid'>L</span><span class='hs-varop'>.</span><span class='hs-varid'>stripPrefix</span> <span class='hs-layout'>(</span><span class='hs-conid'>BS</span><span class='hs-varop'>.</span><span class='hs-varid'>unpack</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-conid'>BS</span><span class='hs-varop'>.</span><span class='hs-varid'>unpack</span> <span class='hs-varid'>b</span><span class='hs-layout'>)</span>
-<a name="line-374"></a><span class='hs-cpp'>#endif</span>
+<a name="line-366"></a><span class='hs-cpp'>#if MIN_VERSION_bytestring(0,10,8)</span>
+<a name="line-367"></a><span class='hs-cpp'>#else</span>
+<a name="line-368"></a><a name="stripPrefix"></a><span class='hs-definition'>stripPrefix</span> <span class='hs-keyglyph'>::</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>ByteString</span> <span class='hs-keyglyph'>-&gt;</span> <span class='hs-conid'>Maybe</span> <span class='hs-conid'>ByteString</span>
+<a name="line-369"></a><span class='hs-definition'>stripPrefix</span> <span class='hs-varid'>a</span> <span class='hs-varid'>b</span> <span class='hs-keyglyph'>=</span> <span class='hs-conid'>BS</span><span class='hs-varop'>.</span><span class='hs-varid'>pack</span> <span class='hs-varop'>`fmap`</span> <span class='hs-conid'>L</span><span class='hs-varop'>.</span><span class='hs-varid'>stripPrefix</span> <span class='hs-layout'>(</span><span class='hs-conid'>BS</span><span class='hs-varop'>.</span><span class='hs-varid'>unpack</span> <span class='hs-varid'>a</span><span class='hs-layout'>)</span> <span class='hs-layout'>(</span><span class='hs-conid'>BS</span><span class='hs-varop'>.</span><span class='hs-varid'>unpack</span> <span class='hs-varid'>b</span><span class='hs-layout'>)</span>
+<a name="line-370"></a><span class='hs-cpp'>#endif</span>
 </pre></body>
 </html>

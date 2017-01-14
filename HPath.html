@@ -74,7 +74,7 @@ window.onload = function () {pageLoad();setSynopsis("mini_HPath.html");};
 </code></strong>Just &quot;dod&quot;
 <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>basename (MkPath &quot;/&quot;)            :: Maybe (Path Fn)
 </code></strong>Nothing
-</pre></div></div><div class="top"><p class="src"><a id="v:dirname" class="def">dirname</a> :: <a href="HPath.html#t:Path">Path</a> <a href="HPath.html#t:Abs">Abs</a> -&gt; <a href="HPath.html#t:Path">Path</a> <a href="HPath.html#t:Abs">Abs</a> <a href="src/HPath.html#dirname" class="link">Source</a> <a href="#v:dirname" class="selflink">#</a></p><div class="doc"><p>Extract the directory name of a path.</p><p>The following properties hold:</p><pre>dirname (p &lt;/&gt; a) == dirname p</pre><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dirname (MkPath &quot;/abc/def/dod&quot;)
+</pre></div></div><div class="top"><p class="src"><a id="v:dirname" class="def">dirname</a> :: <a href="HPath.html#t:Path">Path</a> <a href="HPath.html#t:Abs">Abs</a> -&gt; <a href="HPath.html#t:Path">Path</a> <a href="HPath.html#t:Abs">Abs</a> <a href="src/HPath.html#dirname" class="link">Source</a> <a href="#v:dirname" class="selflink">#</a></p><div class="doc"><p>Extract the directory name of a path.</p><pre class="screen"><code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dirname (MkPath &quot;/abc/def/dod&quot;)
 </code></strong>&quot;/abc/def&quot;
 <code class="prompt">&gt;&gt;&gt; </code><strong class="userinput"><code>dirname (MkPath &quot;/&quot;)
 </code></strong>&quot;/&quot;
