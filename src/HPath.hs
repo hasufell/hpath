@@ -314,10 +314,6 @@ getAllParents (MkPath p)
 
 -- | Extract the directory name of a path.
 --
--- The following properties hold:
---
--- @dirname (p \<\/> a) == dirname p@
---
 -- >>> dirname (MkPath "/abc/def/dod")
 -- "/abc/def"
 -- >>> dirname (MkPath "/")
