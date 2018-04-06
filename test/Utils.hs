@@ -28,7 +28,7 @@ import Data.IORef
   )
 import HPath.IO
 import HPath.IO.Errors
-import Prelude hiding (readFile)
+import Prelude hiding (appendFile, readFile, writeFile)
 import Data.Maybe
   (
     fromJust
@@ -284,11 +284,13 @@ canonicalizePath' p = withTmpDir p canonicalizePath
 writeFile' :: ByteString -> ByteString -> IO ()
 {-# NOINLINE writeFile' #-}
 writeFile' ip bs = 
-  withTmpDir ip $ \p -> do
-    fd <- SPI.openFd (P.fromAbs p) SPI.WriteOnly Nothing
-                                   SPI.defaultFileFlags
-    _ <- SPB.fdWrite fd bs
-    SPI.closeFd fd
+  withTmpDir ip $ \p -> writeFile p bs
+
+
+appendFile' :: ByteString -> ByteString -> IO ()
+{-# NOINLINE appendFile' #-}
+appendFile' ip bs =
+  withTmpDir ip $ \p -> appendFile p bs
 
 
 allDirectoryContents' :: ByteString -> IO [ByteString]

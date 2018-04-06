@@ -63,6 +63,9 @@ module HPath.IO
   -- * File reading
   , readFile
   , readFileEOF
+  -- * File writing
+  , writeFile
+  , appendFile
   -- * File permissions
   , newFilePerms
   , newDirPerms
@@ -163,7 +166,7 @@ import GHC.IO.Exception
 import HPath
 import HPath.Internal
 import HPath.IO.Errors
-import Prelude hiding (readFile, writeFile)
+import Prelude hiding (appendFile, readFile, writeFile)
 import System.IO.Error
   (
     catchIOError
@@ -928,6 +931,42 @@ readFileEOF p = withAbsPath p $ \fp ->
                                                  mempty
             read' fd buf (builder <> byteString readBS)
 
+
+
+
+    --------------------
+    --[ File Writing ]--
+    --------------------
+
+
+-- |Write a given ByteString to a file, truncating the file beforehand.
+-- The file must exist. Follows symlinks.
+--
+-- Throws:
+--
+--     - `InappropriateType` if file is not a regular file or a symlink
+--     - `PermissionDenied` if we cannot read the file or the directory
+--        containting it
+--     - `NoSuchThing` if the file does not exist
+writeFile :: Path Abs -> ByteString -> IO ()
+writeFile p bs = withAbsPath p $ \fp ->
+  bracket (openFd fp SPI.WriteOnly [SPDF.oTrunc] Nothing) (SPI.closeFd) $ \fd -> 
+    void $ SPB.fdWrite fd bs
+
+
+-- |Append a given ByteString to a file.
+-- The file must exist. Follows symlinks.
+--
+-- Throws:
+--
+--     - `InappropriateType` if file is not a regular file or a symlink
+--     - `PermissionDenied` if we cannot read the file or the directory
+--        containting it
+--     - `NoSuchThing` if the file does not exist
+appendFile :: Path Abs -> ByteString -> IO ()
+appendFile p bs = withAbsPath p $ \fp ->
+  bracket (openFd fp SPI.WriteOnly [SPDF.oAppend] Nothing)
+          (SPI.closeFd) $ \fd -> void $ SPB.fdWrite fd bs
 
 
 
