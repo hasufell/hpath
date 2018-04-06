@@ -28,6 +28,7 @@ import Data.IORef
   )
 import HPath.IO
 import HPath.IO.Errors
+import Prelude hiding (readFile)
 import Data.Maybe
   (
     fromJust
@@ -46,6 +47,7 @@ import Data.ByteString
   (
     ByteString
   )
+import qualified Data.ByteString.Lazy as L
 import System.Posix.Files.ByteString
   (
     groupExecuteMode
@@ -243,6 +245,12 @@ normalDirPerms path =
   withTmpDir path $ \p -> setFileMode (P.fromAbs p) newDirPerms
 
 
+normalFilePerms :: ByteString -> IO ()
+{-# NOINLINE normalFilePerms #-}
+normalFilePerms path =
+  withTmpDir path $ \p -> setFileMode (P.fromAbs p) newFilePerms
+
+
 getFileType' :: ByteString -> IO FileType
 {-# NOINLINE getFileType' #-}
 getFileType' path = withTmpDir path getFileType
@@ -287,4 +295,14 @@ allDirectoryContents' :: ByteString -> IO [ByteString]
 {-# NOINLINE allDirectoryContents' #-}
 allDirectoryContents' ip =
   withTmpDir ip $ \p -> DT.allDirectoryContents' (P.fromAbs p)
+
+
+readFile' :: ByteString -> IO ByteString
+{-# NOINLINE readFile' #-}
+readFile' p = withTmpDir p readFile
+
+
+readFileEOF' :: ByteString -> IO L.ByteString
+{-# NOINLINE readFileEOF' #-}
+readFileEOF' p = withTmpDir p readFileEOF
 

@@ -60,6 +60,9 @@ module HPath.IO
   -- * File renaming/moving
   , renameFile
   , moveFile
+  -- * File reading
+  , readFile
+  , readFileEOF
   -- * File permissions
   , newFilePerms
   , newDirPerms
@@ -97,6 +100,17 @@ import Data.ByteString
   (
     ByteString
   )
+import Data.ByteString.Builder
+  (
+    Builder
+  , byteString
+  , toLazyByteString
+  )
+import qualified Data.ByteString.Lazy as L
+import Data.ByteString.Unsafe
+  (
+    unsafePackCStringFinalizer
+  )
 import Data.Foldable
   (
     for_
@@ -111,6 +125,10 @@ import Data.IORef
 import Data.Maybe
   (
     catMaybes
+  )
+import Data.Monoid
+  (
+    (<>)
   )
 import Data.Word
   (
@@ -145,7 +163,7 @@ import GHC.IO.Exception
 import HPath
 import HPath.Internal
 import HPath.IO.Errors
-import Prelude hiding (readFile)
+import Prelude hiding (readFile, writeFile)
 import System.IO.Error
   (
     catchIOError
@@ -841,6 +859,74 @@ moveFile from to cm = do
         _ -> return ()
       moveFile from to Strict
 
+
+
+
+
+    --------------------
+    --[ File Reading ]--
+    --------------------
+
+
+-- |Read the given file at once into memory as a strict ByteString.
+-- Symbolic links are followed, no sanity checks on file size
+-- or file type. File must exist.
+--
+-- Note: the size of the file is determined in advance, as to only
+-- have one allocation.
+--
+-- Safety/reliability concerns:
+--
+--    * since amount of bytes to read is determined in advance,
+--      the file might be read partially only if something else is
+--      appending to it while reading
+--    * the whole file is read into memory!
+--
+-- Throws:
+--
+--     - `InappropriateType` if file is not a regular file or a symlink
+--     - `PermissionDenied` if we cannot read the file or the directory
+--        containting it
+--     - `NoSuchThing` if the file does not exist
+readFile :: Path Abs -> IO ByteString
+readFile p = withAbsPath p $ \fp ->
+  bracket (openFd fp SPI.ReadOnly [] Nothing) (SPI.closeFd) $ \fd -> do
+    stat <- PF.getFdStatus fd
+    let fsize = PF.fileSize stat
+    SPB.fdRead fd (fromIntegral fsize)
+
+
+-- |Read the given file in chunks of size `8192` into memory until
+-- `fread` returns 0. Returns a lazy ByteString, because it uses
+-- Builders under the hood.
+--
+-- Safety/reliability concerns:
+--
+--    * the whole file is read into memory!
+--
+-- Throws:
+--
+--     - `InappropriateType` if file is not a regular file or a symlink
+--     - `PermissionDenied` if we cannot read the file or the directory
+--        containting it
+--     - `NoSuchThing` if the file does not exist
+readFileEOF :: Path Abs -> IO L.ByteString
+readFileEOF p = withAbsPath p $ \fp ->
+  bracket (openFd fp SPI.ReadOnly [] Nothing) (SPI.closeFd) $ \fd ->
+    allocaBytes (fromIntegral bufSize) $ \buf -> read' fd buf mempty
+  where
+    bufSize :: CSize
+    bufSize = 8192
+    read' :: Fd -> Ptr Word8 -> Builder -> IO L.ByteString
+    read' fd buf builder = do
+        size <- SPB.fdReadBuf fd buf bufSize
+        if size == 0
+          then return $ toLazyByteString builder
+          else do
+            readBS <- unsafePackCStringFinalizer buf
+                                                 (fromIntegral size)
+                                                 mempty
+            read' fd buf (builder <> byteString readBS)
 
 
 
