@@ -8,8 +8,11 @@
 -- Portability :  portable
 --
 -- This module provides high-level IO related file operations like
--- copy, delete, move and so on. It only operates on /Path Abs/ which
--- guarantees us well-typed paths which are absolute.
+-- copy, delete, move and so on. It only operates on /Path x/ which
+-- guarantees us well-typed paths. Passing in /Path Abs/ to any
+-- of these functions generally increases safety. Passing /Path Rel/
+-- may trigger looking up the current directory via `getcwd` in some
+-- cases where it cannot be avoided.
 --
 -- Some functions are just path-safe wrappers around
 -- unix functions, others have stricter exception handling
@@ -75,6 +78,7 @@ module HPath.IO
   , getFileType
   -- * Others
   , canonicalizePath
+  , toAbs
   )
   where
 
@@ -184,6 +188,7 @@ import System.Posix.ByteString
 import System.Posix.Directory.ByteString
   (
     createDirectory
+  , getWorkingDirectory
   , removeDirectory
   )
 import System.Posix.Directory.Traversals
@@ -326,9 +331,9 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyDirRecursive :: Path Abs  -- ^ source dir
-                 -> Path Abs  -- ^ destination (parent dirs
-                              --   are not automatically created)
+copyDirRecursive :: Path b1  -- ^ source dir
+                 -> Path b2  -- ^ destination (parent dirs
+                             --   are not automatically created)
                  -> CopyMode
                  -> RecursiveErrorMode
                  -> IO ()
@@ -344,27 +349,27 @@ copyDirRecursive fromp destdirp cm rm
            (throwIO . RecursiveFailure $ collectedExceptions)
   where
     go :: IORef [(RecursiveFailureHint, IOException)]
-       -> Path Abs -> Path Abs -> IO ()
-    go ce fromp' destdirp' = do
+       -> Path b1 -> Path b2 -> IO ()
+    go ce fromp'@(MkPath fromBS) destdirp'@(MkPath destdirpBS) = do
 
       -- NOTE: order is important here, so we don't get empty directories
       -- on failure
 
       -- get the contents of the source dir
-      contents <- handleIOE (ReadContentsFailed fromp' destdirp') ce [] $ do
+      contents <- handleIOE (ReadContentsFailed fromBS destdirpBS) ce [] $ do
         contents <- getDirsFiles fromp'
 
         -- create the destination dir and
         -- only return contents if we succeed
-        handleIOE (CreateDirFailed fromp' destdirp') ce [] $ do
-          fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus (fromAbs fromp')
+        handleIOE (CreateDirFailed fromBS destdirpBS) ce [] $ do
+          fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus fromBS
           case cm of
-            Strict    -> createDirectory (fromAbs destdirp') fmode'
-            Overwrite -> catchIOError (createDirectory (fromAbs destdirp')
+            Strict    -> createDirectory destdirpBS fmode'
+            Overwrite -> catchIOError (createDirectory destdirpBS
                                                        fmode')
                            $ \e ->
                              case ioeGetErrorType e of
-                               AlreadyExists -> setFileMode (fromAbs destdirp')
+                               AlreadyExists -> setFileMode destdirpBS
                                                             fmode'
                                _             -> ioError e
           return contents
@@ -378,10 +383,10 @@ copyDirRecursive fromp destdirp cm rm
         ftype <- getFileType f
         newdest <- (destdirp' </>) <$> basename f
         case ftype of
-          SymbolicLink -> handleIOE (RecreateSymlinkFailed f newdest) ce ()
+          SymbolicLink -> handleIOE (RecreateSymlinkFailed (toFilePath f) (toFilePath newdest)) ce ()
                             $ recreateSymlink f newdest cm
           Directory    -> go ce f newdest
-          RegularFile  -> handleIOE (CopyFileFailed f newdest) ce ()
+          RegularFile  -> handleIOE (CopyFileFailed (toFilePath f) (toFilePath newdest)) ce ()
                             $ copyFile f newdest cm
           _            -> return ()
 
@@ -422,23 +427,23 @@ copyDirRecursive fromp destdirp cm rm
 --    - `UnsatisfiedConstraints` if destination file is non-empty directory
 --
 -- Note: calls `symlink`
-recreateSymlink :: Path Abs  -- ^ the old symlink file
-                -> Path Abs  -- ^ destination file
+recreateSymlink :: Path b1   -- ^ the old symlink file
+                -> Path b2   -- ^ destination file
                 -> CopyMode
                 -> IO ()
-recreateSymlink symsource newsym cm
+recreateSymlink symsource@(MkPath symsourceBS) newsym@(MkPath newsymBS) cm
   = do
     throwSameFile symsource newsym
-    sympoint <- readSymbolicLink (fromAbs symsource)
+    sympoint <- readSymbolicLink symsourceBS
     case cm of
       Strict -> return ()
       Overwrite -> do
-        writable <- isWritable (dirname newsym)
+        writable <- toAbs newsym >>= isWritable
         isfile   <- doesFileExist newsym
         isdir    <- doesDirectoryExist newsym
         when (writable && isfile) (deleteFile newsym)
         when (writable && isdir)  (deleteDir newsym)
-    createSymbolicLink sympoint (fromAbs newsym)
+    createSymbolicLink sympoint newsymBS
 
 
 -- |Copies the given regular file to the given destination.
@@ -476,8 +481,8 @@ recreateSymlink symsource newsym cm
 --    - `AlreadyExists` if destination already exists
 --
 -- Note: calls `sendfile` and possibly `read`/`write` as fallback
-copyFile :: Path Abs  -- ^ source file
-         -> Path Abs  -- ^ destination file
+copyFile :: Path b1   -- ^ source file
+         -> Path b2   -- ^ destination file
          -> CopyMode
          -> IO ()
 copyFile from to cm = do
@@ -496,8 +501,8 @@ copyFile from to cm = do
           -- figure out if we can still copy by deleting it first
           PermissionDenied -> do
             exists   <- doesFileExist to
-            writable <- isWritable (dirname to)
-            if exists && writable
+            writable <- toAbs to >>= isWritable
+            if (exists && writable)
               then deleteFile to >> copyFile from to Strict
               else ioError e
           _ -> ioError e
@@ -505,18 +510,17 @@ copyFile from to cm = do
 
 _copyFile :: [SPDF.Flags]
           -> [SPDF.Flags]
-          -> Path Abs  -- ^ source file
-          -> Path Abs  -- ^ destination file
+          -> Path b1  -- ^ source file
+          -> Path b2  -- ^ destination file
           -> IO ()
-_copyFile sflags dflags from to
+_copyFile sflags dflags (MkPath fromBS) to@(MkPath toBS)
   =
     -- from sendfile(2) manpage:
     --   Applications  may  wish  to  fall back to read(2)/write(2) in
     --   the case where sendfile() fails with EINVAL or ENOSYS.
-    withAbsPath to $ \to' -> withAbsPath from $ \from' ->
-      catchErrno [eINVAL, eNOSYS]
-                 (sendFileCopy from' to')
-                 (void $ readWriteCopy from' to')
+    catchErrno [eINVAL, eNOSYS]
+               (sendFileCopy fromBS toBS)
+               (void $ readWriteCopy fromBS toBS)
   where
     copyWith copyAction source dest =
       bracket (openFd source SPI.ReadOnly sflags Nothing)
@@ -561,8 +565,8 @@ _copyFile sflags dflags from to
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
-easyCopy :: Path Abs
-         -> Path Abs
+easyCopy :: Path b1
+         -> Path b2
          -> CopyMode
          -> RecursiveErrorMode
          -> IO ()
@@ -591,8 +595,8 @@ easyCopy from to cm rm = do
 --    - `InappropriateType` for wrong file type (directory)
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if the directory cannot be read
-deleteFile :: Path Abs -> IO ()
-deleteFile p = withAbsPath p removeLink
+deleteFile :: Path b -> IO ()
+deleteFile (MkPath p) = removeLink p
 
 
 -- |Deletes the given directory, which must be empty, never symlinks.
@@ -606,8 +610,8 @@ deleteFile p = withAbsPath p removeLink
 --    - `PermissionDenied` if we can't open or write to parent directory
 --
 -- Notes: calls `rmdir`
-deleteDir :: Path Abs -> IO ()
-deleteDir p = withAbsPath p removeDirectory
+deleteDir :: Path b -> IO ()
+deleteDir (MkPath p) = removeDirectory p
 
 
 -- |Deletes the given directory recursively. Does not follow symbolic
@@ -629,7 +633,7 @@ deleteDir p = withAbsPath p removeDirectory
 --    - `InappropriateType` for wrong file type (regular file)
 --    - `NoSuchThing` if directory does not exist
 --    - `PermissionDenied` if we can't open or write to parent directory
-deleteDirRecursive :: Path Abs -> IO ()
+deleteDirRecursive :: Path b -> IO ()
 deleteDirRecursive p =
   catchErrno [eNOTEMPTY, eEXIST]
              (deleteDir p)
@@ -654,7 +658,7 @@ deleteDirRecursive p =
 --
 --    * examines filetypes explicitly
 --    * calls `deleteDirRecursive` for directories
-easyDelete :: Path Abs -> IO ()
+easyDelete :: Path b -> IO ()
 easyDelete p = do
   ftype <- getFileType p
   case ftype of
@@ -673,21 +677,18 @@ easyDelete p = do
 
 -- |Opens a file appropriately by invoking xdg-open. The file type
 -- is not checked. This forks a process.
-openFile :: Path Abs
+openFile :: Path b
          -> IO ProcessID
-openFile p =
-  withAbsPath p $ \fp ->
-    SPP.forkProcess $ SPP.executeFile "xdg-open" True [fp] Nothing
+openFile (MkPath fp) =
+  SPP.forkProcess $ SPP.executeFile "xdg-open" True [fp] Nothing
 
 
 -- |Executes a program with the given arguments. This forks a process.
-executeFile :: Path Abs        -- ^ program
+executeFile :: Path b          -- ^ program
             -> [ByteString]    -- ^ arguments
             -> IO ProcessID
-executeFile fp args
-  = withAbsPath fp $ \fpb ->
-      SPP.forkProcess
-      $ SPP.executeFile fpb True args Nothing
+executeFile (MkPath fp) args =
+  SPP.forkProcess $ SPP.executeFile fp True args Nothing
 
 
 
@@ -706,9 +707,9 @@ executeFile fp args
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createRegularFile :: FileMode -> Path Abs -> IO ()
-createRegularFile fm dest =
-  bracket (SPI.openFd (fromAbs dest) SPI.WriteOnly (Just fm)
+createRegularFile :: FileMode -> Path b -> IO ()
+createRegularFile fm (MkPath destBS) =
+  bracket (SPI.openFd destBS SPI.WriteOnly (Just fm)
                       (SPI.defaultFileFlags { exclusive = True }))
           SPI.closeFd
           (\_ -> return ())
@@ -722,8 +723,8 @@ createRegularFile fm dest =
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDir :: FileMode -> Path Abs -> IO ()
-createDir fm dest = createDirectory (fromAbs dest) fm
+createDir :: FileMode -> Path b -> IO ()
+createDir fm (MkPath destBS) = createDirectory destBS fm
 
 
 -- |Create an empty directory at the given directory with the given filename.
@@ -744,15 +745,19 @@ createDir fm dest = createDirectory (fromAbs dest) fm
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is not a directory
-createDirRecursive :: FileMode -> Path Abs -> IO ()
-createDirRecursive fm dest =
-  catchIOError (createDirectory (fromAbs dest) fm) $ \e -> do
-    errno <- getErrno
-    case errno of
-         en | en == eEXIST -> unlessM (doesDirectoryExist dest) (ioError e)
-            | en == eNOENT -> createDirRecursive fm (dirname dest)
-                              >> createDirectory (fromAbs dest) fm
-            | otherwise    -> ioError e
+createDirRecursive :: FileMode -> Path b -> IO ()
+createDirRecursive fm p =
+  toAbs p >>= go
+  where
+    go :: Path Abs -> IO ()
+    go dest@(MkPath destBS) = do
+      catchIOError (createDirectory destBS fm) $ \e -> do
+        errno <- getErrno
+        case errno of
+             en | en == eEXIST -> unlessM (doesDirectoryExist dest) (ioError e)
+                | en == eNOENT -> createDirRecursive fm (dirname dest)
+                                  >> createDirectory destBS fm
+                | otherwise    -> ioError e
 
 
 -- |Create a symlink.
@@ -765,11 +770,11 @@ createDirRecursive fm dest =
 --      do not exist
 --
 -- Note: calls `symlink`
-createSymlink :: Path Abs   -- ^ destination file
+createSymlink :: Path b     -- ^ destination file
               -> ByteString -- ^ path the symlink points to
               -> IO ()
-createSymlink dest sympoint
-  = createSymbolicLink sympoint (fromAbs dest)
+createSymlink (MkPath destBS) sympoint
+  = createSymbolicLink sympoint destBS
 
 
 
@@ -799,12 +804,12 @@ createSymlink dest sympoint
 --       (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
-renameFile :: Path Abs -> Path Abs -> IO ()
-renameFile fromf tof = do
+renameFile :: Path b1 -> Path b2 -> IO ()
+renameFile fromf@(MkPath fromfBS) tof@(MkPath tofBS) = do
   throwSameFile fromf tof
   throwFileDoesExist tof
   throwDirDoesExist tof
-  rename (fromAbs fromf) (fromAbs tof)
+  rename fromfBS tofBS
 
 
 -- |Move a file. This also works across devices by copy-delete fallback.
@@ -836,8 +841,8 @@ renameFile fromf tof = do
 --    - `AlreadyExists` if destination already exists
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
-moveFile :: Path Abs  -- ^ file to move
-         -> Path Abs  -- ^ destination
+moveFile :: Path b1   -- ^ file to move
+         -> Path b2   -- ^ destination
          -> CopyMode
          -> IO ()
 moveFile from to cm = do
@@ -848,7 +853,7 @@ moveFile from to cm = do
                 easyDelete from
     Overwrite -> do
       ft <- getFileType from
-      writable <- isWritable $ dirname to
+      writable <- toAbs to >>= isWritable
       case ft of
         RegularFile -> do
           exists <- doesFileExist to
@@ -891,8 +896,8 @@ moveFile from to cm = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFile :: Path Abs -> IO ByteString
-readFile p = withAbsPath p $ \fp ->
+readFile :: Path b -> IO ByteString
+readFile (MkPath fp) =
   bracket (openFd fp SPI.ReadOnly [] Nothing) (SPI.closeFd) $ \fd -> do
     stat <- PF.getFdStatus fd
     let fsize = PF.fileSize stat
@@ -913,8 +918,8 @@ readFile p = withAbsPath p $ \fp ->
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFileEOF :: Path Abs -> IO L.ByteString
-readFileEOF p = withAbsPath p $ \fp ->
+readFileEOF :: Path b -> IO L.ByteString
+readFileEOF (MkPath fp) =
   bracket (openFd fp SPI.ReadOnly [] Nothing) (SPI.closeFd) $ \fd ->
     allocaBytes (fromIntegral bufSize) $ \buf -> read' fd buf mempty
   where
@@ -948,8 +953,8 @@ readFileEOF p = withAbsPath p $ \fp ->
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-writeFile :: Path Abs -> ByteString -> IO ()
-writeFile p bs = withAbsPath p $ \fp ->
+writeFile :: Path b -> ByteString -> IO ()
+writeFile (MkPath fp) bs =
   bracket (openFd fp SPI.WriteOnly [SPDF.oTrunc] Nothing) (SPI.closeFd) $ \fd -> 
     void $ SPB.fdWrite fd bs
 
@@ -963,8 +968,8 @@ writeFile p bs = withAbsPath p $ \fp ->
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-appendFile :: Path Abs -> ByteString -> IO ()
-appendFile p bs = withAbsPath p $ \fp ->
+appendFile :: Path b -> ByteString -> IO ()
+appendFile (MkPath fp) bs =
   bracket (openFd fp SPI.WriteOnly [SPDF.oAppend] Nothing)
           (SPI.closeFd) $ \fd -> void $ SPB.fdWrite fd bs
 
@@ -1015,15 +1020,14 @@ newDirPerms
 --     - `InappropriateType` if file type is wrong (symlink to file)
 --     - `InappropriateType` if file type is wrong (symlink to dir)
 --     - `PermissionDenied` if directory cannot be opened
-getDirsFiles :: Path Abs        -- ^ dir to read
-             -> IO [Path Abs]
-getDirsFiles p =
-  withAbsPath p $ \fp -> do
-    fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
-    return
-      . catMaybes
-      .   fmap (\x -> (</>) p <$> (parseMaybe . snd $ x))
-      =<< getDirectoryContents' fd
+getDirsFiles :: Path b        -- ^ dir to read
+             -> IO [Path b]
+getDirsFiles p@(MkPath fp) = do
+  fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
+  return
+    . catMaybes
+    .   fmap (\x -> (</>) p <$> (parseMaybe . snd $ x))
+    =<< getDirectoryContents' fd
   where
     parseMaybe :: ByteString -> Maybe (Path Fn)
     parseMaybe = parseFn
@@ -1043,9 +1047,9 @@ getDirsFiles p =
 --
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if any part of the path is not accessible
-getFileType :: Path Abs -> IO FileType
-getFileType p = do
-  fs <- PF.getSymbolicLinkStatus (fromAbs p)
+getFileType :: Path b -> IO FileType
+getFileType (MkPath fp) = do
+  fs <- PF.getSymbolicLinkStatus fp
   decide fs
   where
     decide fs
@@ -1066,13 +1070,29 @@ getFileType p = do
 
 
 
--- |Applies `realpath` on the given absolute path.
+-- |Applies `realpath` on the given path.
 --
 -- Throws:
 --
 --    - `NoSuchThing` if the file at the given path does not exist
 --    - `NoSuchThing` if the symlink is broken
-canonicalizePath :: Path Abs -> IO (Path Abs)
+canonicalizePath :: Path b -> IO (Path Abs)
 canonicalizePath (MkPath l) = do
   nl <- SPDT.realpath l
   return $ MkPath nl
+
+
+-- |Converts any path to an absolute path.
+-- This is done in the following way:
+--
+--    - if the path is already an absolute one, just return it
+--    - if it's a relative path, prepend the current directory to it
+toAbs :: Path b -> IO (Path Abs)
+toAbs (MkPath bs) = do
+  let mabs = parseAbs bs :: Maybe (Path Abs)
+  case mabs of
+    Just a -> return a
+    Nothing  -> do
+      cwd <- getWorkingDirectory >>= parseAbs
+      rel <- parseRel bs -- we know it must be relative now
+      return $ cwd </> rel

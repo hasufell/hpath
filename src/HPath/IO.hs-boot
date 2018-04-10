@@ -3,5 +3,6 @@ module HPath.IO where
 
 import HPath
 
-canonicalizePath :: Path Abs -> IO (Path Abs)
+canonicalizePath :: Path b -> IO (Path Abs)
 
+toAbs :: Path b -> IO (Path Abs)

@@ -84,9 +84,14 @@ import GHC.IO.Exception
     IOErrorType
   )
 import HPath
+import HPath.Internal
+  (
+    Path(..)
+  )
 import {-# SOURCE #-} HPath.IO
   (
     canonicalizePath
+  , toAbs
   )
 import System.IO.Error
   (
@@ -119,10 +124,10 @@ data HPathIOException = SameFile ByteString ByteString
 --
 -- The first argument to the data constructor is always the
 -- source and the second the destination.
-data RecursiveFailureHint = ReadContentsFailed    (Path Abs) (Path Abs)
-                          | CreateDirFailed       (Path Abs) (Path Abs)
-                          | CopyFileFailed        (Path Abs) (Path Abs)
-                          | RecreateSymlinkFailed (Path Abs) (Path Abs)
+data RecursiveFailureHint = ReadContentsFailed    ByteString ByteString
+                          | CreateDirFailed       ByteString ByteString
+                          | CopyFileFailed        ByteString ByteString
+                          | RecreateSymlinkFailed ByteString ByteString
   deriving (Eq, Show)
 
 
@@ -169,51 +174,50 @@ isRecreateSymlinkFailed _ = False
 
 
 -- |Throws `AlreadyExists` `IOError` if file exists.
-throwFileDoesExist :: Path Abs -> IO ()
-throwFileDoesExist fp =
+throwFileDoesExist :: Path b -> IO ()
+throwFileDoesExist fp@(MkPath bs) =
   whenM (doesFileExist fp)
         (ioError . mkIOError
                      alreadyExistsErrorType
                      "File already exists"
                      Nothing
-                   $ (Just (toString $ fromAbs fp))
+                   $ (Just (toString $ bs))
         )
 
 
 -- |Throws `AlreadyExists` `IOError` if directory exists.
-throwDirDoesExist :: Path Abs -> IO ()
-throwDirDoesExist fp =
+throwDirDoesExist :: Path b -> IO ()
+throwDirDoesExist fp@(MkPath bs) =
   whenM (doesDirectoryExist fp)
         (ioError . mkIOError
                      alreadyExistsErrorType
                      "Directory already exists"
                      Nothing
-                   $ (Just (toString $ fromAbs fp))
+                   $ (Just (toString $ bs))
         )
 
 
 -- |Uses `isSameFile` and throws `SameFile` if it returns True.
-throwSameFile :: Path Abs
-              -> Path Abs
+throwSameFile :: Path b1
+              -> Path b2
               -> IO ()
-throwSameFile fp1 fp2 =
+throwSameFile fp1@(MkPath bs1) fp2@(MkPath bs2) =
   whenM (sameFile fp1 fp2)
-        (throwIO $ SameFile (fromAbs fp1) (fromAbs fp2))
+        (throwIO $ SameFile bs1 bs2)
 
 
 -- |Check if the files are the same by examining device and file id.
 -- This follows symbolic links.
-sameFile :: Path Abs -> Path Abs -> IO Bool
-sameFile fp1 fp2 =
-  withAbsPath fp1 $ \fp1' -> withAbsPath fp2 $ \fp2' ->
-    handleIOError (\_ -> return False) $ do
-      fs1 <- getFileStatus fp1'
-      fs2 <- getFileStatus fp2'
+sameFile :: Path b1 -> Path b2 -> IO Bool
+sameFile (MkPath fp1) (MkPath fp2) =
+  handleIOError (\_ -> return False) $ do
+    fs1 <- getFileStatus fp1
+    fs2 <- getFileStatus fp2
 
-      if ((PF.deviceID fs1, PF.fileID fs1) ==
-          (PF.deviceID fs2, PF.fileID fs2))
-        then return True
-        else return False
+    if ((PF.deviceID fs1, PF.fileID fs1) ==
+        (PF.deviceID fs2, PF.fileID fs2))
+      then return True
+      else return False
 
 
 -- TODO: make this more robust when destination does not exist
@@ -221,54 +225,54 @@ sameFile fp1 fp2 =
 -- within the source directory by comparing the device+file ID of the
 -- source directory with all device+file IDs of the parent directories
 -- of the destination.
-throwDestinationInSource :: Path Abs -- ^ source dir
-                         -> Path Abs -- ^ full destination, @dirname dest@
-                                     --   must exist
+throwDestinationInSource :: Path b1 -- ^ source dir
+                         -> Path b2 -- ^ full destination, @dirname dest@
+                                    --   must exist
                          -> IO ()
-throwDestinationInSource source dest = do
+throwDestinationInSource (MkPath sbs) dest@(MkPath dbs) = do
+  destAbs <- toAbs dest
   dest'   <- (\x -> maybe x (\y -> x </> y) $ basename dest)
-             <$> (canonicalizePath $ dirname dest)
+             <$> (canonicalizePath $ dirname destAbs)
   dids <- forM (getAllParents dest') $ \p -> do
           fs <- PF.getSymbolicLinkStatus (fromAbs p)
           return (PF.deviceID fs, PF.fileID fs)
   sid <- fmap (\x -> (PF.deviceID x, PF.fileID x))
-              $ PF.getFileStatus (fromAbs source)
+              $ PF.getFileStatus sbs
   when (elem sid dids)
-       (throwIO $ DestinationInSource (fromAbs dest)
-                                      (fromAbs source))
+       (throwIO $ DestinationInSource dbs sbs)
 
 
 -- |Checks if the given file exists and is not a directory.
 -- Does not follow symlinks.
-doesFileExist :: Path Abs -> IO Bool
-doesFileExist fp =
+doesFileExist :: Path b -> IO Bool
+doesFileExist (MkPath bs) =
   handleIOError (\_ -> return False) $ do
-    fs  <- PF.getSymbolicLinkStatus (fromAbs fp)
+    fs  <- PF.getSymbolicLinkStatus bs
     return $ not . PF.isDirectory $ fs
 
 
 -- |Checks if the given file exists and is a directory.
 -- Does not follow symlinks.
-doesDirectoryExist :: Path Abs -> IO Bool
-doesDirectoryExist fp =
+doesDirectoryExist :: Path b -> IO Bool
+doesDirectoryExist (MkPath bs) =
   handleIOError (\_ -> return False) $ do
-    fs  <- PF.getSymbolicLinkStatus (fromAbs fp)
+    fs  <- PF.getSymbolicLinkStatus bs
     return $ PF.isDirectory fs
 
 
 -- |Checks whether a file or folder is writable.
-isWritable :: Path Abs -> IO Bool
-isWritable fp =
+isWritable :: Path b -> IO Bool
+isWritable (MkPath bs) =
   handleIOError (\_ -> return False) $
-    fileAccess (fromAbs fp) False True False
+    fileAccess bs False True False
 
 
 -- |Checks whether the directory at the given path exists and can be
 -- opened. This invokes `openDirStream` which follows symlinks.
-canOpenDirectory :: Path Abs -> IO Bool
-canOpenDirectory fp =
+canOpenDirectory :: Path b -> IO Bool
+canOpenDirectory (MkPath bs) =
   handleIOError (\_ -> return False) $ do
-    bracket (PFD.openDirStream . fromAbs $ fp)
+    bracket (PFD.openDirStream bs)
             PFD.closeDirStream
             (\_ -> return ())
     return True
