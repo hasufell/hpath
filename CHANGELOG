@@ -1,3 +1,6 @@
+0.9.0
+	* don't force "Path Abs" anymore in IO module, abstract more over Path types
+	* add 'toAbs'
 0.8.1
 	* add 'readFile', 'readFileEOF', 'writeFile' and 'appendFile'
 0.8.0
