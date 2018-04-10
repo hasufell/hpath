@@ -9,7 +9,7 @@ maintainer:          Julian Ospald <hasufell@posteo.de>
 copyright:           Julian Ospald 2016
 category:            Filesystem
 build-type:          Simple
-cabal-version:       >=1.14
+cabal-version:       1.14
 extra-source-files:  README.md
                      CHANGELOG
                      cbits/dirutils.h
@@ -75,14 +75,15 @@ test-suite spec
   Hs-Source-Dirs:       test
   Main-Is:              Main.hs
   other-modules:
+                        HPath.IO.AppendFileSpec
                         HPath.IO.CanonicalizePathSpec
                         HPath.IO.CopyDirRecursiveCollectFailuresSpec
                         HPath.IO.CopyDirRecursiveOverwriteSpec
                         HPath.IO.CopyDirRecursiveSpec
                         HPath.IO.CopyFileOverwriteSpec
                         HPath.IO.CopyFileSpec
-                        HPath.IO.CreateDirSpec
                         HPath.IO.CreateDirRecursiveSpec
+                        HPath.IO.CreateDirSpec
                         HPath.IO.CreateRegularFileSpec
                         HPath.IO.CreateSymlinkSpec
                         HPath.IO.DeleteDirRecursiveSpec
@@ -92,9 +93,13 @@ test-suite spec
                         HPath.IO.GetFileTypeSpec
                         HPath.IO.MoveFileOverwriteSpec
                         HPath.IO.MoveFileSpec
+                        HPath.IO.ReadFileEOFSpec
+                        HPath.IO.ReadFileSpec
                         HPath.IO.RecreateSymlinkOverwriteSpec
                         HPath.IO.RecreateSymlinkSpec
                         HPath.IO.RenameFileSpec
+                        HPath.IO.ToAbsSpec
+                        HPath.IO.WriteFileSpec
                         Spec
                         Utils
   GHC-Options:          -Wall
