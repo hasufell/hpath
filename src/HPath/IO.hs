@@ -136,6 +136,7 @@ import Data.Maybe
 import Data.Monoid
   (
     (<>)
+  , mempty
   )
 import Data.Word
   (
