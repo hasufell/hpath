@@ -13,7 +13,9 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE EmptyDataDecls #-}
+#if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE PatternSynonyms #-}
+#endif
 
 module HPath
   (
@@ -25,8 +27,10 @@ module HPath
   ,PathParseException
   ,PathException
   ,RelC
+#if __GLASGOW_HASKELL__ >= 708
   -- * PatternSynonyms/ViewPatterns
   ,pattern Path
+#endif
    -- * Path Parsing
   ,parseAbs
   ,parseFn
@@ -101,7 +105,9 @@ instance RelC Fn
 #if __GLASGOW_HASKELL__ >= 710
 pattern Path :: ByteString -> Path a
 #endif
+#if __GLASGOW_HASKELL__ >= 708
 pattern Path x <- (MkPath x)
+#endif
 
 --------------------------------------------------------------------------------
 -- Path Parsers

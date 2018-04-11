@@ -33,6 +33,7 @@
 -- For other functions (like `copyFile`), the behavior on these file types is
 -- unreliable/unsafe. Check the documentation of those functions for details.
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -107,7 +108,11 @@ import Data.ByteString
   (
     ByteString
   )
+#if MIN_VERSION_bytestring(0,10,2)
 import Data.ByteString.Builder
+#else
+import Data.ByteString.Lazy.Builder
+#endif
   (
     Builder
   , byteString
