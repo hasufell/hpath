@@ -933,7 +933,7 @@ readFileEOF (MkPath fp) =
           else do
             readBS <- unsafePackCStringFinalizer buf
                                                  (fromIntegral size)
-                                                 mempty
+                                                 (return ())
             read' fd buf (builder <> byteString readBS)
 
 
