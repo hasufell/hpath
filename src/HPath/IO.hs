@@ -337,6 +337,8 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
+--
+-- Note: may call `getcwd` (only if destination is a relative path)
 copyDirRecursive :: Path b1  -- ^ source dir
                  -> Path b2  -- ^ destination (parent dirs
                              --   are not automatically created)
@@ -432,7 +434,10 @@ copyDirRecursive fromp destdirp cm rm
 --
 --    - `UnsatisfiedConstraints` if destination file is non-empty directory
 --
--- Note: calls `symlink`
+-- Notes:
+--
+--    - calls `symlink`
+--    - calls `getcwd` in Overwrite mode (if destination is a relative path)
 recreateSymlink :: Path b1   -- ^ the old symlink file
                 -> Path b2   -- ^ destination file
                 -> CopyMode
@@ -486,7 +491,10 @@ recreateSymlink symsource@(MkPath symsourceBS) newsym@(MkPath newsymBS) cm
 --
 --    - `AlreadyExists` if destination already exists
 --
--- Note: calls `sendfile` and possibly `read`/`write` as fallback
+-- Notes:
+--
+--    - calls `sendfile` and possibly `read`/`write` as fallback
+--    - may call `getcwd` in Overwrite mode (if destination is a relative path)
 copyFile :: Path b1   -- ^ source file
          -> Path b2   -- ^ destination file
          -> CopyMode
@@ -571,6 +579,8 @@ _copyFile sflags dflags (MkPath fromBS) to@(MkPath toBS)
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
+--
+-- Note: may call `getcwd` in Overwrite mode (if destination is a relative path)
 easyCopy :: Path b1
          -> Path b2
          -> CopyMode
@@ -751,6 +761,8 @@ createDir fm (MkPath destBS) = createDirectory destBS fm
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is not a directory
+--
+-- Note: calls `getcwd` if the input path is a relative path
 createDirRecursive :: FileMode -> Path b -> IO ()
 createDirRecursive fm p =
   toAbs p >>= go
@@ -846,7 +858,10 @@ renameFile fromf@(MkPath fromfBS) tof@(MkPath tofBS) = do
 --
 --    - `AlreadyExists` if destination already exists
 --
--- Note: calls `rename` (but does not allow to rename over existing files)
+-- Notes:
+--
+--    - calls `rename` (but does not allow to rename over existing files)
+--    - calls `getcwd` in Overwrite mode if destination is a relative path
 moveFile :: Path b1   -- ^ file to move
          -> Path b2   -- ^ destination
          -> CopyMode
