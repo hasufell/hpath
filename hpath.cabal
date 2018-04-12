@@ -35,7 +35,7 @@ library
                      System.Posix.FD,
                      System.Posix.FilePath
   other-modules:     HPath.Internal
-  build-depends:     base >= 4.2 && <5
+  build-depends:     base >= 4.6 && <5
                    , IfElse
                    , bytestring >= 0.10.0.0
                    , deepseq
