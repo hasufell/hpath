@@ -7,16 +7,18 @@ dist: trusty
 
 matrix:
   include:
-    - env: CABALVER=3.0 GHCVER=7.10.2 SKIP_DOCTESTS=yes
-      addons: {apt: {packages: [cabal-install-3.0,ghc-7.10.2], sources: [hvr-ghc]}}
-    - env: CABALVER=3.0 GHCVER=8.0.1 SKIP_DOCTESTS=yes
-      addons: {apt: {packages: [cabal-install-3.0,ghc-8.0.1], sources: [hvr-ghc]}}
+    - env: CABALVER=3.0 GHCVER=7.10.3 SKIP_DOCTESTS=yes
+      addons: {apt: {packages: [cabal-install-3.0,ghc-7.10.3], sources: [hvr-ghc]}}
+    - env: CABALVER=3.0 GHCVER=8.0.2 SKIP_DOCTESTS=yes
+      addons: {apt: {packages: [cabal-install-3.0,ghc-8.0.2], sources: [hvr-ghc]}}
     - env: CABALVER=3.0 GHCVER=8.2.2
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.2.2], sources: [hvr-ghc]}}
     - env: CABALVER=3.0 GHCVER=8.4.4
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.4.4], sources: [hvr-ghc]}}
     - env: CABALVER=3.0 GHCVER=8.6.5
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.6.5], sources: [hvr-ghc]}}
+    - env: CABALVER=3.0 GHCVER=8.8.1
+      addons: {apt: {packages: [cabal-install-3.0,ghc-8.8.1], sources: [hvr-ghc]}}
     - env: CABALVER=head GHCVER=head
       addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
 
@@ -29,20 +31,22 @@ env:
 
 before_install:
  - sudo apt-get install -y hscolour
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+ - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
 install:
  - cabal --version
  - travis_retry cabal update
+ - cabal install --installdir=$HOME/.cabal/bin hspec-discover
+ - cabal install --installdir=$HOME/.cabal/bin doctest
 
 script:
- - cabal build
+ - cabal build --enable-tests
  - cabal test
  - ./run-doctests.sh
  - cabal check
  - cabal sdist
- - cabal haddock --hyperlink-source --html-location=https://hackage.haskell.org/package/\$pkg-\$version/docs/
- - cabal install --enable-tests --lib
+ - cabal haddock --haddock-hyperlink-source --haddock-html-location=https://hackage.haskell.org/package/\$pkg-\$version/docs/
+ - cabal install --lib
 
 after_script:
     - ./update-gh-pages.sh
