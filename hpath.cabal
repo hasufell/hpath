@@ -10,6 +10,12 @@ copyright:           Julian Ospald 2016
 category:            Filesystem
 build-type:          Simple
 cabal-version:       1.14
+tested-with:         GHC==7.10.3
+                   , GHC==8.0.2
+                   , GHC==8.2.2
+                   , GHC==8.4.4
+                   , GHC==8.6.5
+                   , GHC==8.8.1
 extra-source-files:  README.md
                      CHANGELOG
                      cbits/dirutils.h
