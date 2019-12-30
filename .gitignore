@@ -8,5 +8,7 @@ TAGS
 tags
 *.tag
 .stack-work/
+dist/
+dist-newstyle/
 .cabal-sandbox/
 cabal.sandbox.config
