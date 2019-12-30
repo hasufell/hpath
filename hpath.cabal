@@ -76,7 +76,8 @@ test-suite doctests-posix
                      hpath,
                      doctest >= 0.8,
                      HUnit,
-                     QuickCheck
+                     QuickCheck,
+                     word8
 
 test-suite spec
   if os(windows)

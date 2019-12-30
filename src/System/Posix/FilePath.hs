@@ -96,6 +96,7 @@ import           Control.Arrow (second)
 -- $setup
 -- >>> import Data.Char
 -- >>> import Data.Maybe
+-- >>> import Data.Word8
 -- >>> import Test.QuickCheck
 -- >>> import Control.Applicative
 -- >>> import qualified Data.ByteString as BS
