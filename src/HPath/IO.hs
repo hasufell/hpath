@@ -154,6 +154,10 @@ import Foreign.C.Error
   , eNOTEMPTY
   , eXDEV
   , getErrno
+#if __GLASGOW_HASKELL__ < 802
+  , eINVAL
+  , eNOSYS
+#endif
   )
 import Foreign.C.Types
   (
@@ -175,10 +179,18 @@ import HPath
 import HPath.Internal
 import HPath.IO.Errors
 import Prelude hiding (appendFile, readFile, writeFile)
+#if __GLASGOW_HASKELL__ >= 802
 import qualified Streamly.FileSystem.Handle as FH
 import qualified Streamly.Internal.FileSystem.Handle as IFH
 import qualified Streamly.Prelude as S
 import qualified System.IO as SIO
+#else
+import System.Linux.Sendfile
+  (
+    sendfileFd
+  , FileRange(..)
+  )
+#endif
 import System.IO.Error
   (
     catchIOError
@@ -491,11 +503,14 @@ recreateSymlink symsource@(MkPath symsourceBS) newsym@(MkPath newsymBS) cm
 --
 -- Notes:
 --
+--    - on GHC < 8.2: calls `sendfile` and possibly `read`/`write` as fallback
+--    - on GHC >= 8.2: uses streamly for file copying
 --    - may call `getcwd` in Overwrite mode (if destination is a relative path)
 copyFile :: Path b1   -- ^ source file
          -> Path b2   -- ^ destination file
          -> CopyMode
          -> IO ()
+#if __GLASGOW_HASKELL__ >= 802
 copyFile fp@(MkPath from) tp@(MkPath to) cm = do
   throwSameFile fp tp
   bracket (do
@@ -526,6 +541,78 @@ copyFile fp@(MkPath from) tp@(MkPath to) cm = do
                                            streamlyCopy (fH, tH)
   where
     streamlyCopy (fH, tH) = S.fold (FH.writeChunks tH) $ IFH.toChunksWithBufferOf (256*1024) fH
+#else
+copyFile from to cm = do
+  throwSameFile from to
+
+  case cm of
+    Strict -> _copyFile [SPDF.oNofollow]
+                        [SPDF.oNofollow, SPDF.oExcl]
+                        from to
+    Overwrite ->
+      catchIOError (_copyFile [SPDF.oNofollow]
+                              [SPDF.oNofollow, SPDF.oTrunc]
+                              from to) $ \e ->
+        case ioeGetErrorType e of
+          -- if the destination file is not writable, we need to
+          -- figure out if we can still copy by deleting it first
+          PermissionDenied -> do
+            exists   <- doesFileExist to
+            writable <- toAbs to >>= isWritable
+            if (exists && writable)
+              then deleteFile to >> copyFile from to Strict
+              else ioError e
+          _ -> ioError e
+
+
+_copyFile :: [SPDF.Flags]
+          -> [SPDF.Flags]
+          -> Path b1  -- ^ source file
+          -> Path b2  -- ^ destination file
+          -> IO ()
+_copyFile sflags dflags (MkPath fromBS) to@(MkPath toBS)
+  =
+    -- from sendfile(2) manpage:
+    --   Applications  may  wish  to  fall back to read(2)/write(2) in
+    --   the case where sendfile() fails with EINVAL or ENOSYS.
+    catchErrno [eINVAL, eNOSYS]
+               (sendFileCopy fromBS toBS)
+               (void $ readWriteCopy fromBS toBS)
+  where
+    copyWith copyAction source dest =
+      bracket (openFd source SPI.ReadOnly sflags Nothing)
+              SPI.closeFd
+              $ \sfd -> do
+                fileM <- System.Posix.Files.ByteString.fileMode
+                         <$> getFdStatus sfd
+                bracketeer (openFd dest SPI.WriteOnly
+                             dflags $ Just fileM)
+                           SPI.closeFd
+                           (\fd -> SPI.closeFd fd >> deleteFile to)
+                           $ \dfd -> copyAction sfd dfd
+    -- this is low-level stuff utilizing sendfile(2) for speed
+    sendFileCopy :: ByteString -> ByteString -> IO ()
+    sendFileCopy = copyWith
+      (\sfd dfd -> sendfileFd dfd sfd EntireFile $ return ())
+    -- low-level copy operation utilizing read(2)/write(2)
+    -- in case `sendFileCopy` fails/is unsupported
+    readWriteCopy :: ByteString -> ByteString -> IO Int
+    readWriteCopy = copyWith
+      (\sfd dfd -> allocaBytes (fromIntegral bufSize)
+                     $ \buf -> write' sfd dfd buf 0)
+      where
+        bufSize :: CSize
+        bufSize = 8192
+        write' :: Fd -> Fd -> Ptr Word8 -> Int -> IO Int
+        write' sfd dfd buf totalsize = do
+            size <- SPB.fdReadBuf sfd buf bufSize
+            if size == 0
+              then return $ fromIntegral totalsize
+              else do rsize <- SPB.fdWriteBuf dfd buf size
+                      when (rsize /= size) (ioError $ userError
+                                                      "wrong size!")
+                      write' sfd dfd buf (totalsize + fromIntegral size)
+#endif
 
 -- |Copies a regular file, directory or symbolic link. In case of a
 -- symbolic link it is just recreated, even if it points to a directory.
