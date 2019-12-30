@@ -3,7 +3,10 @@
 SOURCE_BRANCH="master"
 TARGET_BRANCH="gh-pages"
 REPO="https://${GH_TOKEN}@github.com/hasufell/hpath"
-DOC_LOCATION="/dist/doc/html/hpath"
+
+if [ -z "${UPDATE_GH_PAGES}" ] ; then
+	exit 0
+fi
 
 
 # Pull requests and commits to other branches shouldn't try to deploy,
@@ -24,7 +27,7 @@ cd ${TARGET_BRANCH} || exit 1
 echo "Removing old docs."
 rm -rf *
 echo "Adding new docs."
-cp -rf "${TRAVIS_BUILD_DIR}${DOC_LOCATION}"/* . || exit 1
+cp -rf "${TRAVIS_BUILD_DIR}"/dist-newstyle/build/x86_64-linux/ghc-*/hpath-*/doc/html/hpath/* . || exit 1
 
 # If there are no changes to the compiled out (e.g. this is a README update)
 # then just bail.
