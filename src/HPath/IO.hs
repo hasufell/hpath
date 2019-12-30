@@ -150,12 +150,14 @@ import Data.Word
 import Foreign.C.Error
   (
     eEXIST
-  , eINVAL
   , eNOENT
-  , eNOSYS
   , eNOTEMPTY
   , eXDEV
   , getErrno
+#if __GLASGOW_HASKELL__ < 802
+  , eINVAL
+  , eNOSYS
+#endif
   )
 import Foreign.C.Types
   (
@@ -177,15 +179,22 @@ import HPath
 import HPath.Internal
 import HPath.IO.Errors
 import Prelude hiding (appendFile, readFile, writeFile)
-import System.IO.Error
-  (
-    catchIOError
-  , ioeGetErrorType
-  )
+#if __GLASGOW_HASKELL__ >= 802
+import qualified Streamly.FileSystem.Handle as FH
+import qualified Streamly.Internal.FileSystem.Handle as IFH
+import qualified Streamly.Prelude as S
+import qualified System.IO as SIO
+#else
 import System.Linux.Sendfile
   (
     sendfileFd
   , FileRange(..)
+  )
+#endif
+import System.IO.Error
+  (
+    catchIOError
+  , ioeGetErrorType
   )
 import System.Posix.ByteString
   (
@@ -466,6 +475,7 @@ recreateSymlink symsource@(MkPath symsourceBS) newsym@(MkPath newsymBS) cm
 -- instead.
 --
 -- In `Overwrite` copy mode only overwrites actual files, not directories.
+-- In `Strict` mode the destination file must not exist.
 --
 -- Safety/reliability concerns:
 --
@@ -493,20 +503,53 @@ recreateSymlink symsource@(MkPath symsourceBS) newsym@(MkPath newsymBS) cm
 --
 -- Notes:
 --
---    - calls `sendfile` and possibly `read`/`write` as fallback
+--    - on GHC < 8.2: calls `sendfile` and possibly `read`/`write` as fallback
+--    - on GHC >= 8.2: uses streamly for file copying
 --    - may call `getcwd` in Overwrite mode (if destination is a relative path)
 copyFile :: Path b1   -- ^ source file
          -> Path b2   -- ^ destination file
          -> CopyMode
          -> IO ()
+#if __GLASGOW_HASKELL__ >= 802
+copyFile fp@(MkPath from) tp@(MkPath to) cm = do
+  throwSameFile fp tp
+  bracket (do
+            fd <- openFd from SPI.ReadOnly [SPDF.oNofollow] Nothing
+            handle <- SPI.fdToHandle fd
+            pure (fd, handle))
+    (\(_, handle) -> SIO.hClose handle)
+    $ \(fromFd, fH) -> do
+                   sourceFileMode <- System.Posix.Files.ByteString.fileMode <$> getFdStatus fromFd
+                   let dflags = [SPDF.oNofollow, case cm of
+                                                      Strict    -> SPDF.oExcl
+                                                      Overwrite -> SPDF.oTrunc]
+                   bracketeer (do
+                                fd <- openFd to SPI.WriteOnly dflags $ Just sourceFileMode
+                                handle <- SPI.fdToHandle fd
+                                pure (fd, handle))
+                              (\(_, handle) -> SIO.hClose handle)
+                              (\(_, handle) -> do
+                                                 SIO.hClose handle
+                                                 case cm of
+                                                      -- if we created the file and copying failed, it's
+                                                      -- safe to clean up
+                                                      Strict -> deleteFile tp
+                                                      Overwrite -> pure ())
+                              $ \(_, tH) -> do
+                                           SIO.hSetBinaryMode fH True
+                                           SIO.hSetBinaryMode tH True
+                                           streamlyCopy (fH, tH)
+  where
+    streamlyCopy (fH, tH) = S.fold (FH.writeChunks tH) $ IFH.toChunksWithBufferOf (256*1024) fH
+#else
 copyFile from to cm = do
   throwSameFile from to
-  
+
   case cm of
     Strict -> _copyFile [SPDF.oNofollow]
                         [SPDF.oNofollow, SPDF.oExcl]
                         from to
-    Overwrite -> 
+    Overwrite ->
       catchIOError (_copyFile [SPDF.oNofollow]
                               [SPDF.oNofollow, SPDF.oTrunc]
                               from to) $ \e ->
@@ -569,7 +612,7 @@ _copyFile sflags dflags (MkPath fromBS) to@(MkPath toBS)
                       when (rsize /= size) (ioError $ userError
                                                       "wrong size!")
                       write' sfd dfd buf (totalsize + fromIntegral size)
-
+#endif
 
 -- |Copies a regular file, directory or symbolic link. In case of a
 -- symbolic link it is just recreated, even if it points to a directory.
