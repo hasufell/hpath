@@ -19,7 +19,20 @@
 
 
 module System.Posix.FilePath (
+#if __GLASGOW_HASKELL__ >= 804
+  module System.FilePath.ByteString
+  -- * $PATH methods
+, splitSearchPath
+, getSearchPath
 
+  -- * File name manipulations
+, makeRelative
+, equalFilePath
+, makeValid
+, isFileName
+, hasParentDir
+, hiddenFile
+#else
   -- * Separator predicates
   pathSeparator
 , isPathSeparator
@@ -76,22 +89,25 @@ module System.Posix.FilePath (
 , isFileName
 , hasParentDir
 , hiddenFile
-
-, module System.Posix.ByteString.FilePath
+# endif
 ) where
 
+#if __GLASGOW_HASKELL__ >= 804
+import           System.FilePath.ByteString
+#else
+import           System.Posix.ByteString.FilePath
+import           Data.Maybe (isJust)
+import           Control.Arrow (second)
+#endif
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.String (fromString)
-import           System.Posix.ByteString.FilePath
 import qualified System.Posix.Env.ByteString as PE
 
-import           Data.Maybe (isJust)
 import           Data.Word8
 #if !MIN_VERSION_bytestring(0,10,8)
 import qualified Data.List as L
 #endif
-import           Control.Arrow (second)
 
 -- $setup
 -- >>> import Data.Char
@@ -107,6 +123,7 @@ import           Control.Arrow (second)
 
 
 
+#if __GLASGOW_HASKELL__ < 804
 ------------------------
 -- Separator predicates
 
@@ -145,6 +162,8 @@ extSeparator = _period
 -- prop> \n -> (_chr n == '.') == isExtSeparator n
 isExtSeparator :: Word8 -> Bool
 isExtSeparator = (== extSeparator)
+#endif
+
 
 
 
@@ -182,6 +201,7 @@ getSearchPath = fmap (maybe [] splitSearchPath) (PE.getEnv $ fromString "PATH")
 
 
 
+#if __GLASGOW_HASKELL__ < 804
 ------------------------
 -- Extension functions
 
@@ -545,13 +565,14 @@ dropTrailingPathSeparator x
   | otherwise = if hasTrailingPathSeparator x
                   then dropTrailingPathSeparator $ BS.init x
                   else x
-
+#endif
 
 
 ------------------------
 -- File name manipulations
 
 
+#if __GLASGOW_HASKELL__ < 804
 -- |Normalise a file.
 --
 -- >>> normalise "/file/\\test////"
@@ -604,7 +625,7 @@ normalise filepath =
     propSep [] = []
     dropDots :: [ByteString] -> [ByteString]
     dropDots = filter (BS.singleton _period /=)
-
+#endif
 
 
 -- | Contract a filename, based on a relative path. Note that the resulting
@@ -673,6 +694,7 @@ equalFilePath p1 p2 = f p1 == f p2
     f x = dropTrailingPathSeparator $ normalise x
 
 
+#if __GLASGOW_HASKELL__ < 804
 -- | Check if a path is relative
 --
 -- prop> \path -> isRelative path /= isAbsolute path
@@ -707,6 +729,7 @@ isValid filepath
   | BS.null filepath        = False
   | _nul `BS.elem` filepath = False
   | otherwise               = True
+#endif
 
 
 -- | Take a FilePath and make it valid; does not change already valid FilePaths.
@@ -806,7 +829,7 @@ hiddenFile fp
     fn = takeFileName fp
 
 
-
+#if __GLASGOW_HASKELL__ < 804
 ------------------------
 -- internal stuff
 
@@ -821,4 +844,4 @@ combineRaw a b | BS.null a = b
                   | BS.null b = a
                   | isPathSeparator (BS.last a) = BS.append a b
                   | otherwise = BS.intercalate (BS.singleton pathSeparator) [a, b]
-
+#endif

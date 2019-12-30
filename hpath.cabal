@@ -49,6 +49,8 @@ library
     build-depends:     streamly >= 0.7
   else
     build-depends:     simple-sendfile >= 0.2.24
+  if impl(ghc >= 8.4)
+    build-depends:     filepath-bytestring >= 1.4.2.1.1
 
 test-suite doctests-hpath
   if os(windows)
@@ -80,6 +82,8 @@ test-suite doctests-posix
                      HUnit,
                      QuickCheck,
                      word8
+  if impl(ghc >= 8.4)
+    build-depends:     filepath-bytestring >= 1.4.2.1.1
 
 test-suite spec
   if os(windows)
