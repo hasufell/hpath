@@ -2,7 +2,7 @@
 
 SOURCE_BRANCH="master"
 TARGET_BRANCH="gh-pages"
-REPO="https://${GH_TOKEN}@github.com/hasufell/hpath"
+REPO="https://${GITHUB_TOKEN}@github.com/hasufell/hpath"
 
 if [ -z "${UPDATE_GH_PAGES}" ] ; then
 	exit 0
