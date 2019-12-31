@@ -1,0 +1,830 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      :  HPath.IO.Errors</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   :  &#169; 2016 Julian Ospald</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer  :  Julian Ospald &lt;hasufell@posteo.de&gt;</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Portability :  portable</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Provides error handling.</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable #-}</span><span>
+</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">HPath.IO.Errors</span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-17"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Types</span></span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier">HPathIOException</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#RecursiveFailureHint"><span class="hs-identifier">RecursiveFailureHint</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Exception identifiers</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isSameFile"><span class="hs-identifier">isSameFile</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isDestinationInSource"><span class="hs-identifier">isDestinationInSource</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isRecursiveFailure"><span class="hs-identifier">isRecursiveFailure</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isReadContentsFailed"><span class="hs-identifier">isReadContentsFailed</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isCreateDirFailed"><span class="hs-identifier">isCreateDirFailed</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isCopyFileFailed"><span class="hs-identifier">isCopyFileFailed</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isRecreateSymlinkFailed"><span class="hs-identifier">isRecreateSymlinkFailed</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Path based functions</span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#throwFileDoesExist"><span class="hs-identifier">throwFileDoesExist</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#throwDirDoesExist"><span class="hs-identifier">throwDirDoesExist</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#throwSameFile"><span class="hs-identifier">throwSameFile</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#sameFile"><span class="hs-identifier">sameFile</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#throwDestinationInSource"><span class="hs-identifier">throwDestinationInSource</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#doesFileExist"><span class="hs-identifier">doesFileExist</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#doesDirectoryExist"><span class="hs-identifier">doesDirectoryExist</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isWritable"><span class="hs-identifier">isWritable</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#canOpenDirectory"><span class="hs-identifier">canOpenDirectory</span></a></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Error handling functions</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#catchErrno"><span class="hs-identifier">catchErrno</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#rethrowErrnoAs"><span class="hs-identifier">rethrowErrnoAs</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier">handleIOError</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#bracketeer"><span class="hs-identifier">bracketeer</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#reactOnError"><span class="hs-identifier">reactOnError</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><span class="hs-operator">(&lt;$&gt;)</span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><span class="hs-identifier">forM</span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">when</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IfElse</span></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><span class="hs-identifier">whenM</span></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><span class="hs-identifier">ByteString</span></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.UTF8</span></span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="hs-identifier">toString</span></span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Typeable</span></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><span class="hs-identifier">Typeable</span></span><span>
+</span><span id="line-76"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.C.Error</span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><span class="hs-identifier">getErrno</span></span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Errno</span></span><span>
+</span><span id="line-81"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.IO.Exception</span></span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><span class="hs-identifier">IOErrorType</span></span><span>
+</span><span id="line-85"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-86"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="HPath.html"><span class="hs-identifier">HPath</span></a></span><span>
+</span><span id="line-87"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="HPath.Internal.html"><span class="hs-identifier">HPath.Internal</span></a></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier">Path</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span class="hs-keyword">import</span><span> </span><span class="hs-pragma">{-# SOURCE</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="annot"><a href="HPath.IO.html"><span class="hs-identifier">HPath.IO</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-93"></span><span>    </span><span class="annot"><a href="HPath.IO.html#canonicalizePath"><span class="hs-identifier">canonicalizePath</span></a></span><span>
+</span><span id="line-94"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.html#toAbs"><span class="hs-identifier">toAbs</span></a></span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO.Error</span></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-98"></span><span>    </span><span class="annot"><span class="hs-identifier">alreadyExistsErrorType</span></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">catchIOError</span></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ioeGetErrorType</span></span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">mkIOError</span></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">System.Posix.Directory.ByteString</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">PFD</span></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Posix.Files.ByteString</span></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-special">(</span><span>
+</span><span id="line-107"></span><span>    </span><span class="annot"><span class="hs-identifier">fileAccess</span></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getFileStatus</span></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">System.Posix.Files.ByteString</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">PF</span></span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- |Additional generic IO exceptions that the posix functions</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- do not provide.</span><span>
+</span><span id="line-115"></span><span class="hs-keyword">data</span><span> </span><span id="HPathIOException"><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-var">HPathIOException</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SameFile"><span class="annot"><a href="HPath.IO.Errors.html#SameFile"><span class="hs-identifier hs-var">SameFile</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-116"></span><span>                      </span><span class="hs-glyph">|</span><span> </span><span id="DestinationInSource"><span class="annot"><a href="HPath.IO.Errors.html#DestinationInSource"><span class="hs-identifier hs-var">DestinationInSource</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-117"></span><span>                      </span><span class="hs-glyph">|</span><span> </span><span id="RecursiveFailure"><span class="annot"><a href="HPath.IO.Errors.html#RecursiveFailure"><span class="hs-identifier hs-var">RecursiveFailure</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="HPath.IO.Errors.html#RecursiveFailureHint"><span class="hs-identifier hs-type">RecursiveFailureHint</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IOException</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679094536"><span id="local-6989586621679094538"><span class="annot"><span class="annottext">HPathIOException -&gt; HPathIOException -&gt; Bool
+(HPathIOException -&gt; HPathIOException -&gt; Bool)
+-&gt; (HPathIOException -&gt; HPathIOException -&gt; Bool)
+-&gt; Eq HPathIOException
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: HPathIOException -&gt; HPathIOException -&gt; Bool
+$c/= :: HPathIOException -&gt; HPathIOException -&gt; Bool
+== :: HPathIOException -&gt; HPathIOException -&gt; Bool
+$c== :: HPathIOException -&gt; HPathIOException -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679094529"><span id="local-6989586621679094531"><span id="local-6989586621679094533"><span class="annot"><span class="annottext">Int -&gt; HPathIOException -&gt; ShowS
+[HPathIOException] -&gt; ShowS
+HPathIOException -&gt; String
+(Int -&gt; HPathIOException -&gt; ShowS)
+-&gt; (HPathIOException -&gt; String)
+-&gt; ([HPathIOException] -&gt; ShowS)
+-&gt; Show HPathIOException
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [HPathIOException] -&gt; ShowS
+$cshowList :: [HPathIOException] -&gt; ShowS
+show :: HPathIOException -&gt; String
+$cshow :: HPathIOException -&gt; String
+showsPrec :: Int -&gt; HPathIOException -&gt; ShowS
+$cshowsPrec :: Int -&gt; HPathIOException -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Typeable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- |A type for giving failure hints on recursive failure, which allows</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- to programmatically make choices without examining</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- the weakly typed I/O error attributes (like `ioeGetFileName`).</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- The first argument to the data constructor is always the</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- source and the second the destination.</span><span>
+</span><span id="line-127"></span><span class="hs-keyword">data</span><span> </span><span id="RecursiveFailureHint"><span class="annot"><a href="HPath.IO.Errors.html#RecursiveFailureHint"><span class="hs-identifier hs-var">RecursiveFailureHint</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ReadContentsFailed"><span class="annot"><a href="HPath.IO.Errors.html#ReadContentsFailed"><span class="hs-identifier hs-var">ReadContentsFailed</span></a></span></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-128"></span><span>                          </span><span class="hs-glyph">|</span><span> </span><span id="CreateDirFailed"><span class="annot"><a href="HPath.IO.Errors.html#CreateDirFailed"><span class="hs-identifier hs-var">CreateDirFailed</span></a></span></span><span>       </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-129"></span><span>                          </span><span class="hs-glyph">|</span><span> </span><span id="CopyFileFailed"><span class="annot"><a href="HPath.IO.Errors.html#CopyFileFailed"><span class="hs-identifier hs-var">CopyFileFailed</span></a></span></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-130"></span><span>                          </span><span class="hs-glyph">|</span><span> </span><span id="RecreateSymlinkFailed"><span class="annot"><a href="HPath.IO.Errors.html#RecreateSymlinkFailed"><span class="hs-identifier hs-var">RecreateSymlinkFailed</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-131"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679094520"><span id="local-6989586621679094522"><span class="annot"><span class="annottext">RecursiveFailureHint -&gt; RecursiveFailureHint -&gt; Bool
+(RecursiveFailureHint -&gt; RecursiveFailureHint -&gt; Bool)
+-&gt; (RecursiveFailureHint -&gt; RecursiveFailureHint -&gt; Bool)
+-&gt; Eq RecursiveFailureHint
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: RecursiveFailureHint -&gt; RecursiveFailureHint -&gt; Bool
+$c/= :: RecursiveFailureHint -&gt; RecursiveFailureHint -&gt; Bool
+== :: RecursiveFailureHint -&gt; RecursiveFailureHint -&gt; Bool
+$c== :: RecursiveFailureHint -&gt; RecursiveFailureHint -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679094514"><span id="local-6989586621679094516"><span id="local-6989586621679094518"><span class="annot"><span class="annottext">Int -&gt; RecursiveFailureHint -&gt; ShowS
+[RecursiveFailureHint] -&gt; ShowS
+RecursiveFailureHint -&gt; String
+(Int -&gt; RecursiveFailureHint -&gt; ShowS)
+-&gt; (RecursiveFailureHint -&gt; String)
+-&gt; ([RecursiveFailureHint] -&gt; ShowS)
+-&gt; Show RecursiveFailureHint
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [RecursiveFailureHint] -&gt; ShowS
+$cshowList :: [RecursiveFailureHint] -&gt; ShowS
+show :: RecursiveFailureHint -&gt; String
+$cshow :: RecursiveFailureHint -&gt; String
+showsPrec :: Int -&gt; RecursiveFailureHint -&gt; ShowS
+$cshowsPrec :: Int -&gt; RecursiveFailureHint -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679094506"><span id="local-6989586621679094508"><span id="local-6989586621679094510"><span class="annot"><span class="hs-identifier hs-type">Exception</span></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span></span></span></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-type">toConstr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-138"></span><span id="toConstr"><span class="annot"><span class="annottext">toConstr :: HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var hs-var">toConstr</span></a></span></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#SameFile"><span class="hs-identifier hs-type">SameFile</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span>            </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;SameFile&quot;</span></span><span>
+</span><span id="line-139"></span><span class="annot"><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#DestinationInSource"><span class="hs-identifier hs-type">DestinationInSource</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;DestinationInSource&quot;</span></span><span>
+</span><span id="line-140"></span><span class="annot"><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#RecursiveFailure"><span class="hs-identifier hs-type">RecursiveFailure</span></a></span><span> </span><span class="hs-special">{</span><span class="hs-special">}</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-string">&quot;RecursiveFailure&quot;</span></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span>    </span><span class="hs-comment">-----------------------------</span><span>
+</span><span id="line-147"></span><span>    </span><span class="hs-comment">--[ Exception identifiers ]--</span><span>
+</span><span id="line-148"></span><span>    </span><span class="hs-comment">-----------------------------</span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="annot"><a href="HPath.IO.Errors.html#isSameFile"><span class="hs-identifier hs-type">isSameFile</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isDestinationInSource"><span class="hs-identifier hs-type">isDestinationInSource</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isRecursiveFailure"><span class="hs-identifier hs-type">isRecursiveFailure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-152"></span><span id="isSameFile"><span class="annot"><span class="annottext">isSameFile :: HPathIOException -&gt; Bool
+</span><a href="HPath.IO.Errors.html#isSameFile"><span class="hs-identifier hs-var hs-var">isSameFile</span></a></span></span><span> </span><span id="local-6989586621679094503"><span class="annot"><span class="annottext">ex :: HPathIOException
+</span><a href="#local-6989586621679094503"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HPathIOException
+</span><a href="#local-6989586621679094503"><span class="hs-identifier hs-var">ex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="annot"><span class="annottext">SameFile :: ByteString -&gt; ByteString -&gt; HPathIOException
+</span><a href="HPath.IO.Errors.html#SameFile"><span class="hs-identifier hs-type hs-type">SameFile</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>
+</span><span id="line-153"></span><span id="isDestinationInSource"><span class="annot"><span class="annottext">isDestinationInSource :: HPathIOException -&gt; Bool
+</span><a href="HPath.IO.Errors.html#isDestinationInSource"><span class="hs-identifier hs-var hs-var">isDestinationInSource</span></a></span></span><span> </span><span id="local-6989586621679094501"><span class="annot"><span class="annottext">ex :: HPathIOException
+</span><a href="#local-6989586621679094501"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HPathIOException
+</span><a href="#local-6989586621679094501"><span class="hs-identifier hs-var">ex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="annot"><span class="annottext">DestinationInSource :: ByteString -&gt; ByteString -&gt; HPathIOException
+</span><a href="HPath.IO.Errors.html#DestinationInSource"><span class="hs-identifier hs-type hs-type">DestinationInSource</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>
+</span><span id="line-154"></span><span id="isRecursiveFailure"><span class="annot"><span class="annottext">isRecursiveFailure :: HPathIOException -&gt; Bool
+</span><a href="HPath.IO.Errors.html#isRecursiveFailure"><span class="hs-identifier hs-var hs-var">isRecursiveFailure</span></a></span></span><span> </span><span id="local-6989586621679094499"><span class="annot"><span class="annottext">ex :: HPathIOException
+</span><a href="#local-6989586621679094499"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HPathIOException
+</span><a href="#local-6989586621679094499"><span class="hs-identifier hs-var">ex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="annot"><span class="annottext">RecursiveFailure :: [(RecursiveFailureHint, IOException)] -&gt; HPathIOException
+</span><a href="HPath.IO.Errors.html#RecursiveFailure"><span class="hs-identifier hs-type hs-type">RecursiveFailure</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span>
+</span><span id="line-155"></span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="annot"><a href="HPath.IO.Errors.html#isReadContentsFailed"><span class="hs-identifier hs-type">isReadContentsFailed</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isCreateDirFailed"><span class="hs-identifier hs-type">isCreateDirFailed</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isCopyFileFailed"><span class="hs-identifier hs-type">isCopyFileFailed</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#isRecreateSymlinkFailed"><span class="hs-identifier hs-type">isRecreateSymlinkFailed</span></a></span><span> </span><span class="hs-glyph">::</span><span class="annot"><a href="HPath.IO.Errors.html#RecursiveFailureHint"><span class="hs-identifier hs-type">RecursiveFailureHint</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-158"></span><span id="isReadContentsFailed"><span class="annot"><span class="annottext">isReadContentsFailed :: RecursiveFailureHint -&gt; Bool
+</span><a href="HPath.IO.Errors.html#isReadContentsFailed"><span class="hs-identifier hs-var hs-var">isReadContentsFailed</span></a></span></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#ReadContentsFailed"><span class="hs-identifier hs-type">ReadContentsFailed</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-159"></span><span class="annot"><a href="HPath.IO.Errors.html#isReadContentsFailed"><span class="hs-identifier hs-var">isReadContentsFailed</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-160"></span><span id="isCreateDirFailed"><span class="annot"><span class="annottext">isCreateDirFailed :: RecursiveFailureHint -&gt; Bool
+</span><a href="HPath.IO.Errors.html#isCreateDirFailed"><span class="hs-identifier hs-var hs-var">isCreateDirFailed</span></a></span></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#CreateDirFailed"><span class="hs-identifier hs-type">CreateDirFailed</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-161"></span><span class="annot"><a href="HPath.IO.Errors.html#isCreateDirFailed"><span class="hs-identifier hs-var">isCreateDirFailed</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-162"></span><span id="isCopyFileFailed"><span class="annot"><span class="annottext">isCopyFileFailed :: RecursiveFailureHint -&gt; Bool
+</span><a href="HPath.IO.Errors.html#isCopyFileFailed"><span class="hs-identifier hs-var hs-var">isCopyFileFailed</span></a></span></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#CopyFileFailed"><span class="hs-identifier hs-type">CopyFileFailed</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-163"></span><span class="annot"><a href="HPath.IO.Errors.html#isCopyFileFailed"><span class="hs-identifier hs-var">isCopyFileFailed</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-164"></span><span id="isRecreateSymlinkFailed"><span class="annot"><span class="annottext">isRecreateSymlinkFailed :: RecursiveFailureHint -&gt; Bool
+</span><a href="HPath.IO.Errors.html#isRecreateSymlinkFailed"><span class="hs-identifier hs-var hs-var">isRecreateSymlinkFailed</span></a></span></span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#RecreateSymlinkFailed"><span class="hs-identifier hs-type">RecreateSymlinkFailed</span></a></span><span class="hs-special">{</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-165"></span><span class="annot"><a href="HPath.IO.Errors.html#isRecreateSymlinkFailed"><span class="hs-identifier hs-var">isRecreateSymlinkFailed</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span>    </span><span class="hs-comment">----------------------------</span><span>
+</span><span id="line-172"></span><span>    </span><span class="hs-comment">--[ Path based functions ]--</span><span>
+</span><span id="line-173"></span><span>    </span><span class="hs-comment">----------------------------</span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span class="hs-comment">-- |Throws `AlreadyExists` `IOError` if file exists.</span><span>
+</span><span id="line-177"></span><span id="local-6989586621679094497"><span class="annot"><a href="HPath.IO.Errors.html#throwFileDoesExist"><span class="hs-identifier hs-type">throwFileDoesExist</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094497"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-178"></span><span id="throwFileDoesExist"><span class="annot"><span class="annottext">throwFileDoesExist :: Path b -&gt; IO ()
+</span><a href="HPath.IO.Errors.html#throwFileDoesExist"><span class="hs-identifier hs-var hs-var">throwFileDoesExist</span></a></span></span><span> </span><span id="local-6989586621679094496"><span class="annot"><span class="annottext">fp :: Path b
+</span><a href="#local-6989586621679094496"><span class="hs-identifier hs-var">fp</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094494"><span class="annot"><span class="annottext">bs :: ByteString
+</span><a href="#local-6989586621679094494"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-179"></span><span>  </span><span class="annot"><span class="annottext">IO Bool -&gt; IO () -&gt; IO ()
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m () -&gt; m ()
+</span><span class="hs-identifier hs-var">whenM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Path b -&gt; IO Bool
+forall b. Path b -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#doesFileExist"><span class="hs-identifier hs-var">doesFileExist</span></a></span><span> </span><span class="annot"><span class="annottext">Path b
+</span><a href="#local-6989586621679094496"><span class="hs-identifier hs-var">fp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-180"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IOException -&gt; IO ()
+forall a. IOException -&gt; IO a
+</span><span class="hs-identifier hs-var">ioError</span></span><span> </span><span class="annot"><span class="annottext">(IOException -&gt; IO ())
+-&gt; (Maybe String -&gt; IOException) -&gt; Maybe String -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IOErrorType
+-&gt; String -&gt; Maybe Handle -&gt; Maybe String -&gt; IOException
+</span><span class="hs-identifier hs-var">mkIOError</span></span><span>
+</span><span id="line-181"></span><span>                     </span><span class="annot"><span class="annottext">IOErrorType
+</span><span class="hs-identifier hs-var">alreadyExistsErrorType</span></span><span>
+</span><span id="line-182"></span><span>                     </span><span class="annot"><span class="hs-string">&quot;File already exists&quot;</span></span><span>
+</span><span id="line-183"></span><span>                     </span><span class="annot"><span class="annottext">Maybe Handle
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-184"></span><span>                   </span><span class="annot"><span class="annottext">(Maybe String -&gt; IO ()) -&gt; Maybe String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Maybe String
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; String
+</span><span class="hs-identifier hs-var">toString</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; String) -&gt; ByteString -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094494"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-185"></span><span>        </span><span class="hs-special">)</span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span>
+</span><span id="line-188"></span><span class="hs-comment">-- |Throws `AlreadyExists` `IOError` if directory exists.</span><span>
+</span><span id="line-189"></span><span id="local-6989586621679094491"><span class="annot"><a href="HPath.IO.Errors.html#throwDirDoesExist"><span class="hs-identifier hs-type">throwDirDoesExist</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094491"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-190"></span><span id="throwDirDoesExist"><span class="annot"><span class="annottext">throwDirDoesExist :: Path b -&gt; IO ()
+</span><a href="HPath.IO.Errors.html#throwDirDoesExist"><span class="hs-identifier hs-var hs-var">throwDirDoesExist</span></a></span></span><span> </span><span id="local-6989586621679094490"><span class="annot"><span class="annottext">fp :: Path b
+</span><a href="#local-6989586621679094490"><span class="hs-identifier hs-var">fp</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094489"><span class="annot"><span class="annottext">bs :: ByteString
+</span><a href="#local-6989586621679094489"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-191"></span><span>  </span><span class="annot"><span class="annottext">IO Bool -&gt; IO () -&gt; IO ()
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m () -&gt; m ()
+</span><span class="hs-identifier hs-var">whenM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Path b -&gt; IO Bool
+forall b. Path b -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#doesDirectoryExist"><span class="hs-identifier hs-var">doesDirectoryExist</span></a></span><span> </span><span class="annot"><span class="annottext">Path b
+</span><a href="#local-6989586621679094490"><span class="hs-identifier hs-var">fp</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-192"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IOException -&gt; IO ()
+forall a. IOException -&gt; IO a
+</span><span class="hs-identifier hs-var">ioError</span></span><span> </span><span class="annot"><span class="annottext">(IOException -&gt; IO ())
+-&gt; (Maybe String -&gt; IOException) -&gt; Maybe String -&gt; IO ()
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">IOErrorType
+-&gt; String -&gt; Maybe Handle -&gt; Maybe String -&gt; IOException
+</span><span class="hs-identifier hs-var">mkIOError</span></span><span>
+</span><span id="line-193"></span><span>                     </span><span class="annot"><span class="annottext">IOErrorType
+</span><span class="hs-identifier hs-var">alreadyExistsErrorType</span></span><span>
+</span><span id="line-194"></span><span>                     </span><span class="annot"><span class="hs-string">&quot;Directory already exists&quot;</span></span><span>
+</span><span id="line-195"></span><span>                     </span><span class="annot"><span class="annottext">Maybe Handle
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-196"></span><span>                   </span><span class="annot"><span class="annottext">(Maybe String -&gt; IO ()) -&gt; Maybe String -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Maybe String
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; String
+</span><span class="hs-identifier hs-var">toString</span></span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; String) -&gt; ByteString -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094489"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-197"></span><span>        </span><span class="hs-special">)</span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- |Uses `isSameFile` and throws `SameFile` if it returns True.</span><span>
+</span><span id="line-201"></span><span id="local-6989586621679094487"><span id="local-6989586621679094488"><span class="annot"><a href="HPath.IO.Errors.html#throwSameFile"><span class="hs-identifier hs-type">throwSameFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094488"><span class="hs-identifier hs-type">b1</span></a></span><span>
+</span><span id="line-202"></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094487"><span class="hs-identifier hs-type">b2</span></a></span><span>
+</span><span id="line-203"></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-204"></span><span id="throwSameFile"><span class="annot"><span class="annottext">throwSameFile :: Path b1 -&gt; Path b2 -&gt; IO ()
+</span><a href="HPath.IO.Errors.html#throwSameFile"><span class="hs-identifier hs-var hs-var">throwSameFile</span></a></span></span><span> </span><span id="local-6989586621679094486"><span class="annot"><span class="annottext">fp1 :: Path b1
+</span><a href="#local-6989586621679094486"><span class="hs-identifier hs-var">fp1</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094485"><span class="annot"><span class="annottext">bs1 :: ByteString
+</span><a href="#local-6989586621679094485"><span class="hs-identifier hs-var">bs1</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679094484"><span class="annot"><span class="annottext">fp2 :: Path b2
+</span><a href="#local-6989586621679094484"><span class="hs-identifier hs-var">fp2</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094483"><span class="annot"><span class="annottext">bs2 :: ByteString
+</span><a href="#local-6989586621679094483"><span class="hs-identifier hs-var">bs2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-205"></span><span>  </span><span class="annot"><span class="annottext">IO Bool -&gt; IO () -&gt; IO ()
+forall (m :: * -&gt; *). Monad m =&gt; m Bool -&gt; m () -&gt; m ()
+</span><span class="hs-identifier hs-var">whenM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Path b1 -&gt; Path b2 -&gt; IO Bool
+forall b1 b2. Path b1 -&gt; Path b2 -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#sameFile"><span class="hs-identifier hs-var">sameFile</span></a></span><span> </span><span class="annot"><span class="annottext">Path b1
+</span><a href="#local-6989586621679094486"><span class="hs-identifier hs-var">fp1</span></a></span><span> </span><span class="annot"><span class="annottext">Path b2
+</span><a href="#local-6989586621679094484"><span class="hs-identifier hs-var">fp2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-206"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HPathIOException -&gt; IO ()
+forall e a. Exception e =&gt; e -&gt; IO a
+</span><span class="hs-identifier hs-var">throwIO</span></span><span> </span><span class="annot"><span class="annottext">(HPathIOException -&gt; IO ()) -&gt; HPathIOException -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; HPathIOException
+</span><a href="HPath.IO.Errors.html#SameFile"><span class="hs-identifier hs-var">SameFile</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094485"><span class="hs-identifier hs-var">bs1</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094483"><span class="hs-identifier hs-var">bs2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-207"></span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span class="hs-comment">-- |Check if the files are the same by examining device and file id.</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- This follows symbolic links.</span><span>
+</span><span id="line-211"></span><span id="local-6989586621679094646"><span id="local-6989586621679094647"><span class="annot"><a href="HPath.IO.Errors.html#sameFile"><span class="hs-identifier hs-type">sameFile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094647"><span class="hs-identifier hs-type">b1</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094646"><span class="hs-identifier hs-type">b2</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-212"></span><span id="sameFile"><span class="annot"><span class="annottext">sameFile :: Path b1 -&gt; Path b2 -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#sameFile"><span class="hs-identifier hs-var hs-var">sameFile</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094481"><span class="annot"><span class="annottext">fp1 :: ByteString
+</span><a href="#local-6989586621679094481"><span class="hs-identifier hs-var">fp1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094480"><span class="annot"><span class="annottext">fp2 :: ByteString
+</span><a href="#local-6989586621679094480"><span class="hs-identifier hs-var">fp2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-213"></span><span>  </span><span class="annot"><span class="annottext">(IOException -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a. (IOException -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier hs-var">handleIOError</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO Bool -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-214"></span><span>    </span><span id="local-6989586621679094479"><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094479"><span class="hs-identifier hs-var">fs1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; IO FileStatus
+</span><span class="hs-identifier hs-var">getFileStatus</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094481"><span class="hs-identifier hs-var">fp1</span></a></span><span>
+</span><span id="line-215"></span><span>    </span><span id="local-6989586621679094478"><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094478"><span class="hs-identifier hs-var">fs2</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; IO FileStatus
+</span><span class="hs-identifier hs-var">getFileStatus</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094480"><span class="hs-identifier hs-var">fp2</span></a></span><span>
+</span><span id="line-216"></span><span>
+</span><span id="line-217"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileStatus -&gt; DeviceID
+</span><span class="hs-identifier hs-var">PF.deviceID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094479"><span class="hs-identifier hs-var">fs1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileStatus -&gt; FileID
+</span><span class="hs-identifier hs-var">PF.fileID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094479"><span class="hs-identifier hs-var">fs1</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(DeviceID, FileID) -&gt; (DeviceID, FileID) -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span>
+</span><span id="line-218"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileStatus -&gt; DeviceID
+</span><span class="hs-identifier hs-var">PF.deviceID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094478"><span class="hs-identifier hs-var">fs2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileStatus -&gt; FileID
+</span><span class="hs-identifier hs-var">PF.fileID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094478"><span class="hs-identifier hs-var">fs2</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-219"></span><span>      </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-220"></span><span>      </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-221"></span><span>
+</span><span id="line-222"></span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- TODO: make this more robust when destination does not exist</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- |Checks whether the destination directory is contained</span><span>
+</span><span id="line-225"></span><span class="hs-comment">-- within the source directory by comparing the device+file ID of the</span><span>
+</span><span id="line-226"></span><span class="hs-comment">-- source directory with all device+file IDs of the parent directories</span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- of the destination.</span><span>
+</span><span id="line-228"></span><span id="local-6989586621679094474"><span id="local-6989586621679094475"><span class="annot"><a href="HPath.IO.Errors.html#throwDestinationInSource"><span class="hs-identifier hs-type">throwDestinationInSource</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094475"><span class="hs-identifier hs-type">b1</span></a></span><span> </span><span class="hs-comment">-- ^ source dir</span><span>
+</span><span id="line-229"></span><span>                         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094474"><span class="hs-identifier hs-type">b2</span></a></span><span> </span><span class="hs-comment">-- ^ full destination, @dirname dest@</span><span>
+</span><span id="line-230"></span><span>                                    </span><span class="hs-comment">--   must exist</span><span>
+</span><span id="line-231"></span><span>                         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-232"></span><span id="throwDestinationInSource"><span class="annot"><span class="annottext">throwDestinationInSource :: Path b1 -&gt; Path b2 -&gt; IO ()
+</span><a href="HPath.IO.Errors.html#throwDestinationInSource"><span class="hs-identifier hs-var hs-var">throwDestinationInSource</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094473"><span class="annot"><span class="annottext">sbs :: ByteString
+</span><a href="#local-6989586621679094473"><span class="hs-identifier hs-var">sbs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679094472"><span class="annot"><span class="annottext">dest :: Path b2
+</span><a href="#local-6989586621679094472"><span class="hs-identifier hs-var">dest</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094471"><span class="annot"><span class="annottext">dbs :: ByteString
+</span><a href="#local-6989586621679094471"><span class="hs-identifier hs-var">dbs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-233"></span><span>  </span><span id="local-6989586621679094470"><span class="annot"><span class="annottext">Path Abs
+</span><a href="#local-6989586621679094470"><span class="hs-identifier hs-var">destAbs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Path b2 -&gt; IO (Path Abs)
+forall b. Path b -&gt; IO (Path Abs)
+</span><a href="HPath.IO.html#toAbs"><span class="hs-identifier hs-var">toAbs</span></a></span><span> </span><span class="annot"><span class="annottext">Path b2
+</span><a href="#local-6989586621679094472"><span class="hs-identifier hs-var">dest</span></a></span><span>
+</span><span id="line-234"></span><span>  </span><span id="local-6989586621679094469"><span class="annot"><span class="annottext">Path Abs
+</span><a href="#local-6989586621679094469"><span class="hs-identifier hs-var">dest'</span></a></span></span><span>   </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679094468"><span class="annot"><span class="annottext">x :: Path Abs
+</span><a href="#local-6989586621679094468"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Path Abs -&gt; (Path Fn -&gt; Path Abs) -&gt; Maybe (Path Fn) -&gt; Path Abs
+forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">Path Abs
+</span><a href="#local-6989586621679094468"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679094466"><span class="annot"><span class="annottext">y :: Path Fn
+</span><a href="#local-6989586621679094466"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Path Abs
+</span><a href="#local-6989586621679094468"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Path Abs -&gt; Path Fn -&gt; Path Abs
+forall r b. RelC r =&gt; Path b -&gt; Path r -&gt; Path b
+</span><a href="HPath.html#%3C%2F%3E"><span class="hs-operator hs-var">&lt;/&gt;</span></a></span><span> </span><span class="annot"><span class="annottext">Path Fn
+</span><a href="#local-6989586621679094466"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Maybe (Path Fn) -&gt; Path Abs) -&gt; Maybe (Path Fn) -&gt; Path Abs
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Path b2 -&gt; Maybe (Path Fn)
+forall (m :: * -&gt; *) b. MonadThrow m =&gt; Path b -&gt; m (Path Fn)
+</span><a href="HPath.html#basename"><span class="hs-identifier hs-var">basename</span></a></span><span> </span><span class="annot"><span class="annottext">Path b2
+</span><a href="#local-6989586621679094472"><span class="hs-identifier hs-var">dest</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-235"></span><span>             </span><span class="annot"><span class="annottext">(Path Abs -&gt; Path Abs) -&gt; IO (Path Abs) -&gt; IO (Path Abs)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Path Abs -&gt; IO (Path Abs)
+forall b. Path b -&gt; IO (Path Abs)
+</span><a href="HPath.IO.html#canonicalizePath"><span class="hs-identifier hs-var">canonicalizePath</span></a></span><span> </span><span class="annot"><span class="annottext">(Path Abs -&gt; IO (Path Abs)) -&gt; Path Abs -&gt; IO (Path Abs)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Path Abs -&gt; Path Abs
+</span><a href="HPath.html#dirname"><span class="hs-identifier hs-var">dirname</span></a></span><span> </span><span class="annot"><span class="annottext">Path Abs
+</span><a href="#local-6989586621679094470"><span class="hs-identifier hs-var">destAbs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-236"></span><span>  </span><span id="local-6989586621679094462"><span class="annot"><span class="annottext">[(DeviceID, FileID)]
+</span><a href="#local-6989586621679094462"><span class="hs-identifier hs-var">dids</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Path Abs]
+-&gt; (Path Abs -&gt; IO (DeviceID, FileID)) -&gt; IO [(DeviceID, FileID)]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+t a -&gt; (a -&gt; m b) -&gt; m (t b)
+</span><span class="hs-identifier hs-var">forM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Path Abs -&gt; [Path Abs]
+</span><a href="HPath.html#getAllParents"><span class="hs-identifier hs-var">getAllParents</span></a></span><span> </span><span class="annot"><span class="annottext">Path Abs
+</span><a href="#local-6989586621679094469"><span class="hs-identifier hs-var">dest'</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Path Abs -&gt; IO (DeviceID, FileID)) -&gt; IO [(DeviceID, FileID)])
+-&gt; (Path Abs -&gt; IO (DeviceID, FileID)) -&gt; IO [(DeviceID, FileID)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679094460"><span class="annot"><span class="annottext">p :: Path Abs
+</span><a href="#local-6989586621679094460"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-237"></span><span>          </span><span id="local-6989586621679094459"><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094459"><span class="hs-identifier hs-var">fs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; IO FileStatus
+</span><span class="hs-identifier hs-var">PF.getSymbolicLinkStatus</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Path Abs -&gt; ByteString
+</span><a href="HPath.html#fromAbs"><span class="hs-identifier hs-var">fromAbs</span></a></span><span> </span><span class="annot"><span class="annottext">Path Abs
+</span><a href="#local-6989586621679094460"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-238"></span><span>          </span><span class="annot"><span class="annottext">(DeviceID, FileID) -&gt; IO (DeviceID, FileID)
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileStatus -&gt; DeviceID
+</span><span class="hs-identifier hs-var">PF.deviceID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094459"><span class="hs-identifier hs-var">fs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileStatus -&gt; FileID
+</span><span class="hs-identifier hs-var">PF.fileID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094459"><span class="hs-identifier hs-var">fs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-239"></span><span>  </span><span id="local-6989586621679094456"><span class="annot"><span class="annottext">(DeviceID, FileID)
+</span><a href="#local-6989586621679094456"><span class="hs-identifier hs-var">sid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(FileStatus -&gt; (DeviceID, FileID))
+-&gt; IO FileStatus -&gt; IO (DeviceID, FileID)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679094455"><span class="annot"><span class="annottext">x :: FileStatus
+</span><a href="#local-6989586621679094455"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FileStatus -&gt; DeviceID
+</span><span class="hs-identifier hs-var">PF.deviceID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094455"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileStatus -&gt; FileID
+</span><span class="hs-identifier hs-var">PF.fileID</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094455"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-240"></span><span>              </span><span class="annot"><span class="annottext">(IO FileStatus -&gt; IO (DeviceID, FileID))
+-&gt; IO FileStatus -&gt; IO (DeviceID, FileID)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; IO FileStatus
+</span><span class="hs-identifier hs-var">PF.getFileStatus</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094473"><span class="hs-identifier hs-var">sbs</span></a></span><span>
+</span><span id="line-241"></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; IO () -&gt; IO ()
+forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(DeviceID, FileID) -&gt; [(DeviceID, FileID)] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">elem</span></span><span> </span><span class="annot"><span class="annottext">(DeviceID, FileID)
+</span><a href="#local-6989586621679094456"><span class="hs-identifier hs-var">sid</span></a></span><span> </span><span class="annot"><span class="annottext">[(DeviceID, FileID)]
+</span><a href="#local-6989586621679094462"><span class="hs-identifier hs-var">dids</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-242"></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HPathIOException -&gt; IO ()
+forall e a. Exception e =&gt; e -&gt; IO a
+</span><span class="hs-identifier hs-var">throwIO</span></span><span> </span><span class="annot"><span class="annottext">(HPathIOException -&gt; IO ()) -&gt; HPathIOException -&gt; IO ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; HPathIOException
+</span><a href="HPath.IO.Errors.html#DestinationInSource"><span class="hs-identifier hs-var">DestinationInSource</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094471"><span class="hs-identifier hs-var">dbs</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094473"><span class="hs-identifier hs-var">sbs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-243"></span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span class="hs-comment">-- |Checks if the given file exists and is not a directory.</span><span>
+</span><span id="line-246"></span><span class="hs-comment">-- Does not follow symlinks.</span><span>
+</span><span id="line-247"></span><span id="local-6989586621679094661"><span class="annot"><a href="HPath.IO.Errors.html#doesFileExist"><span class="hs-identifier hs-type">doesFileExist</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094661"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-248"></span><span id="doesFileExist"><span class="annot"><span class="annottext">doesFileExist :: Path b -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#doesFileExist"><span class="hs-identifier hs-var hs-var">doesFileExist</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094453"><span class="annot"><span class="annottext">bs :: ByteString
+</span><a href="#local-6989586621679094453"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-249"></span><span>  </span><span class="annot"><span class="annottext">(IOException -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a. (IOException -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier hs-var">handleIOError</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO Bool -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-250"></span><span>    </span><span id="local-6989586621679094452"><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094452"><span class="hs-identifier hs-var">fs</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; IO FileStatus
+</span><span class="hs-identifier hs-var">PF.getSymbolicLinkStatus</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094453"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-251"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; IO Bool) -&gt; Bool -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; (FileStatus -&gt; Bool) -&gt; FileStatus -&gt; Bool
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">FileStatus -&gt; Bool
+</span><span class="hs-identifier hs-var">PF.isDirectory</span></span><span> </span><span class="annot"><span class="annottext">(FileStatus -&gt; Bool) -&gt; FileStatus -&gt; Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094452"><span class="hs-identifier hs-var">fs</span></a></span><span>
+</span><span id="line-252"></span><span>
+</span><span id="line-253"></span><span>
+</span><span id="line-254"></span><span class="hs-comment">-- |Checks if the given file exists and is a directory.</span><span>
+</span><span id="line-255"></span><span class="hs-comment">-- Does not follow symlinks.</span><span>
+</span><span id="line-256"></span><span id="local-6989586621679094449"><span class="annot"><a href="HPath.IO.Errors.html#doesDirectoryExist"><span class="hs-identifier hs-type">doesDirectoryExist</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094449"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-257"></span><span id="doesDirectoryExist"><span class="annot"><span class="annottext">doesDirectoryExist :: Path b -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#doesDirectoryExist"><span class="hs-identifier hs-var hs-var">doesDirectoryExist</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094448"><span class="annot"><span class="annottext">bs :: ByteString
+</span><a href="#local-6989586621679094448"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-258"></span><span>  </span><span class="annot"><span class="annottext">(IOException -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a. (IOException -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier hs-var">handleIOError</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO Bool -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-259"></span><span>    </span><span id="local-6989586621679094447"><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094447"><span class="hs-identifier hs-var">fs</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; IO FileStatus
+</span><span class="hs-identifier hs-var">PF.getSymbolicLinkStatus</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094448"><span class="hs-identifier hs-var">bs</span></a></span><span>
+</span><span id="line-260"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; IO Bool) -&gt; Bool -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FileStatus -&gt; Bool
+</span><span class="hs-identifier hs-var">PF.isDirectory</span></span><span> </span><span class="annot"><span class="annottext">FileStatus
+</span><a href="#local-6989586621679094447"><span class="hs-identifier hs-var">fs</span></a></span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span>
+</span><span id="line-263"></span><span class="hs-comment">-- |Checks whether a file or folder is writable.</span><span>
+</span><span id="line-264"></span><span id="local-6989586621679094446"><span class="annot"><a href="HPath.IO.Errors.html#isWritable"><span class="hs-identifier hs-type">isWritable</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094446"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-265"></span><span id="isWritable"><span class="annot"><span class="annottext">isWritable :: Path b -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#isWritable"><span class="hs-identifier hs-var hs-var">isWritable</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094445"><span class="annot"><span class="annottext">bs :: ByteString
+</span><a href="#local-6989586621679094445"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-266"></span><span>  </span><span class="annot"><span class="annottext">(IOException -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a. (IOException -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier hs-var">handleIOError</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO Bool -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-267"></span><span>    </span><span class="annot"><span class="annottext">ByteString -&gt; Bool -&gt; Bool -&gt; Bool -&gt; IO Bool
+</span><span class="hs-identifier hs-var">fileAccess</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094445"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-268"></span><span>
+</span><span id="line-269"></span><span>
+</span><span id="line-270"></span><span class="hs-comment">-- |Checks whether the directory at the given path exists and can be</span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- opened. This invokes `openDirStream` which follows symlinks.</span><span>
+</span><span id="line-272"></span><span id="local-6989586621679094444"><span class="annot"><a href="HPath.IO.Errors.html#canOpenDirectory"><span class="hs-identifier hs-type">canOpenDirectory</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679094444"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-273"></span><span id="canOpenDirectory"><span class="annot"><span class="annottext">canOpenDirectory :: Path b -&gt; IO Bool
+</span><a href="HPath.IO.Errors.html#canOpenDirectory"><span class="hs-identifier hs-var hs-var">canOpenDirectory</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679094443"><span class="annot"><span class="annottext">bs :: ByteString
+</span><a href="#local-6989586621679094443"><span class="hs-identifier hs-var">bs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-274"></span><span>  </span><span class="annot"><span class="annottext">(IOException -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a. (IOException -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier hs-var">handleIOError</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(IO Bool -&gt; IO Bool) -&gt; IO Bool -&gt; IO Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-275"></span><span>    </span><span class="annot"><span class="annottext">IO DirStream
+-&gt; (DirStream -&gt; IO ()) -&gt; (DirStream -&gt; IO ()) -&gt; IO ()
+forall a b c. IO a -&gt; (a -&gt; IO b) -&gt; (a -&gt; IO c) -&gt; IO c
+</span><span class="hs-identifier hs-var">bracket</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; IO DirStream
+</span><span class="hs-identifier hs-var">PFD.openDirStream</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679094443"><span class="hs-identifier hs-var">bs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-276"></span><span>            </span><span class="annot"><span class="annottext">DirStream -&gt; IO ()
+</span><span class="hs-identifier hs-var">PFD.closeDirStream</span></span><span>
+</span><span id="line-277"></span><span>            </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; IO ()
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-278"></span><span>    </span><span class="annot"><span class="annottext">Bool -&gt; IO Bool
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-279"></span><span>
+</span><span id="line-280"></span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span>
+</span><span id="line-283"></span><span>    </span><span class="hs-comment">--------------------------------</span><span>
+</span><span id="line-284"></span><span>    </span><span class="hs-comment">--[ Error handling functions ]--</span><span>
+</span><span id="line-285"></span><span>    </span><span class="hs-comment">--------------------------------</span><span>
+</span><span id="line-286"></span><span>
+</span><span id="line-287"></span><span>
+</span><span id="line-288"></span><span class="hs-comment">-- |Carries out an action, then checks if there is an IOException and</span><span>
+</span><span id="line-289"></span><span class="hs-comment">-- a specific errno. If so, then it carries out another action, otherwise</span><span>
+</span><span id="line-290"></span><span class="hs-comment">-- it rethrows the error.</span><span>
+</span><span id="line-291"></span><span id="local-6989586621679094596"><span class="annot"><a href="HPath.IO.Errors.html#catchErrno"><span class="hs-identifier hs-type">catchErrno</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Errno</span></span><span class="hs-special">]</span><span> </span><span class="hs-comment">-- ^ errno to catch</span><span>
+</span><span id="line-292"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094596"><span class="hs-identifier hs-type">a</span></a></span><span>    </span><span class="hs-comment">-- ^ action to try, which can raise an IOException</span><span>
+</span><span id="line-293"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094596"><span class="hs-identifier hs-type">a</span></a></span><span>    </span><span class="hs-comment">-- ^ action to carry out in case of an IOException and</span><span>
+</span><span id="line-294"></span><span>                      </span><span class="hs-comment">--   if errno matches</span><span>
+</span><span id="line-295"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094596"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-296"></span><span id="catchErrno"><span class="annot"><span class="annottext">catchErrno :: [Errno] -&gt; IO a -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#catchErrno"><span class="hs-identifier hs-var hs-var">catchErrno</span></a></span></span><span> </span><span id="local-6989586621679094439"><span class="annot"><span class="annottext">en :: [Errno]
+</span><a href="#local-6989586621679094439"><span class="hs-identifier hs-var">en</span></a></span></span><span> </span><span id="local-6989586621679094438"><span class="annot"><span class="annottext">a1 :: IO a
+</span><a href="#local-6989586621679094438"><span class="hs-identifier hs-var">a1</span></a></span></span><span> </span><span id="local-6989586621679094437"><span class="annot"><span class="annottext">a2 :: IO a
+</span><a href="#local-6989586621679094437"><span class="hs-identifier hs-var">a2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-297"></span><span>  </span><span class="annot"><span class="annottext">IO a -&gt; (IOException -&gt; IO a) -&gt; IO a
+forall a. IO a -&gt; (IOException -&gt; IO a) -&gt; IO a
+</span><span class="hs-identifier hs-var">catchIOError</span></span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094438"><span class="hs-identifier hs-var">a1</span></a></span><span> </span><span class="annot"><span class="annottext">((IOException -&gt; IO a) -&gt; IO a) -&gt; (IOException -&gt; IO a) -&gt; IO a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679094436"><span class="annot"><span class="annottext">e :: IOException
+</span><a href="#local-6989586621679094436"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-298"></span><span>    </span><span id="local-6989586621679094435"><span class="annot"><span class="annottext">Errno
+</span><a href="#local-6989586621679094435"><span class="hs-identifier hs-var">errno</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO Errno
+</span><span class="hs-identifier hs-var">getErrno</span></span><span>
+</span><span id="line-299"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Errno
+</span><a href="#local-6989586621679094435"><span class="hs-identifier hs-var">errno</span></a></span><span> </span><span class="annot"><span class="annottext">Errno -&gt; [Errno] -&gt; Bool
+forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[Errno]
+</span><a href="#local-6989586621679094439"><span class="hs-identifier hs-var">en</span></a></span><span>
+</span><span id="line-300"></span><span>      </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094437"><span class="hs-identifier hs-var">a2</span></a></span><span>
+</span><span id="line-301"></span><span>      </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">IOException -&gt; IO a
+forall a. IOException -&gt; IO a
+</span><span class="hs-identifier hs-var">ioError</span></span><span> </span><span class="annot"><span class="annottext">IOException
+</span><a href="#local-6989586621679094436"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-302"></span><span>
+</span><span id="line-303"></span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- |Execute the given action and retrow IO exceptions as a new Exception</span><span>
+</span><span id="line-305"></span><span class="hs-comment">-- that have the given errno. If errno does not match the exception is rethrown</span><span>
+</span><span id="line-306"></span><span class="hs-comment">-- as is.</span><span>
+</span><span id="line-307"></span><span id="local-6989586621679094433"><span id="local-6989586621679094434"><span class="annot"><a href="HPath.IO.Errors.html#rethrowErrnoAs"><span class="hs-identifier hs-type">rethrowErrnoAs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Exception</span></span><span> </span><span class="annot"><a href="#local-6989586621679094434"><span class="hs-identifier hs-type">e</span></a></span><span>
+</span><span id="line-308"></span><span>               </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Errno</span></span><span class="hs-special">]</span><span>       </span><span class="hs-comment">-- ^ errno to catch</span><span>
+</span><span id="line-309"></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679094434"><span class="hs-identifier hs-type">e</span></a></span><span>             </span><span class="hs-comment">-- ^ rethrow as if errno matches</span><span>
+</span><span id="line-310"></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094433"><span class="hs-identifier hs-type">a</span></a></span><span>          </span><span class="hs-comment">-- ^ action to try</span><span>
+</span><span id="line-311"></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094433"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-312"></span><span id="rethrowErrnoAs"><span class="annot"><span class="annottext">rethrowErrnoAs :: [Errno] -&gt; e -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#rethrowErrnoAs"><span class="hs-identifier hs-var hs-var">rethrowErrnoAs</span></a></span></span><span> </span><span id="local-6989586621679094432"><span class="annot"><span class="annottext">en :: [Errno]
+</span><a href="#local-6989586621679094432"><span class="hs-identifier hs-var">en</span></a></span></span><span> </span><span id="local-6989586621679094431"><span class="annot"><span class="annottext">fmex :: e
+</span><a href="#local-6989586621679094431"><span class="hs-identifier hs-var">fmex</span></a></span></span><span> </span><span id="local-6989586621679094430"><span class="annot"><span class="annottext">action :: IO a
+</span><a href="#local-6989586621679094430"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Errno] -&gt; IO a -&gt; IO a -&gt; IO a
+forall a. [Errno] -&gt; IO a -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#catchErrno"><span class="hs-identifier hs-var">catchErrno</span></a></span><span> </span><span class="annot"><span class="annottext">[Errno]
+</span><a href="#local-6989586621679094432"><span class="hs-identifier hs-var">en</span></a></span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094430"><span class="hs-identifier hs-var">action</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">e -&gt; IO a
+forall e a. Exception e =&gt; e -&gt; IO a
+</span><span class="hs-identifier hs-var">throwIO</span></span><span> </span><span class="annot"><span class="annottext">e
+</span><a href="#local-6989586621679094431"><span class="hs-identifier hs-var">fmex</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-313"></span><span>
+</span><span id="line-314"></span><span>
+</span><span id="line-315"></span><span>
+</span><span id="line-316"></span><span class="hs-comment">-- |Like `catchIOError`, with arguments swapped.</span><span>
+</span><span id="line-317"></span><span id="local-6989586621679094641"><span class="annot"><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier hs-type">handleIOError</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IOError</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094641"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094641"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094641"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-318"></span><span id="handleIOError"><span class="annot"><span class="annottext">handleIOError :: (IOException -&gt; IO a) -&gt; IO a -&gt; IO a
+</span><a href="HPath.IO.Errors.html#handleIOError"><span class="hs-identifier hs-var hs-var">handleIOError</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(IO a -&gt; (IOException -&gt; IO a) -&gt; IO a)
+-&gt; (IOException -&gt; IO a) -&gt; IO a -&gt; IO a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">IO a -&gt; (IOException -&gt; IO a) -&gt; IO a
+forall a. IO a -&gt; (IOException -&gt; IO a) -&gt; IO a
+</span><span class="hs-identifier hs-var">catchIOError</span></span><span>
+</span><span id="line-319"></span><span>
+</span><span id="line-320"></span><span>
+</span><span id="line-321"></span><span class="hs-comment">-- |Like `bracket`, but allows to have different clean-up</span><span>
+</span><span id="line-322"></span><span class="hs-comment">-- actions depending on whether the in-between computation</span><span>
+</span><span id="line-323"></span><span class="hs-comment">-- has raised an exception or not. </span><span>
+</span><span id="line-324"></span><span id="local-6989586621679094425"><span id="local-6989586621679094426"><span id="local-6989586621679094427"><span class="annot"><a href="HPath.IO.Errors.html#bracketeer"><span class="hs-identifier hs-type">bracketeer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094427"><span class="hs-identifier hs-type">a</span></a></span><span>        </span><span class="hs-comment">-- ^ computation to run first</span><span>
+</span><span id="line-325"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679094427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094426"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- ^ computation to run last, when</span><span>
+</span><span id="line-326"></span><span>                          </span><span class="hs-comment">--   no exception was raised</span><span>
+</span><span id="line-327"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679094427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094426"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- ^ computation to run last,</span><span>
+</span><span id="line-328"></span><span>                          </span><span class="hs-comment">--   when an exception was raised</span><span>
+</span><span id="line-329"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679094427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094425"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- ^ computation to run in-between</span><span>
+</span><span id="line-330"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094425"><span class="hs-identifier hs-type">c</span></a></span></span></span></span><span>
+</span><span id="line-331"></span><span id="bracketeer"><span class="annot"><span class="annottext">bracketeer :: IO a -&gt; (a -&gt; IO b) -&gt; (a -&gt; IO b) -&gt; (a -&gt; IO c) -&gt; IO c
+</span><a href="HPath.IO.Errors.html#bracketeer"><span class="hs-identifier hs-var hs-var">bracketeer</span></a></span></span><span> </span><span id="local-6989586621679094424"><span class="annot"><span class="annottext">before :: IO a
+</span><a href="#local-6989586621679094424"><span class="hs-identifier hs-var">before</span></a></span></span><span> </span><span id="local-6989586621679094423"><span class="annot"><span class="annottext">after :: a -&gt; IO b
+</span><a href="#local-6989586621679094423"><span class="hs-identifier hs-var">after</span></a></span></span><span> </span><span id="local-6989586621679094422"><span class="annot"><span class="annottext">afterEx :: a -&gt; IO b
+</span><a href="#local-6989586621679094422"><span class="hs-identifier hs-var">afterEx</span></a></span></span><span> </span><span id="local-6989586621679094421"><span class="annot"><span class="annottext">thing :: a -&gt; IO c
+</span><a href="#local-6989586621679094421"><span class="hs-identifier hs-var">thing</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-332"></span><span>  </span><span class="annot"><span class="annottext">((forall a. IO a -&gt; IO a) -&gt; IO c) -&gt; IO c
+forall b. ((forall a. IO a -&gt; IO a) -&gt; IO b) -&gt; IO b
+</span><span class="hs-identifier hs-var">mask</span></span><span> </span><span class="annot"><span class="annottext">(((forall a. IO a -&gt; IO a) -&gt; IO c) -&gt; IO c)
+-&gt; ((forall a. IO a -&gt; IO a) -&gt; IO c) -&gt; IO c
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679094419"><span class="annot"><span class="annottext">restore :: forall a. IO a -&gt; IO a
+</span><a href="#local-6989586621679094419"><span class="hs-identifier hs-var">restore</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-333"></span><span>    </span><span id="local-6989586621679094418"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679094418"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094424"><span class="hs-identifier hs-var">before</span></a></span><span>
+</span><span id="line-334"></span><span>    </span><span id="local-6989586621679094417"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679094417"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO c -&gt; IO c
+forall a. IO a -&gt; IO a
+</span><a href="#local-6989586621679094419"><span class="hs-identifier hs-var">restore</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; IO c
+</span><a href="#local-6989586621679094421"><span class="hs-identifier hs-var">thing</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679094418"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">IO c -&gt; IO b -&gt; IO c
+forall a b. IO a -&gt; IO b -&gt; IO a
+</span><span class="hs-operator hs-var">`onException`</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; IO b
+</span><a href="#local-6989586621679094422"><span class="hs-identifier hs-var">afterEx</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679094418"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-335"></span><span>    </span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">a -&gt; IO b
+</span><a href="#local-6989586621679094423"><span class="hs-identifier hs-var">after</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679094418"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-336"></span><span>    </span><span class="annot"><span class="annottext">c -&gt; IO c
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679094417"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-337"></span><span>
+</span><span id="line-338"></span><span>
+</span><span id="line-339"></span><span id="local-6989586621679094415"><span class="annot"><a href="HPath.IO.Errors.html#reactOnError"><span class="hs-identifier hs-type">reactOnError</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094415"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-340"></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IOErrorType</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094415"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>      </span><span class="hs-comment">-- ^ reaction on IO errors</span><span>
+</span><span id="line-341"></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094415"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-comment">-- ^ reaction on HPathIOException</span><span>
+</span><span id="line-342"></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679094415"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-343"></span><span id="reactOnError"><span class="annot"><span class="annottext">reactOnError :: IO a -&gt; [(IOErrorType, IO a)] -&gt; [(HPathIOException, IO a)] -&gt; IO a
+</span><a href="HPath.IO.Errors.html#reactOnError"><span class="hs-identifier hs-var hs-var">reactOnError</span></a></span></span><span> </span><span id="local-6989586621679094414"><span class="annot"><span class="annottext">a :: IO a
+</span><a href="#local-6989586621679094414"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679094413"><span class="annot"><span class="annottext">ios :: [(IOErrorType, IO a)]
+</span><a href="#local-6989586621679094413"><span class="hs-identifier hs-var">ios</span></a></span></span><span> </span><span id="local-6989586621679094412"><span class="annot"><span class="annottext">fmios :: [(HPathIOException, IO a)]
+</span><a href="#local-6989586621679094412"><span class="hs-identifier hs-var">fmios</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-344"></span><span>  </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094414"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">IO a -&gt; [Handler a] -&gt; IO a
+forall a. IO a -&gt; [Handler a] -&gt; IO a
+</span><span class="hs-operator hs-var">`catches`</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Handler a
+</span><a href="#local-6989586621679094410"><span class="hs-identifier hs-var">iohandler</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Handler a
+</span><a href="#local-6989586621679094409"><span class="hs-identifier hs-var">fmiohandler</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-345"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-346"></span><span>    </span><span id="local-6989586621679094410"><span class="annot"><span class="annottext">iohandler :: Handler a
+</span><a href="#local-6989586621679094410"><span class="hs-identifier hs-var hs-var">iohandler</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(IOException -&gt; IO a) -&gt; Handler a
+forall a e. Exception e =&gt; (e -&gt; IO a) -&gt; Handler a
+</span><span class="hs-identifier hs-var">Handler</span></span><span> </span><span class="annot"><span class="annottext">((IOException -&gt; IO a) -&gt; Handler a)
+-&gt; (IOException -&gt; IO a) -&gt; Handler a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-347"></span><span>      </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679094407"><span class="annot"><span class="annottext">IOException
+</span><a href="#local-6989586621679094407"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IOException</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-348"></span><span>         </span><span class="annot"><span class="annottext">((IOErrorType, IO a) -&gt; IO a -&gt; IO a)
+-&gt; IO a -&gt; [(IOErrorType, IO a)] -&gt; IO a
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679094405"><span class="annot"><span class="annottext">t :: IOErrorType
+</span><a href="#local-6989586621679094405"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679094404"><span class="annot"><span class="annottext">a' :: IO a
+</span><a href="#local-6989586621679094404"><span class="hs-identifier hs-var">a'</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679094403"><span class="annot"><span class="annottext">y :: IO a
+</span><a href="#local-6989586621679094403"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">IOException -&gt; IOErrorType
+</span><span class="hs-identifier hs-var">ioeGetErrorType</span></span><span> </span><span class="annot"><span class="annottext">IOException
+</span><a href="#local-6989586621679094407"><span class="hs-identifier hs-var">ex</span></a></span><span> </span><span class="annot"><span class="annottext">IOErrorType -&gt; IOErrorType -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">IOErrorType
+</span><a href="#local-6989586621679094405"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-349"></span><span>                                </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094404"><span class="hs-identifier hs-var">a'</span></a></span><span>
+</span><span id="line-350"></span><span>                                </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094403"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-351"></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="annottext">IOException -&gt; IO a
+forall e a. Exception e =&gt; e -&gt; IO a
+</span><span class="hs-identifier hs-var">throwIO</span></span><span> </span><span class="annot"><span class="annottext">IOException
+</span><a href="#local-6989586621679094407"><span class="hs-identifier hs-var">ex</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-352"></span><span>               </span><span class="annot"><span class="annottext">[(IOErrorType, IO a)]
+</span><a href="#local-6989586621679094413"><span class="hs-identifier hs-var">ios</span></a></span><span>
+</span><span id="line-353"></span><span>    </span><span id="local-6989586621679094409"><span class="annot"><span class="annottext">fmiohandler :: Handler a
+</span><a href="#local-6989586621679094409"><span class="hs-identifier hs-var hs-var">fmiohandler</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(HPathIOException -&gt; IO a) -&gt; Handler a
+forall a e. Exception e =&gt; (e -&gt; IO a) -&gt; Handler a
+</span><span class="hs-identifier hs-var">Handler</span></span><span> </span><span class="annot"><span class="annottext">((HPathIOException -&gt; IO a) -&gt; Handler a)
+-&gt; (HPathIOException -&gt; IO a) -&gt; Handler a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-354"></span><span>      </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679094402"><span class="annot"><span class="annottext">HPathIOException
+</span><a href="#local-6989586621679094402"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HPath.IO.Errors.html#HPathIOException"><span class="hs-identifier hs-type">HPathIOException</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-355"></span><span>         </span><span class="annot"><span class="annottext">((HPathIOException, IO a) -&gt; IO a -&gt; IO a)
+-&gt; IO a -&gt; [(HPathIOException, IO a)] -&gt; IO a
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679094401"><span class="annot"><span class="annottext">t :: HPathIOException
+</span><a href="#local-6989586621679094401"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679094400"><span class="annot"><span class="annottext">a' :: IO a
+</span><a href="#local-6989586621679094400"><span class="hs-identifier hs-var">a'</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679094399"><span class="annot"><span class="annottext">y :: IO a
+</span><a href="#local-6989586621679094399"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="annot"><span class="annottext">HPathIOException
+</span><a href="#local-6989586621679094402"><span class="hs-identifier hs-var">ex</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">HPathIOException -&gt; String
+</span><a href="HPath.IO.Errors.html#toConstr"><span class="hs-identifier hs-var">toConstr</span></a></span><span> </span><span class="annot"><span class="annottext">HPathIOException
+</span><a href="#local-6989586621679094401"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-356"></span><span>                                </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094400"><span class="hs-identifier hs-var">a'</span></a></span><span>
+</span><span id="line-357"></span><span>                                </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">IO a
+</span><a href="#local-6989586621679094399"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-358"></span><span>               </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HPathIOException -&gt; IO a
+forall e a. Exception e =&gt; e -&gt; IO a
+</span><span class="hs-identifier hs-var">throwIO</span></span><span> </span><span class="annot"><span class="annottext">HPathIOException
+</span><a href="#local-6989586621679094402"><span class="hs-identifier hs-var">ex</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-359"></span><span>               </span><span class="annot"><span class="annottext">[(HPathIOException, IO a)]
+</span><a href="#local-6989586621679094412"><span class="hs-identifier hs-var">fmios</span></a></span><span>
+</span><span id="line-360"></span><span>
+</span><span id="line-361"></span></pre></body></html>

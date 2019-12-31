@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveDataTypeable #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Internal types and functions.</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">HPath.Internal</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier">Path</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ByteString</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Data</span></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- | Path of some base and type.</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- Internally is a ByteString. The ByteString can be of two formats only:</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- 1. without trailing path separator: @file.txt@, @foo\/bar.txt@, @\/foo\/bar.txt@</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- 2. with trailing path separator: @foo\/@, @\/foo\/bar\/@</span><span>
+</span><span id="line-19"></span><span class="hs-comment">--</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- There are no duplicate</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- path separators @\/\/@, no @..@, no @.\/@, no @~\/@, etc.</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="Path"><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-var">Path</span></a></span></span><span> </span><span id="local-6989586621679093668"><span class="annot"><a href="#local-6989586621679093668"><span class="hs-identifier hs-type">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="MkPath"><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-var">MkPath</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Typeable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- | ByteString equality.</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- The following property holds:</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- @show x == show y &#8801; x == y@</span><span>
+</span><span id="line-30"></span><span id="local-6989586621679093666"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679093663"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679093666"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-31"></span><span>  </span><span id="local-6989586621679093661"><span class="annot"><span class="annottext">== :: Path b -&gt; Path b -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(==)</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679093660"><span class="annot"><span class="annottext">x :: ByteString
+</span><a href="#local-6989586621679093660"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679093659"><span class="annot"><span class="annottext">y :: ByteString
+</span><a href="#local-6989586621679093659"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679093660"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679093659"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | ByteString ordering.</span><span>
+</span><span id="line-34"></span><span class="hs-comment">--</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- The following property holds:</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- @show x \`compare\` show y &#8801; x \`compare\` y@</span><span>
+</span><span id="line-38"></span><span id="local-6989586621679093658"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679093644"><span id="local-6989586621679093646"><span id="local-6989586621679093648"><span id="local-6989586621679093650"><span id="local-6989586621679093652"><span id="local-6989586621679093654"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679093658"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-39"></span><span>  </span><span id="local-6989586621679093642"><span class="annot"><span class="annottext">compare :: Path b -&gt; Path b -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">compare</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679093640"><span class="annot"><span class="annottext">x :: ByteString
+</span><a href="#local-6989586621679093640"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679093639"><span class="annot"><span class="annottext">y :: ByteString
+</span><a href="#local-6989586621679093639"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; Ordering
+forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679093640"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679093639"><span class="hs-identifier hs-var">y</span></a></span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- | Same as 'HPath.toFilePath'.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- The following property holds:</span><span>
+</span><span id="line-44"></span><span class="hs-comment">--</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- @x == y &#8801; show x == show y@</span><span>
+</span><span id="line-46"></span><span id="local-6989586621679093638"><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679093633"><span id="local-6989586621679093636"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679093638"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>  </span><span id="local-6989586621679093631"><span class="annot"><span class="annottext">show :: Path b -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679093629"><span class="annot"><span class="annottext">x :: ByteString
+</span><a href="#local-6989586621679093629"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679093629"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span id="local-6989586621679093628"><span class="hs-keyword">instance</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NFData</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679093628"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-50"></span><span>  </span><span id="local-6989586621679093625"><span class="annot"><span class="annottext">rnf :: Path b -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">rnf</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HPath.Internal.html#MkPath"><span class="hs-identifier hs-type">MkPath</span></a></span><span> </span><span id="local-6989586621679093623"><span class="annot"><span class="annottext">x :: ByteString
+</span><a href="#local-6989586621679093623"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ()
+forall a. NFData a =&gt; a -&gt; ()
+</span><span class="hs-identifier hs-var">rnf</span></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679093623"><span class="hs-identifier hs-var">x</span></a></span></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span></pre></body></html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      :  System.Posix.FD</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   :  &#169; 2016 Julian Ospald</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     :  BSD3</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer  :  Julian Ospald &lt;hasufell@posteo.de&gt;</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability   :  experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Portability :  portable</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Provides an alternative for `System.Posix.IO.ByteString.openFd`</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- which gives us more control on what status flags to pass to the</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- low-level @open(2)@ call, in contrast to the unix package.</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE ForeignFunctionInterface #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE TupleSections #-}</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-pragma">{-# OPTIONS_GHC -Wall #-}</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Posix.FD</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><a href="System.Posix.FD.html#openFd"><span class="hs-identifier">openFd</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.C.String</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.C.Types</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html"><span class="hs-identifier">System.Posix.Directory.Foreign</span></a></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">System.Posix</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Posix</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Posix.ByteString.FilePath</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-keyword">ccall</span></span><span> </span><span class="annot"><span class="hs-keyword">unsafe</span></span><span> </span><span class="annot"><span class="hs-string">&quot;open&quot;</span></span><span>
+</span><span id="line-35"></span><span>   </span><span id="c_open"><span class="annot"><a href="System.Posix.FD.html#c_open"><span class="hs-identifier hs-var">c_open</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CInt</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Posix.CMode</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">CInt</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="annot"><a href="System.Posix.FD.html#open_"><span class="hs-identifier hs-type">open_</span></a></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">CString</span></span><span>
+</span><span id="line-39"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Posix.OpenMode</span></span><span>
+</span><span id="line-40"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-41"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Posix.FileMode</span></span><span>
+</span><span id="line-42"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Posix.Fd</span></span><span>
+</span><span id="line-43"></span><span id="open_"><span class="annot"><span class="annottext">open_ :: CString -&gt; OpenMode -&gt; [Flags] -&gt; Maybe FileMode -&gt; IO Fd
+</span><a href="System.Posix.FD.html#open_"><span class="hs-identifier hs-var hs-var">open_</span></a></span></span><span> </span><span id="local-6989586621679093785"><span class="annot"><span class="annottext">str :: CString
+</span><a href="#local-6989586621679093785"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span id="local-6989586621679093784"><span class="annot"><span class="annottext">how :: OpenMode
+</span><a href="#local-6989586621679093784"><span class="hs-identifier hs-var">how</span></a></span></span><span> </span><span id="local-6989586621679093783"><span class="annot"><span class="annottext">optional_flags :: [Flags]
+</span><a href="#local-6989586621679093783"><span class="hs-identifier hs-var">optional_flags</span></a></span></span><span> </span><span id="local-6989586621679093782"><span class="annot"><span class="annottext">maybe_mode :: Maybe FileMode
+</span><a href="#local-6989586621679093782"><span class="hs-identifier hs-var">maybe_mode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-44"></span><span>    </span><span id="local-6989586621679093781"><span class="annot"><span class="annottext">CInt
+</span><a href="#local-6989586621679093781"><span class="hs-identifier hs-var">fd</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CString -&gt; CInt -&gt; FileMode -&gt; IO CInt
+</span><a href="System.Posix.FD.html#c_open"><span class="hs-identifier hs-var">c_open</span></a></span><span> </span><span class="annot"><span class="annottext">CString
+</span><a href="#local-6989586621679093785"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="annot"><span class="annottext">CInt
+</span><a href="#local-6989586621679093780"><span class="hs-identifier hs-var">all_flags</span></a></span><span> </span><span class="annot"><span class="annottext">FileMode
+</span><a href="#local-6989586621679093779"><span class="hs-identifier hs-var">mode_w</span></a></span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><span class="annottext">Fd -&gt; IO Fd
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CInt -&gt; Fd
+</span><span class="hs-identifier hs-var">Posix.Fd</span></span><span> </span><span class="annot"><span class="annottext">CInt
+</span><a href="#local-6989586621679093781"><span class="hs-identifier hs-var">fd</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>    </span><span id="local-6989586621679093780"><span class="annot"><span class="annottext">all_flags :: CInt
+</span><a href="#local-6989586621679093780"><span class="hs-identifier hs-var hs-var">all_flags</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Flags] -&gt; CInt
+</span><a href="System.Posix.Directory.Foreign.html#unionFlags"><span class="hs-identifier hs-var">unionFlags</span></a></span><span> </span><span class="annot"><span class="annottext">([Flags] -&gt; CInt) -&gt; [Flags] -&gt; CInt
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Flags]
+</span><a href="#local-6989586621679093783"><span class="hs-identifier hs-var">optional_flags</span></a></span><span> </span><span class="annot"><span class="annottext">[Flags] -&gt; [Flags] -&gt; [Flags]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flags
+</span><a href="#local-6989586621679093776"><span class="hs-identifier hs-var">open_mode</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Flags] -&gt; [Flags] -&gt; [Flags]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Flags]
+</span><a href="#local-6989586621679093775"><span class="hs-identifier hs-var">creat</span></a></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679093775"><span class="annot"><span class="annottext">creat :: [Flags]
+</span><a href="#local-6989586621679093775"><span class="hs-identifier hs-var">creat</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679093779"><span class="annot"><span class="annottext">mode_w :: FileMode
+</span><a href="#local-6989586621679093779"><span class="hs-identifier hs-var">mode_w</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe FileMode
+</span><a href="#local-6989586621679093782"><span class="hs-identifier hs-var">maybe_mode</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-51"></span><span>                        </span><span class="annot"><span class="hs-identifier hs-type">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span class="annot"><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>                        </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679093774"><span class="annot"><span class="annottext">x :: FileMode
+</span><a href="#local-6989586621679093774"><span class="hs-identifier hs-var">x</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="annottext">Flags
+</span><a href="System.Posix.Directory.Foreign.html#oCreat"><span class="hs-identifier hs-var">oCreat</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">FileMode
+</span><a href="#local-6989586621679093774"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span>    </span><span id="local-6989586621679093776"><span class="annot"><span class="annottext">open_mode :: Flags
+</span><a href="#local-6989586621679093776"><span class="hs-identifier hs-var hs-var">open_mode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">OpenMode
+</span><a href="#local-6989586621679093784"><span class="hs-identifier hs-var">how</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-55"></span><span>                   </span><span class="annot"><span class="hs-identifier hs-type">Posix.ReadOnly</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Flags
+</span><a href="System.Posix.Directory.Foreign.html#oRdonly"><span class="hs-identifier hs-var">oRdonly</span></a></span><span>
+</span><span id="line-56"></span><span>                   </span><span class="annot"><span class="hs-identifier hs-type">Posix.WriteOnly</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Flags
+</span><a href="System.Posix.Directory.Foreign.html#oWronly"><span class="hs-identifier hs-var">oWronly</span></a></span><span>
+</span><span id="line-57"></span><span>                   </span><span class="annot"><span class="hs-identifier hs-type">Posix.ReadWrite</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Flags
+</span><a href="System.Posix.Directory.Foreign.html#oRdwr"><span class="hs-identifier hs-var">oRdwr</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- |Open and optionally create this file. See 'System.Posix.Files'</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- for information on how to use the 'FileMode' type.</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- Note that passing @Just x@ as the 4th argument triggers the</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- `oCreat` status flag, which must be set when you pass in `oExcl`</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- to the status flags. Also see the manpage for @open(2)@.</span><span>
+</span><span id="line-66"></span><span class="annot"><a href="System.Posix.FD.html#openFd"><span class="hs-identifier hs-type">openFd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">RawFilePath</span></span><span>
+</span><span id="line-67"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Posix.OpenMode</span></span><span>
+</span><span id="line-68"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span class="hs-special">]</span><span>               </span><span class="hs-comment">-- ^ status flags of @open(2)@</span><span>
+</span><span id="line-69"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Posix.FileMode</span></span><span>  </span><span class="hs-comment">-- ^ @Just x@ =&gt; creates the file with the given modes, Nothing =&gt; the file must exist.</span><span>
+</span><span id="line-70"></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Posix.Fd</span></span><span>
+</span><span id="line-71"></span><span id="openFd"><span class="annot"><span class="annottext">openFd :: RawFilePath -&gt; OpenMode -&gt; [Flags] -&gt; Maybe FileMode -&gt; IO Fd
+</span><a href="System.Posix.FD.html#openFd"><span class="hs-identifier hs-var hs-var">openFd</span></a></span></span><span> </span><span id="local-6989586621679093766"><span class="annot"><span class="annottext">name :: RawFilePath
+</span><a href="#local-6989586621679093766"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621679093765"><span class="annot"><span class="annottext">how :: OpenMode
+</span><a href="#local-6989586621679093765"><span class="hs-identifier hs-var">how</span></a></span></span><span> </span><span id="local-6989586621679093764"><span class="annot"><span class="annottext">optional_flags :: [Flags]
+</span><a href="#local-6989586621679093764"><span class="hs-identifier hs-var">optional_flags</span></a></span></span><span> </span><span id="local-6989586621679093763"><span class="annot"><span class="annottext">maybe_mode :: Maybe FileMode
+</span><a href="#local-6989586621679093763"><span class="hs-identifier hs-var">maybe_mode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-72"></span><span>   </span><span class="annot"><span class="annottext">RawFilePath -&gt; (CString -&gt; IO Fd) -&gt; IO Fd
+forall a. RawFilePath -&gt; (CString -&gt; IO a) -&gt; IO a
+</span><span class="hs-identifier hs-var">withFilePath</span></span><span> </span><span class="annot"><span class="annottext">RawFilePath
+</span><a href="#local-6989586621679093766"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">((CString -&gt; IO Fd) -&gt; IO Fd) -&gt; (CString -&gt; IO Fd) -&gt; IO Fd
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679093761"><span class="annot"><span class="annottext">str :: CString
+</span><a href="#local-6989586621679093761"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-73"></span><span>     </span><span class="annot"><span class="annottext">String -&gt; RawFilePath -&gt; IO Fd -&gt; IO Fd
+forall a. (Eq a, Num a) =&gt; String -&gt; RawFilePath -&gt; IO a -&gt; IO a
+</span><span class="hs-identifier hs-var">throwErrnoPathIfMinus1Retry</span></span><span> </span><span class="annot"><span class="hs-string">&quot;openFd&quot;</span></span><span> </span><span class="annot"><span class="annottext">RawFilePath
+</span><a href="#local-6989586621679093766"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">(IO Fd -&gt; IO Fd) -&gt; IO Fd -&gt; IO Fd
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-74"></span><span>       </span><span class="annot"><span class="annottext">CString -&gt; OpenMode -&gt; [Flags] -&gt; Maybe FileMode -&gt; IO Fd
+</span><a href="System.Posix.FD.html#open_"><span class="hs-identifier hs-var">open_</span></a></span><span> </span><span class="annot"><span class="annottext">CString
+</span><a href="#local-6989586621679093761"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="annot"><span class="annottext">OpenMode
+</span><a href="#local-6989586621679093765"><span class="hs-identifier hs-var">how</span></a></span><span> </span><span class="annot"><span class="annottext">[Flags]
+</span><a href="#local-6989586621679093764"><span class="hs-identifier hs-var">optional_flags</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe FileMode
+</span><a href="#local-6989586621679093763"><span class="hs-identifier hs-var">maybe_mode</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span></pre></body></html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LINE 1 &quot;src/System/Posix/Directory/Foreign.hsc&quot; #-}</span><span>
+</span><span id="line-1"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Posix.Directory.Foreign</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">foldl'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.C.Types</span></span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">newtype</span><span> </span><span id="DirType"><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="DirType"><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679093733"><span id="local-6989586621679093735"><span class="annot"><span class="annottext">DirType -&gt; DirType -&gt; Bool
+(DirType -&gt; DirType -&gt; Bool)
+-&gt; (DirType -&gt; DirType -&gt; Bool) -&gt; Eq DirType
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: DirType -&gt; DirType -&gt; Bool
+$c/= :: DirType -&gt; DirType -&gt; Bool
+== :: DirType -&gt; DirType -&gt; Bool
+$c== :: DirType -&gt; DirType -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679093726"><span id="local-6989586621679093728"><span id="local-6989586621679093730"><span class="annot"><span class="annottext">Int -&gt; DirType -&gt; ShowS
+[DirType] -&gt; ShowS
+DirType -&gt; String
+(Int -&gt; DirType -&gt; ShowS)
+-&gt; (DirType -&gt; String) -&gt; ([DirType] -&gt; ShowS) -&gt; Show DirType
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [DirType] -&gt; ShowS
+$cshowList :: [DirType] -&gt; ShowS
+show :: DirType -&gt; String
+$cshow :: DirType -&gt; String
+showsPrec :: Int -&gt; DirType -&gt; ShowS
+$cshowsPrec :: Int -&gt; DirType -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">data</span><span> </span><span id="Flags"><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Flags"><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="UnsupportedFlag"><span class="annot"><a href="System.Posix.Directory.Foreign.html#UnsupportedFlag"><span class="hs-identifier hs-var">UnsupportedFlag</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679093719"><span id="local-6989586621679093721"><span class="annot"><span class="annottext">Flags -&gt; Flags -&gt; Bool
+(Flags -&gt; Flags -&gt; Bool) -&gt; (Flags -&gt; Flags -&gt; Bool) -&gt; Eq Flags
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Flags -&gt; Flags -&gt; Bool
+$c/= :: Flags -&gt; Flags -&gt; Bool
+== :: Flags -&gt; Flags -&gt; Bool
+$c== :: Flags -&gt; Flags -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679093713"><span id="local-6989586621679093715"><span id="local-6989586621679093717"><span class="annot"><span class="annottext">Int -&gt; Flags -&gt; ShowS
+[Flags] -&gt; ShowS
+Flags -&gt; String
+(Int -&gt; Flags -&gt; ShowS)
+-&gt; (Flags -&gt; String) -&gt; ([Flags] -&gt; ShowS) -&gt; Show Flags
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Flags] -&gt; ShowS
+$cshowList :: [Flags] -&gt; ShowS
+show :: Flags -&gt; String
+$cshow :: Flags -&gt; String
+showsPrec :: Int -&gt; Flags -&gt; ShowS
+$cshowsPrec :: Int -&gt; Flags -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#unFlags"><span class="hs-identifier hs-type">unFlags</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-18"></span><span id="unFlags"><span class="annot"><span class="annottext">unFlags :: Flags -&gt; Int
+</span><a href="System.Posix.Directory.Foreign.html#unFlags"><span class="hs-identifier hs-var hs-var">unFlags</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span> </span><span id="local-6989586621679093711"><span class="annot"><span class="annottext">i :: Int
+</span><a href="#local-6989586621679093711"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679093711"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-19"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#unFlags"><span class="hs-identifier hs-var">unFlags</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="System.Posix.Directory.Foreign.html#UnsupportedFlag"><span class="hs-identifier hs-type">UnsupportedFlag</span></a></span><span> </span><span id="local-6989586621679093710"><span class="annot"><span class="annottext">name :: String
+</span><a href="#local-6989586621679093710"><span class="hs-identifier hs-var">name</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Int
+forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679093710"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="hs-string">&quot; is not supported on this platform&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- |Returns @True@ if posix-paths was compiled with support for the provided</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- flag. (As of this writing, the only flag for which this check may be</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- necessary is 'oCloexec'; all other flags will always yield @True@.)</span><span>
+</span><span id="line-24"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#isSupported"><span class="hs-identifier hs-type">isSupported</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-25"></span><span id="isSupported"><span class="annot"><span class="annottext">isSupported :: Flags -&gt; Bool
+</span><a href="System.Posix.Directory.Foreign.html#isSupported"><span class="hs-identifier hs-var hs-var">isSupported</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span> </span><span class="hs-identifier">_</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-26"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#isSupported"><span class="hs-identifier hs-var">isSupported</span></a></span><span> </span><span class="hs-identifier">_</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- |@O_CLOEXEC@ is not supported on every POSIX platform. Use</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- @'isSupported' oCloexec@ to determine if support for @O_CLOEXEC@ was</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- compiled into your version of posix-paths. (If not, using @oCloexec@ will</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- throw an exception.)</span><span>
+</span><span id="line-32"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oCloexec"><span class="hs-identifier hs-type">oCloexec</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span id="oCloexec"><span class="annot"><span class="annottext">oCloexec :: Flags
+</span><a href="System.Posix.Directory.Foreign.html#oCloexec"><span class="hs-pragma hs-var hs-var">{-# LINE 34 &quot;src/System/Posix/Directory/Foreign.hsc&quot; #-}</span></a></span></span><span>
+</span><span id="line-34"></span><span class="hs-identifier">oCloexec</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">524288</span><span>
+</span><span id="line-35"></span><span class="hs-pragma">{-# LINE 35 &quot;src/System/Posix/Directory/Foreign.hsc&quot; #-}</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-pragma">{-# LINE 40 &quot;src/System/Posix/Directory/Foreign.hsc&quot; #-}</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- If these enum declarations occur earlier in the file, haddock</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- gets royally confused about the above doc comments.</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- Probably http://trac.haskell.org/haddock/ticket/138</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#dtBlk"><span class="hs-identifier hs-type">dtBlk</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-48"></span><span id="dtBlk"><span class="annot"><span class="annottext">dtBlk :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#dtBlk"><span class="hs-identifier hs-var hs-var">dtBlk</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; DirType
+</span><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span><span> </span><span class="annot"><span class="hs-number">6</span></span><span>
+</span><span id="line-49"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#dtChr"><span class="hs-identifier hs-type">dtChr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-50"></span><span id="oAppend"><span id="dtChr"><span class="annot"><span class="annottext">dtChr :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#dtChr"><span class="hs-identifier hs-var hs-var">dtChr</span></a></span></span><span> </span><span class="hs-glyph">=</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; DirType
+</span><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#dtDir"><span class="hs-identifier hs-type">dtDir</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-52"></span><span id="pathMax"><span id="oAsync"><span id="dtDir"><span class="annot"><span class="annottext">dtDir :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#dtDir"><span class="hs-identifier hs-var hs-var">dtDir</span></a></span></span><span> </span></span><span class="hs-glyph">=</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; DirType
+</span><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span><span> </span><span class="annot"><span class="hs-number">4</span></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oCreat"><span class="hs-identifier hs-type hs-type">dtFifo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-54"></span><span id="oCreat"><span id="dtFifo"><span class="annot"><span class="annottext">oCreat :: Flags
+dtFifo :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#oCreat"><span class="hs-identifier hs-var hs-var hs-var hs-var">dtFifo</span></a></span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">DirType</span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-55"></span><span id="unionFlags"><span class="annot"><a href="System.Posix.Directory.Foreign.html#dtLnk"><span class="hs-identifier hs-type">dtLnk</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-56"></span><span id="oDirectory"><span id="dtLnk"><span class="annot"><span class="annottext">dtLnk :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#dtLnk"><span class="hs-identifier hs-var hs-var">dtLnk</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span></span><span class="annot"><span class="annottext">Int -&gt; DirType
+</span><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span><span> </span><span class="annot"><span class="hs-number">10</span></span><span>
+</span><span id="line-57"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oExcl"><span class="hs-identifier hs-type hs-type">dtReg</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-58"></span><span id="oExcl"><span id="dtReg"><span class="annot"><span class="annottext">oExcl :: Flags
+dtReg :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#oExcl"><span class="hs-identifier hs-var hs-var hs-var hs-var">dtReg</span></a></span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; DirType
+</span><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span><span> </span><span class="annot"><span class="hs-number">8</span></span><span>
+</span><span id="line-59"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#dtSock"><span class="hs-identifier hs-type">dtSock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-60"></span><span id="oNoctty"><span id="dtSock"><span class="annot"><span class="annottext">dtSock :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#dtSock"><span class="hs-identifier hs-var hs-var">dtSock</span></a></span></span><span> </span></span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; DirType
+</span><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span><span> </span><span class="annot"><span class="hs-number">12</span></span><span>
+</span><span id="line-61"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oNofollow"><span class="hs-identifier hs-type hs-type">dtUnknown</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-type">DirType</span></a></span><span>
+</span><span id="line-62"></span><span id="oNofollow"><span id="dtUnknown"><span class="annot"><span class="annottext">oNofollow :: Flags
+dtUnknown :: DirType
+</span><a href="System.Posix.Directory.Foreign.html#oNofollow"><span class="hs-identifier hs-var hs-var hs-var hs-var">dtUnknown</span></a></span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; DirType
+</span><a href="System.Posix.Directory.Foreign.html#DirType"><span class="hs-identifier hs-var">DirType</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span id="oNonblock"><span class="hs-pragma">{-# LINE 48 &quot;src/System/Posix/Directory/Foreign.hsc&quot; #-}</span></span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-identifier">oAppend</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-50"></span><span class="hs-identifier">oAppend</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">1024</span><span>
+</span><span id="line-51"></span><span class="hs-identifier">oAsync</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-52"></span><span class="hs-identifier">oAsync</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">8192</span><span>
+</span><span id="line-53"></span><span class="hs-identifier">oCreat</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-54"></span><span class="hs-identifier">oCreat</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">64</span><span>
+</span><span id="line-55"></span><span class="hs-identifier">oDirectory</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-56"></span><span class="hs-identifier">oDirectory</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">65536</span><span>
+</span><span id="line-57"></span><span class="hs-identifier">oExcl</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-58"></span><span class="hs-identifier">oExcl</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">128</span><span>
+</span><span id="line-59"></span><span class="hs-identifier">oNoctty</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-60"></span><span class="hs-identifier">oNoctty</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">256</span><span>
+</span><span id="line-61"></span><span class="hs-identifier">oNofollow</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-62"></span><span class="hs-identifier">oNofollow</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">131072</span><span>
+</span><span id="line-63"></span><span class="hs-identifier">oNonblock</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Flags</span><span>
+</span><span id="line-64"></span><span class="hs-identifier">oNonblock</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Flags</span><span> </span><span class="hs-number">2048</span><span>
+</span><span id="line-65"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oRdonly"><span class="hs-identifier hs-type">oRdonly</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span>
+</span><span id="line-66"></span><span id="oRdonly"><span class="annot"><span class="annottext">oRdonly :: Flags
+</span><a href="System.Posix.Directory.Foreign.html#oRdonly"><span class="hs-identifier hs-var hs-var">oRdonly</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Flags
+</span><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span><span> </span><span class="annot"><span class="hs-number">0</span></span><span>
+</span><span id="line-67"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oWronly"><span class="hs-identifier hs-type">oWronly</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span>
+</span><span id="line-68"></span><span id="oWronly"><span class="annot"><span class="annottext">oWronly :: Flags
+</span><a href="System.Posix.Directory.Foreign.html#oWronly"><span class="hs-identifier hs-var hs-var">oWronly</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Flags
+</span><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span><span> </span><span class="annot"><span class="hs-number">1</span></span><span>
+</span><span id="line-69"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oRdwr"><span class="hs-identifier hs-type">oRdwr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span>
+</span><span id="line-70"></span><span id="oRdwr"><span class="annot"><span class="annottext">oRdwr :: Flags
+</span><a href="System.Posix.Directory.Foreign.html#oRdwr"><span class="hs-identifier hs-var hs-var">oRdwr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Flags
+</span><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span><span> </span><span class="annot"><span class="hs-number">2</span></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oSync"><span class="hs-identifier hs-type">oSync</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span>
+</span><span id="line-72"></span><span id="oSync"><span class="annot"><span class="annottext">oSync :: Flags
+</span><a href="System.Posix.Directory.Foreign.html#oSync"><span class="hs-identifier hs-var hs-var">oSync</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Flags
+</span><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span><span> </span><span class="annot"><span class="hs-number">1052672</span></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="System.Posix.Directory.Foreign.html#oTrunc"><span class="hs-identifier hs-type">oTrunc</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-type">Flags</span></a></span><span>
+</span><span id="line-74"></span><span id="oTrunc"><span class="annot"><span class="annottext">oTrunc :: Flags
+</span><a href="System.Posix.Directory.Foreign.html#oTrunc"><span class="hs-identifier hs-var hs-var">oTrunc</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Flags
+</span><a href="System.Posix.Directory.Foreign.html#Flags"><span class="hs-identifier hs-var">Flags</span></a></span><span> </span><span class="annot"><span class="hs-number">512</span></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-pragma">{-# LINE 50 &quot;src/System/Posix/Directory/Foreign.hsc&quot; #-}</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-identifier">pathMax</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">Int</span><span>
+</span><span id="line-52"></span><span class="hs-identifier">pathMax</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-number">4096</span><span>
+</span><span id="line-53"></span><span class="hs-pragma">{-# LINE 53 &quot;src/System/Posix/Directory/Foreign.hsc&quot; #-}</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-identifier">unionFlags</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-identifier">Flags</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">CInt</span><span>
+</span><span id="line-55"></span><span class="hs-identifier">unionFlags</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">fromIntegral</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">foldl'</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-operator">.</span><span> </span><span class="hs-identifier">unFlags</span><span class="hs-special">)</span><span> </span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="hs-operator">.|.</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-number">0</span><span>
+</span><span id="line-56"></span></pre></body></html>
