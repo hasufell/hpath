@@ -17,7 +17,7 @@ main :: IO ()
 main = do
   tmpBase <- mkdtemp "/tmp/"
   writeIORef baseTmpDir (Just (tmpBase `BS.append` "/"))
-  putStrLn $ ("Temporary test directory at: " <> show tmpBase)
+  putStrLn $ ("Temporary test directory at: " ++ show tmpBase)
   hspecWith
     defaultConfig { configFormatter = Just progress }
     $ afterAll_ deleteBaseTmpDir
