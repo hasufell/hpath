@@ -35,7 +35,7 @@ library
                    , bytestring >= 0.10.0.0
                    , deepseq
                    , exceptions
-                   , hpath-filepath
+                   , hpath-filepath >= 0.10 && < 0.11
                    , word8
 
 source-repository head
