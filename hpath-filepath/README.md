@@ -4,6 +4,8 @@
 
 Support for bytestring based filepath manipulation, similar to 'filepath'.
 
+This package is part of the HPath suite, also check out [hpath](https://hackage.haskell.org/package/hpath) and [hpath-io](https://hackage.haskell.org/package/hpath-io).
+
 ## Motivation
 
 This is basically a fork of [posix-paths](https://github.com/JohnLato/posix-paths), which seemed to have stalled development.

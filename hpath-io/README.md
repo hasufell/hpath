@@ -4,6 +4,8 @@
 
 High-level IO operations on files/directories, utilizing type-safe Paths.
 
+This package is part of the HPath suite, also check out [hpath](https://hackage.haskell.org/package/hpath) and [hpath-filepath](https://hackage.haskell.org/package/hpath-filepath).
+
 ## Motivation
 
 The motivation came during development of
