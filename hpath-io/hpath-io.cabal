@@ -1,5 +1,5 @@
 name:                hpath-io
-version:             0.9.3
+version:             0.10.0
 synopsis:            High-level IO operations on files/directories
 description:         High-level IO operations on files/directories, utilizing type-safe Paths
 -- bug-reports:
