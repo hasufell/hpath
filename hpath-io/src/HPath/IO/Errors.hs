@@ -149,9 +149,9 @@ toConstr RecursiveFailure {}    = "RecursiveFailure"
 
 
 isSameFile, isDestinationInSource, isRecursiveFailure :: HPathIOException -> Bool
-isSameFile ex = toConstr (ex :: HPathIOException) == toConstr SameFile{}
-isDestinationInSource ex = toConstr (ex :: HPathIOException) == toConstr DestinationInSource{}
-isRecursiveFailure ex = toConstr (ex :: HPathIOException) == toConstr RecursiveFailure{}
+isSameFile ex = toConstr (ex :: HPathIOException) == toConstr (SameFile mempty mempty)
+isDestinationInSource ex = toConstr (ex :: HPathIOException) == (toConstr $ DestinationInSource mempty mempty)
+isRecursiveFailure ex = toConstr (ex :: HPathIOException) == (toConstr $ RecursiveFailure mempty)
 
 
 isReadContentsFailed, isCreateDirFailed, isCopyFileFailed, isRecreateSymlinkFailed ::RecursiveFailureHint -> Bool

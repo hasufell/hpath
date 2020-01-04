@@ -39,10 +39,6 @@ import System.IO.Unsafe
     unsafePerformIO
   )
 import qualified System.Posix.Directory.Traversals as DT
-import System.Posix.Env.ByteString
-  (
-    getEnv
-  )
 import Data.ByteString
   (
     ByteString
@@ -61,18 +57,14 @@ import System.Posix.Files.ByteString
   , unionFileModes
   )
 
-import qualified "unix" System.Posix.IO.ByteString as SPI
-import qualified "unix-bytestring" System.Posix.IO.ByteString as SPB
+baseTmpDir :: IORef (Maybe ByteString)
+{-# NOINLINE baseTmpDir #-}
+baseTmpDir = unsafePerformIO (newIORef Nothing)
 
 
-
-baseTmpDir :: ByteString
-baseTmpDir = "test/HPath/IO/tmp/"
-
-
-tmpDir :: IORef ByteString
+tmpDir :: IORef (Maybe ByteString)
 {-# NOINLINE tmpDir #-}
-tmpDir = unsafePerformIO (newIORef baseTmpDir)
+tmpDir = unsafePerformIO (newIORef Nothing)
 
 
 
@@ -83,49 +75,39 @@ tmpDir = unsafePerformIO (newIORef baseTmpDir)
 
 setTmpDir :: ByteString -> IO ()
 {-# NOINLINE setTmpDir #-}
-setTmpDir bs = writeIORef tmpDir (baseTmpDir `BS.append` bs)
+setTmpDir bs = do
+  tmp <- fromJust <$> readIORef baseTmpDir
+  writeIORef tmpDir (Just (tmp `BS.append` bs))
 
 
 createTmpDir :: IO ()
 {-# NOINLINE createTmpDir #-}
 createTmpDir = do
-  pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-  tmp <- P.parseRel =<< readIORef tmpDir
-  void $ createDir newDirPerms (pwd P.</> tmp)
+  tmp <- P.parseAbs =<< (fromJust <$> readIORef tmpDir)
+  void $ createDir newDirPerms tmp
 
 
 deleteTmpDir :: IO ()
 {-# NOINLINE deleteTmpDir #-}
 deleteTmpDir = do
-  pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-  tmp <- P.parseRel  =<< readIORef tmpDir
-  void $ deleteDir (pwd P.</> tmp)
-
-
-createBaseTmpDir :: IO ()
-{-# NOINLINE createBaseTmpDir #-}
-createBaseTmpDir = do
-  pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-  tmp <- P.parseRel baseTmpDir
-  void $ createDir newDirPerms (pwd P.</> tmp)
+  tmp <- P.parseAbs  =<< (fromJust <$> readIORef tmpDir)
+  void $ deleteDir tmp
 
 
 deleteBaseTmpDir :: IO ()
 {-# NOINLINE deleteBaseTmpDir #-}
 deleteBaseTmpDir = do
-  pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-  tmp <- P.parseRel baseTmpDir
-  contents <- getDirsFiles (pwd P.</> tmp)
+  tmp <- (fromJust <$> readIORef baseTmpDir) >>= P.parseAbs
+  contents <- getDirsFiles tmp
   forM_ contents deleteDir
-  void $ deleteDir (pwd P.</> tmp)
+  void $ deleteDir tmp
 
 
 withRawTmpDir :: (P.Path P.Abs -> IO a) -> IO a
 {-# NOINLINE withRawTmpDir #-}
 withRawTmpDir f = do
-  pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-  tmp <- P.parseRel =<< readIORef tmpDir
-  f (pwd P.</> tmp)
+  tmp <- P.parseAbs =<< (fromJust <$> readIORef tmpDir)
+  f tmp
 
 
 getRawTmpDir :: IO ByteString
@@ -136,9 +118,8 @@ getRawTmpDir = withRawTmpDir (return . flip BS.append "/" . P.fromAbs)
 withTmpDir :: ByteString -> (P.Path P.Abs -> IO a) -> IO a
 {-# NOINLINE withTmpDir #-}
 withTmpDir ip f = do
-  pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-  tmp <- P.parseRel =<< readIORef tmpDir
-  p <- (pwd P.</> tmp P.</>) <$> P.parseRel ip
+  tmp <- P.parseAbs =<< (fromJust <$> readIORef tmpDir)
+  p <- (tmp P.</>) <$> P.parseRel ip
   f p
 
 
@@ -148,10 +129,9 @@ withTmpDir' :: ByteString
             -> IO a
 {-# NOINLINE withTmpDir' #-}
 withTmpDir' ip1 ip2 f = do
-  pwd <- fromJust <$> getEnv "PWD" >>= P.parseAbs
-  tmp <- P.parseRel =<< readIORef tmpDir
-  p1 <- (pwd P.</> tmp P.</>) <$> P.parseRel ip1
-  p2 <- (pwd P.</> tmp P.</>) <$> P.parseRel ip2
+  tmp <- P.parseAbs =<< (fromJust <$> readIORef tmpDir)
+  p1 <- (tmp P.</>) <$> P.parseRel ip1
+  p2 <- (tmp P.</>) <$> P.parseRel ip2
   f p1 p2
 
 

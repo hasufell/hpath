@@ -18,5 +18,4 @@ fi
 
 set -x
 
-cabal exec doctest -- -isrc -XOverloadedStrings System.Posix.FilePath
-cabal exec doctest -- -isrc -XOverloadedStrings HPath
+cabal exec doctest -- -ihpath-filepath/src -XOverloadedStrings System.Posix.FilePath
