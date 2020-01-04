@@ -106,7 +106,8 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         FailEarly
       (system $ "diff -r --no-dereference "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
-                          ++ toString tmpDir' ++ "outputDir")
+                          ++ toString tmpDir' ++ "outputDir"
+                          ++ " >/dev/null")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 
@@ -114,7 +115,8 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       tmpDir' <- getRawTmpDir
       (system $ "diff -r --no-dereference "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
-                          ++ toString tmpDir' ++ "alreadyExistsD")
+                          ++ toString tmpDir' ++ "alreadyExistsD"
+                          ++ " >/dev/null")
         `shouldReturn` (ExitFailure 1)
       copyDirRecursive' "inputDir"
                         "alreadyExistsD"
@@ -122,7 +124,8 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         FailEarly
       (system $ "diff -r --no-dereference "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
-                          ++ toString tmpDir' ++ "alreadyExistsD")
+                          ++ toString tmpDir' ++ "alreadyExistsD"
+                          ++ " >/dev/null")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 

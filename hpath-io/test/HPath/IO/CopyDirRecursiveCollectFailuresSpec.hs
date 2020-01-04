@@ -127,7 +127,8 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         CollectFailures
       (system $ "diff -r --no-dereference "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
-                          ++ toString tmpDir' ++ "outputDir")
+                          ++ toString tmpDir' ++ "outputDir"
+                          ++ " >/dev/null")
         `shouldReturn` ExitSuccess
       removeDirIfExists "outputDir"
 

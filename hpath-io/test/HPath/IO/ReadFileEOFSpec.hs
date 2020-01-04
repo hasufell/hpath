@@ -13,7 +13,6 @@ import GHC.IO.Exception
   (
     IOErrorType(..)
   )
-import System.Process
 import Utils
 
 

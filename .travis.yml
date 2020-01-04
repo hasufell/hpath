@@ -17,7 +17,7 @@ matrix:
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.4.4], sources: [hvr-ghc]}}
     - env: CABALVER=3.0 GHCVER=8.6.5
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.6.5], sources: [hvr-ghc]}}
-    - env: CABALVER=3.0 GHCVER=8.8.1 UPDATE_GH_PAGES=yes
+    - env: CABALVER=3.0 GHCVER=8.8.1
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.8.1], sources: [hvr-ghc]}}
     - env: CABALVER=head GHCVER=head
       addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
@@ -40,16 +40,16 @@ install:
  - cabal install --installdir=$HOME/.cabal/bin doctest
 
 script:
- - cabal build --enable-tests
- - cabal test
- - ./run-doctests.sh
- - cabal check
- - cabal sdist
- - cabal haddock --haddock-hyperlink-source --haddock-html-location=https://hackage.haskell.org/package/\$pkg-\$version/docs/
- - cabal install --lib
-
-after_script:
-    - ./update-gh-pages.sh
+ - cabal build --enable-tests all
+ - cabal test all
+ - ./hpath/run-doctests.sh
+ - ./hpath-filepath/run-doctests.sh
+ - (cd hpath && cabal check)
+ - (cd hpath-filepath && cabal check)
+ - (cd hpath-io && cabal check)
+ - cabal sdist all
+ - cabal haddock --haddock-hyperlink-source --haddock-html-location=https://hackage.haskell.org/package/\$pkg-\$version/docs/ all
+ - cabal install --lib all
 
 notifications:
   email:
