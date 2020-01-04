@@ -2,3 +2,9 @@ packages: ./hpath
           ./hpath-filepath
           ./hpath-io
 
+package hpath-io
+    ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
+
+-- https://github.com/composewell/streamly/blob/master/docs/Build.md
+package streamly
+    ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
