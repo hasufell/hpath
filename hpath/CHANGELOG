@@ -1,3 +1,5 @@
+0.10.0
+	* split packages, this one now just contains the type-safe Path wrappers
 0.9.2
 	* fix build with ghc-7.6
 	* raise required bytestring version
