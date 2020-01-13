@@ -36,4 +36,3 @@ Note: this library was written for __posix__ systems and it will probably not su
 * allows pattern matching via unidirectional PatternSynonym
 * uses simple doctest for testing
 * allows `~/` as relative path, because on posix level `~` is just a regular filename that does _NOT_ point to `$HOME`
-* remove TH, it sucks

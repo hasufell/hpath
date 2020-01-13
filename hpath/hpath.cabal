@@ -36,6 +36,8 @@ library
                    , deepseq
                    , exceptions
                    , hpath-filepath >= 0.10 && < 0.11
+                   , template-haskell
+                   , utf8-string
                    , word8
 
 source-repository head

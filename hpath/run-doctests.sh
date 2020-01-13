@@ -18,4 +18,4 @@ fi
 
 set -x
 
-cabal exec doctest -- -ihpath/src -XOverloadedStrings HPath
+cabal exec doctest -- -ihpath/src -XOverloadedStrings -XQuasiQuotes HPath

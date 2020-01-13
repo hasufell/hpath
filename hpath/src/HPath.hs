@@ -16,6 +16,8 @@
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE PatternSynonyms #-}
 #endif
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module HPath
   (
@@ -50,6 +52,10 @@ module HPath
   ,withAbsPath
   ,withRelPath
   ,withFnPath
+  -- * Quasiquoters
+  ,abs
+  ,rel
+  ,fn
   )
   where
 
@@ -62,10 +68,15 @@ import           Data.ByteString(ByteString)
 import qualified Data.List as L
 #endif
 import qualified Data.ByteString as BS
+import           Data.ByteString.UTF8
 import           Data.Data
 import           Data.Maybe
 import           Data.Word8
 import           HPath.Internal
+import           Language.Haskell.TH
+import           Language.Haskell.TH.Syntax (Exp(..), Lift(..), lift)
+import           Language.Haskell.TH.Quote (QuasiQuoter(..))
+import           Prelude hiding (abs)
 import           System.Posix.FilePath hiding ((</>))
 
 
@@ -374,3 +385,63 @@ withFnPath (MkPath p) action = action p
 stripPrefix :: ByteString -> ByteString -> Maybe ByteString
 stripPrefix a b = BS.pack `fmap` L.stripPrefix (BS.unpack a) (BS.unpack b)
 #endif
+
+
+------------------------
+-- QuasiQuoters
+
+instance Lift (Path a) where
+  lift (MkPath bs) = AppE <$> [| MkPath . BS.pack |] <*> lift (BS.unpack bs)
+
+
+qq :: (ByteString -> Q Exp) -> QuasiQuoter
+qq quoteExp' =
+  QuasiQuoter
+  { quoteExp  = (\s -> quoteExp' . fromString $ s)
+  , quotePat  = \_ ->
+      fail "illegal QuasiQuote (allowed as expression only, used as a pattern)"
+  , quoteType = \_ ->
+      fail "illegal QuasiQuote (allowed as expression only, used as a type)"
+  , quoteDec  = \_ ->
+      fail "illegal QuasiQuote (allowed as expression only, used as a declaration)"
+  }
+
+mkAbs :: ByteString -> Q Exp
+mkAbs = either (error . show) lift . parseAbs
+
+mkRel :: ByteString -> Q Exp
+mkRel = either (error . show) lift . parseRel
+
+mkFN :: ByteString -> Q Exp
+mkFN = either (error . show) lift . parseFn
+
+-- | Quasiquote an absolute Path. This accepts Unicode Chars and will encode as UTF-8.
+--
+-- >>> [abs|/etc/profile|] :: Path Abs
+-- "/etc/profile"
+-- >>> [abs|/|] :: Path Abs
+-- "/"
+-- >>> [abs|/|] :: Path Abs
+-- "/\239\131\144"
+abs :: QuasiQuoter
+abs = qq mkAbs
+
+-- | Quasiquote a relative Path. This accepts Unicode Chars and will encode as UTF-8.
+--
+-- >>> [rel|etc|] :: Path Rel
+-- "etc"
+-- >>> [rel|bar/baz|] :: Path Rel
+-- "bar/baz"
+-- >>> [rel||] :: Path Rel
+-- "\239\131\144"
+rel :: QuasiQuoter
+rel = qq mkRel
+
+-- | Quasiquote a file name. This accepts Unicode Chars and will encode as UTF-8.
+--
+-- >>> [fn|etc|] :: Path Fn
+-- "etc"
+-- >>> [fn||] :: Path Fn
+-- "\239\131\144"
+fn :: QuasiQuoter
+fn = qq mkFN
