@@ -95,7 +95,7 @@ import Control.Applicative
   (
     (<$>)
   )
-import Control.Exception
+import Control.Exception.Safe
   (
     IOException
   , bracket

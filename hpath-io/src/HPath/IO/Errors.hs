@@ -48,7 +48,7 @@ import Control.Applicative
   (
     (<$>)
   )
-import Control.Exception
+import Control.Exception.Safe hiding (handleIOError)
 import Control.Monad
   (
     forM
@@ -96,7 +96,6 @@ import {-# SOURCE #-} HPath.IO
 import System.IO.Error
   (
     alreadyExistsErrorType
-  , catchIOError
   , ioeGetErrorType
   , mkIOError
   )

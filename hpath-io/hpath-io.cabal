@@ -39,6 +39,7 @@ library
                    , bytestring >= 0.10.0.0
                    , hpath >= 0.10 && < 0.11
                    , hpath-filepath >= 0.10 && < 0.11
+                   , safe-exceptions >= 0.1
                    , streamly >= 0.7
                    , unix >= 2.5
                    , unix-bytestring
