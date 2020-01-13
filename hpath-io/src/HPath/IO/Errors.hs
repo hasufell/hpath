@@ -33,10 +33,6 @@ module HPath.IO.Errors
   , throwSameFile
   , sameFile
   , throwDestinationInSource
-  , doesFileExist
-  , doesDirectoryExist
-  , isWritable
-  , canOpenDirectory
 
   -- * Error handling functions
   , catchErrno
@@ -92,6 +88,10 @@ import {-# SOURCE #-} HPath.IO
   (
     canonicalizePath
   , toAbs
+  , doesFileExist
+  , doesDirectoryExist
+  , isWritable
+  , canOpenDirectory
   )
 import System.IO.Error
   (
@@ -240,42 +240,6 @@ throwDestinationInSource (MkPath sbs) dest@(MkPath dbs) = do
               $ PF.getFileStatus sbs
   when (elem sid dids)
        (throwIO $ DestinationInSource dbs sbs)
-
-
--- |Checks if the given file exists and is not a directory.
--- Does not follow symlinks.
-doesFileExist :: Path b -> IO Bool
-doesFileExist (MkPath bs) =
-  handleIOError (\_ -> return False) $ do
-    fs  <- PF.getSymbolicLinkStatus bs
-    return $ not . PF.isDirectory $ fs
-
-
--- |Checks if the given file exists and is a directory.
--- Does not follow symlinks.
-doesDirectoryExist :: Path b -> IO Bool
-doesDirectoryExist (MkPath bs) =
-  handleIOError (\_ -> return False) $ do
-    fs  <- PF.getSymbolicLinkStatus bs
-    return $ PF.isDirectory fs
-
-
--- |Checks whether a file or folder is writable.
-isWritable :: Path b -> IO Bool
-isWritable (MkPath bs) =
-  handleIOError (\_ -> return False) $
-    fileAccess bs False True False
-
-
--- |Checks whether the directory at the given path exists and can be
--- opened. This invokes `openDirStream` which follows symlinks.
-canOpenDirectory :: Path b -> IO Bool
-canOpenDirectory (MkPath bs) =
-  handleIOError (\_ -> return False) $ do
-    bracket (PFD.openDirStream bs)
-            PFD.closeDirStream
-            (\_ -> return ())
-    return True
 
 
 

@@ -73,7 +73,6 @@ test-suite spec
                         HPath.IO.GetFileTypeSpec
                         HPath.IO.MoveFileOverwriteSpec
                         HPath.IO.MoveFileSpec
-                        HPath.IO.ReadFileEOFSpec
                         HPath.IO.ReadFileSpec
                         HPath.IO.RecreateSymlinkOverwriteSpec
                         HPath.IO.RecreateSymlinkSpec

@@ -73,6 +73,12 @@ module HPath.IO
   -- * File permissions
   , newFilePerms
   , newDirPerms
+  -- * File checks
+  , doesExist
+  , doesFileExist
+  , doesDirectoryExist
+  , isWritable
+  , canOpenDirectory
   -- * Directory reading
   , getDirsFiles
   -- * Filetype operations
@@ -191,7 +197,9 @@ import System.Posix.ByteString
 import System.Posix.Directory.ByteString
   (
     createDirectory
+  , closeDirStream
   , getWorkingDirectory
+  , openDirStream
   , removeDirectory
   )
 import System.Posix.Directory.Traversals
@@ -201,6 +209,7 @@ import System.Posix.Directory.Traversals
 import System.Posix.Files.ByteString
   (
     createSymbolicLink
+  , fileAccess
   , fileMode
   , getFdStatus
   , groupExecuteMode
@@ -446,7 +455,9 @@ recreateSymlink symsource@(MkPath symsourceBS) newsym@(MkPath newsymBS) cm
     case cm of
       Strict -> return ()
       Overwrite -> do
-        writable <- toAbs newsym >>= isWritable
+        writable <- toAbs newsym >>= (\p -> do
+                                        e <- doesExist p
+                                        if e then isWritable p else pure False)
         isfile   <- doesFileExist newsym
         isdir    <- doesDirectoryExist newsym
         when (writable && isfile) (deleteFile newsym)
@@ -830,7 +841,10 @@ moveFile from to cm = do
                 easyDelete from
     Overwrite -> do
       ft <- getFileType from
-      writable <- toAbs to >>= isWritable
+      writable <- toAbs to >>= (\p -> do
+                                      e <- doesFileExist p
+                                      if e then isWritable p else pure False)
+
       case ft of
         RegularFile -> do
           exists <- doesFileExist to
@@ -977,6 +991,72 @@ newDirPerms
     `unionFileModes` groupReadMode
     `unionFileModes` otherExecuteMode
     `unionFileModes` otherReadMode
+
+
+
+
+    -------------------
+    --[ File checks ]--
+    -------------------
+
+
+-- |Checks if the given file exists.
+-- Does not follow symlinks.
+--
+-- Only eNOENT is catched (and returns False).
+doesExist :: Path b -> IO Bool
+doesExist (MkPath bs) =
+  catchErrno [eNOENT] (do
+      _  <- PF.getSymbolicLinkStatus bs
+      return $ True)
+    $ return False
+
+
+-- |Checks if the given file exists and is not a directory.
+-- Does not follow symlinks.
+--
+-- Only eNOENT is catched (and returns False).
+doesFileExist :: Path b -> IO Bool
+doesFileExist (MkPath bs) =
+  catchErrno [eNOENT] (do
+      fs  <- PF.getSymbolicLinkStatus bs
+      return $ not . PF.isDirectory $ fs)
+    $ return False
+
+
+-- |Checks if the given file exists and is a directory.
+-- Does not follow symlinks.
+--
+-- Only eNOENT is catched (and returns False).
+doesDirectoryExist :: Path b -> IO Bool
+doesDirectoryExist (MkPath bs) =
+  catchErrno [eNOENT] (do
+      fs  <- PF.getSymbolicLinkStatus bs
+      return $ PF.isDirectory fs)
+    $ return False
+
+
+-- |Checks whether a file or folder is writable.
+--
+-- Only eACCES, eROFS, eTXTBSY, ePERM are catched (and return False).
+--
+-- Throws:
+--
+--     - `NoSuchThing` if the file does not exist
+isWritable :: Path b -> IO Bool
+isWritable (MkPath bs) = fileAccess bs False True False
+
+
+-- |Checks whether the directory at the given path exists and can be
+-- opened. This invokes `openDirStream` which follows symlinks.
+canOpenDirectory :: Path b -> IO Bool
+canOpenDirectory (MkPath bs) =
+  handleIOError (\_ -> return False) $ do
+    bracket (openDirStream bs)
+            closeDirStream
+            (\_ -> return ())
+    return True
+
 
 
 
