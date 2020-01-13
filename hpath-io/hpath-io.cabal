@@ -44,6 +44,8 @@ library
                    , unix >= 2.5
                    , unix-bytestring
                    , utf8-string
+  if !impl(ghc>=7.11)
+    build-depends:     transformers
   hs-source-dirs:      src
   default-language:    Haskell2010
 
