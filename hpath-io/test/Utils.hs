@@ -27,7 +27,6 @@ import Data.IORef
   , IORef
   )
 import HPath.IO
-import HPath.IO.Errors
 import Prelude hiding (appendFile, readFile, writeFile)
 import Data.Maybe
   (
@@ -281,10 +280,5 @@ allDirectoryContents' ip =
 
 readFile' :: ByteString -> IO ByteString
 {-# NOINLINE readFile' #-}
-readFile' p = withTmpDir p readFile
-
-
-readFileEOF' :: ByteString -> IO L.ByteString
-{-# NOINLINE readFileEOF' #-}
-readFileEOF' p = withTmpDir p readFileEOF
+readFile' p = withTmpDir p (fmap L.toStrict . readFile)
 

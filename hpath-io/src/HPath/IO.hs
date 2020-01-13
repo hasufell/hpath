@@ -36,6 +36,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PackageImports #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module HPath.IO
   (
@@ -66,7 +67,7 @@ module HPath.IO
   , moveFile
   -- * File reading
   , readFile
-  , readFileEOF
+  , readFileStream
   -- * File writing
   , writeFile
   , appendFile
@@ -181,8 +182,14 @@ import HPath
 import HPath.Internal
 import HPath.IO.Errors
 import Prelude hiding (appendFile, readFile, writeFile)
+import Streamly
+import Streamly.ByteString
+import qualified Streamly.Data.Fold as FL
+import Streamly.Memory.Array
 import qualified Streamly.FileSystem.Handle as FH
+import qualified Streamly.Internal.Data.Unfold as SU
 import qualified Streamly.Internal.FileSystem.Handle as IFH
+import qualified Streamly.Internal.Memory.ArrayStream as AS
 import qualified Streamly.Prelude as S
 import qualified System.IO as SIO
 import System.IO.Error
@@ -867,19 +874,14 @@ moveFile from to cm = do
     --------------------
 
 
--- |Read the given file at once into memory as a strict ByteString.
+-- |Read the given file *at once* into memory as a lazy ByteString.
 -- Symbolic links are followed, no sanity checks on file size
--- or file type. File must exist.
---
--- Note: the size of the file is determined in advance, as to only
--- have one allocation.
+-- or file type. File must exist. Uses Builders under the hood
+-- (hence lazy ByteString).
 --
 -- Safety/reliability concerns:
 --
---    * since amount of bytes to read is determined in advance,
---      the file might be read partially only if something else is
---      appending to it while reading
---    * the whole file is read into memory!
+--    * the whole file is read into memory, this doesn't read lazily
 --
 -- Throws:
 --
@@ -887,21 +889,15 @@ moveFile from to cm = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFile :: Path b -> IO ByteString
-readFile (MkPath fp) =
-  bracket (openFd fp SPI.ReadOnly [] Nothing) (SPI.closeFd) $ \fd -> do
-    stat <- PF.getFdStatus fd
-    let fsize = PF.fileSize stat
-    SPB.fdRead fd (fromIntegral fsize)
+readFile :: Path b -> IO L.ByteString
+readFile path = do
+  stream <- readFileStream path
+  toLazyByteString <$> S.fold FL.mconcat (fmap byteString stream)
 
 
--- |Read the given file in chunks of size `8192` into memory until
--- `fread` returns 0. Returns a lazy ByteString, because it uses
--- Builders under the hood.
---
--- Safety/reliability concerns:
---
---    * the whole file is read into memory!
+
+-- | Open the given file as a filestream. Once the filestream is
+-- exits, the filehandle is cleaned up.
 --
 -- Throws:
 --
@@ -909,23 +905,13 @@ readFile (MkPath fp) =
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFileEOF :: Path b -> IO L.ByteString
-readFileEOF (MkPath fp) =
-  bracket (openFd fp SPI.ReadOnly [] Nothing) (SPI.closeFd) $ \fd ->
-    allocaBytes (fromIntegral bufSize) $ \buf -> read' fd buf mempty
-  where
-    bufSize :: CSize
-    bufSize = 8192
-    read' :: Fd -> Ptr Word8 -> Builder -> IO L.ByteString
-    read' fd buf builder = do
-        size <- SPB.fdReadBuf fd buf bufSize
-        if size == 0
-          then return $ toLazyByteString builder
-          else do
-            readBS <- unsafePackCStringFinalizer buf
-                                                 (fromIntegral size)
-                                                 (return ())
-            read' fd buf (builder <> byteString readBS)
+readFileStream :: Path b
+               -> IO (SerialT IO ByteString)
+readFileStream (MkPath fp) = do
+  fd <- openFd fp SPI.ReadOnly [] Nothing
+  handle <- SPI.fdToHandle fd
+  let stream = (S.unfold (SU.finally SIO.hClose FH.readChunks) handle) >>= arrayToByteString
+  pure stream
 
 
 

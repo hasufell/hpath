@@ -32,7 +32,7 @@ library
                      System.Posix.FD
   c-sources:         cbits/dirutils.c
 
-  -- other-modules:
+  other-modules:     Streamly.ByteString
   -- other-extensions:
   build-depends:     base >= 4.8 && <5
                    , IfElse
