@@ -18,4 +18,6 @@ fi
 
 set -x
 
-cabal exec doctest -- -ihpath-filepath/src -XOverloadedStrings System.Posix.FilePath
+cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
+
+cabal exec doctest -- -isrc -XOverloadedStrings System.Posix.FilePath

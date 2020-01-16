@@ -18,4 +18,6 @@ fi
 
 set -x
 
-cabal exec doctest -- -ihpath/src -XOverloadedStrings -XQuasiQuotes HPath
+cd "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
+
+cabal exec doctest -- -isrc -XOverloadedStrings -XQuasiQuotes HPath
