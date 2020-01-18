@@ -73,6 +73,7 @@ module System.Posix.FilePath (
 , isAbsolute
 , isValid
 , makeValid
+, isSpecialDirectoryEntry
 , isFileName
 , hasParentDir
 , hiddenFile
@@ -722,6 +723,21 @@ makeValid :: RawFilePath -> RawFilePath
 makeValid path
   | BS.null path = BS.singleton _underscore
   | otherwise    = BS.map (\x -> if x == _nul then _underscore else x) path
+
+
+-- | Is a FilePath valid, i.e. could you create a file like it?
+--
+-- >>> isSpecialDirectoryEntry "."
+-- True
+-- >>> isSpecialDirectoryEntry ".."
+-- True
+-- >>> isSpecialDirectoryEntry "/random_ path:*"
+-- False
+isSpecialDirectoryEntry :: RawFilePath -> Bool
+isSpecialDirectoryEntry filepath
+  | BS.pack [_period, _period] == filepath = True
+  | BS.pack [_period] == filepath          = True
+  | otherwise                              = False
 
 
 -- | Is the given path a valid filename? This includes
