@@ -1,5 +1,20 @@
 # Revision history for hpath-io
 
+## 0.11.0 -- 2020-01-18
+
+* `writeFile` not allows to set file mode and create file if it does not exist (this broke API)
+* added various new functions:
+	* createDirIfMissing
+	* writeFileL (for lazy bytestring)
+	* isReadable
+	* isExecutable
+	* getModificationTime
+	* setModificationTime
+	* setModificationTimeHiRes
+	* getDirsFiles' (returns filenames instead of paths)
+	* withRawFilePath
+	* withHandle
+
 ## 0.10.1 -- 2020-01-13
 
 * Move file check functions to HPath.IO
