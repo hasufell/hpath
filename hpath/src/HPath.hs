@@ -37,6 +37,7 @@ module HPath
   ,parseAbs
   ,parseFn
   ,parseRel
+  ,parseAny
   -- * Path Conversion
   ,fromAbs
   ,fromRel
@@ -56,6 +57,7 @@ module HPath
   ,abs
   ,rel
   ,fn
+  ,any
   )
   where
 
@@ -76,7 +78,7 @@ import           HPath.Internal
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax (Exp(..), Lift(..), lift)
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
-import           Prelude hiding (abs)
+import           Prelude hiding (abs, any)
 import           System.Posix.FilePath hiding ((</>))
 
 
@@ -227,6 +229,40 @@ parseFn filepath =
      else throwM (InvalidFn filepath)
 
 
+-- | Parses a path, whether it's relative or absolute. Will lose
+-- information on whether it's relative or absolute. If you need to know,
+-- reparse it.
+--
+-- Filenames must not contain slashes.
+-- Excludes '.' and '..'.
+--
+-- Throws: 'PathParseException'
+--
+-- >>> parseAny "/abc"       :: Maybe (Path a)
+-- Just "/abc"
+-- >>> parseAny "..."        :: Maybe (Path a)
+-- Just "..."
+-- >>> parseAny "abc/def"    :: Maybe (Path a)
+-- Just "abc/def"
+-- >>> parseAny "abc/def/."  :: Maybe (Path a)
+-- Just "abc/def/"
+-- >>> parseAny "/abc"       :: Maybe (Path a)
+-- Just "/abc"
+-- >>> parseAny ""           :: Maybe (Path a)
+-- Nothing
+-- >>> parseAny "abc/../foo" :: Maybe (Path a)
+-- Nothing
+-- >>> parseAny "."          :: Maybe (Path a)
+-- Nothing
+-- >>> parseAny ".."         :: Maybe (Path a)
+-- Nothing
+parseAny :: MonadThrow m => ByteString -> m (Path a)
+parseAny filepath = case parseAbs filepath of
+  Just (MkPath p) -> pure $ (MkPath p)
+  Nothing         -> case parseRel filepath of
+    Just (MkPath p) -> pure $ (MkPath p)
+    Nothing         -> throwM (InvalidRel filepath)
+
 
 --------------------------------------------------------------------------------
 -- Path Conversion
@@ -242,7 +278,6 @@ fromAbs = toFilePath
 -- | Convert a relative Path to a ByteString type.
 fromRel :: RelC r => Path r -> ByteString
 fromRel = toFilePath
-
 
 
 --------------------------------------------------------------------------------
@@ -415,6 +450,9 @@ mkRel = either (error . show) lift . parseRel
 mkFN :: ByteString -> Q Exp
 mkFN = either (error . show) lift . parseFn
 
+mkAny :: ByteString -> Q Exp
+mkAny = either (error . show) lift . parseAny
+
 -- | Quasiquote an absolute Path. This accepts Unicode Chars and will encode as UTF-8.
 --
 -- >>> [abs|/etc/profile|] :: Path Abs
@@ -445,3 +483,15 @@ rel = qq mkRel
 -- "\239\131\144"
 fn :: QuasiQuoter
 fn = qq mkFN
+
+-- | Quasiquote any path (relative or absolute).
+-- This accepts Unicode Chars and will encode as UTF-8.
+--
+-- >>> [any|/etc/profile|] :: Path a
+-- "/etc/profile"
+-- >>> [any|etc|] :: Path a
+-- "etc"
+-- >>> [any||] :: Path a
+-- "\239\131\144"
+any :: QuasiQuoter
+any = qq mkAny
