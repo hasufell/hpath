@@ -38,6 +38,7 @@ module HPath.IO.Errors
   , catchErrno
   , rethrowErrnoAs
   , handleIOError
+  , hideError
   , bracketeer
   , reactOnError
   )
@@ -281,9 +282,13 @@ handleIOError :: (IOError -> IO a) -> IO a -> IO a
 handleIOError = flip catchIOError
 
 
+hideError :: IOErrorType -> IO () -> IO ()
+hideError err = handleIO (\e -> if err == ioeGetErrorType e then pure () else ioError e)
+
+
 -- |Like `bracket`, but allows to have different clean-up
 -- actions depending on whether the in-between computation
--- has raised an exception or not. 
+-- has raised an exception or not.
 bracketeer :: IO a        -- ^ computation to run first
            -> (a -> IO b) -- ^ computation to run last, when
                           --   no exception was raised

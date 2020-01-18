@@ -8,7 +8,7 @@ import Data.List
     sort
   )
 import qualified HPath as P
-import HPath.IO
+import HPath.IO hiding (getDirsFiles')
 import Test.Hspec
 import System.IO.Error
   (

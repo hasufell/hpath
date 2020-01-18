@@ -60,6 +60,7 @@ module HPath.IO
   -- * File creation
   , createRegularFile
   , createDir
+  , createDirIfMissing
   , createDirRecursive
   , createSymlink
   -- * File renaming/moving
@@ -70,6 +71,7 @@ module HPath.IO
   , readFileStream
   -- * File writing
   , writeFile
+  , writeFileL
   , appendFile
   -- * File permissions
   , newFilePerms
@@ -78,15 +80,24 @@ module HPath.IO
   , doesExist
   , doesFileExist
   , doesDirectoryExist
+  , isReadable
   , isWritable
+  , isExecutable
   , canOpenDirectory
+  -- * File times
+  , getModificationTime
+  , setModificationTime
+  , setModificationTimeHiRes
   -- * Directory reading
   , getDirsFiles
+  , getDirsFiles'
   -- * Filetype operations
   , getFileType
   -- * Others
   , canonicalizePath
   , toAbs
+  , withRawFilePath
+  , withHandle
   )
   where
 
@@ -99,7 +110,9 @@ import Control.Exception.Safe
   (
     IOException
   , bracket
+  , bracketOnError
   , throwIO
+  , finally
   )
 import Control.Monad
   (
@@ -107,6 +120,7 @@ import Control.Monad
   , void
   , when
   )
+import Control.Monad.Catch (MonadThrow(..))
 import Control.Monad.IfElse
   (
     unlessM
@@ -115,6 +129,8 @@ import Data.ByteString
   (
     ByteString
   )
+import           Data.Traversable               ( for )
+import           Data.Functor                   ( ($>) )
 #if MIN_VERSION_bytestring(0,10,2)
 import Data.ByteString.Builder
 #else
@@ -150,6 +166,8 @@ import Data.Monoid
     (<>)
   , mempty
   )
+import Data.Time.Clock
+import Data.Time.Clock.POSIX (getPOSIXTime, posixSecondsToUTCTime, POSIXTime)
 import Data.Word
   (
     Word8
@@ -184,6 +202,7 @@ import HPath.IO.Errors
 import Prelude hiding (appendFile, readFile, writeFile)
 import Streamly
 import Streamly.ByteString
+import qualified Streamly.ByteString.Lazy as SL
 import qualified Streamly.Data.Fold as FL
 import Streamly.Memory.Array
 import qualified Streamly.FileSystem.Handle as FH
@@ -234,6 +253,7 @@ import System.Posix.Files.ByteString
   , setFileMode
   , unionFileModes
   )
+import qualified System.Posix.FilePath as FP
 import qualified System.Posix.Files.ByteString as PF
 import qualified "unix" System.Posix.IO.ByteString as SPI
 import qualified "unix-bytestring" System.Posix.IO.ByteString as SPB
@@ -249,7 +269,9 @@ import System.Posix.Types
     FileMode
   , ProcessID
   , Fd
+  , EpochTime
   )
+import System.Posix.Time
 
 
 
@@ -716,6 +738,17 @@ createRegularFile fm (MkPath destBS) =
 createDir :: FileMode -> Path b -> IO ()
 createDir fm (MkPath destBS) = createDirectory destBS fm
 
+-- |Create an empty directory at the given directory with the given filename.
+--
+-- Throws:
+--
+--    - `PermissionDenied` if output directory cannot be written to
+--    - `NoSuchThing` if any of the parent components of the path
+--      do not exist
+createDirIfMissing :: FileMode -> Path b -> IO ()
+createDirIfMissing fm (MkPath destBS) =
+  hideError AlreadyExists $ createDirectory destBS fm
+
 
 -- |Create an empty directory at the given directory with the given filename.
 -- All parent directories are created with the same filemode. This
@@ -734,7 +767,7 @@ createDir fm (MkPath destBS) = createDirectory destBS fm
 --    - `PermissionDenied` if any part of the path components do not
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
---      is not a directory
+--      is *not* a directory
 --
 -- Note: calls `getcwd` if the input path is a relative path
 createDirRecursive :: FileMode -> Path b -> IO ()
@@ -922,7 +955,7 @@ readFileStream (MkPath fp) = do
 
 
 -- |Write a given ByteString to a file, truncating the file beforehand.
--- The file must exist. Follows symlinks.
+-- Follows symlinks.
 --
 -- Throws:
 --
@@ -930,10 +963,34 @@ readFileStream (MkPath fp) = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-writeFile :: Path b -> ByteString -> IO ()
-writeFile (MkPath fp) bs =
-  bracket (openFd fp SPI.WriteOnly [SPDF.oTrunc] Nothing) (SPI.closeFd) $ \fd -> 
-    void $ SPB.fdWrite fd bs
+writeFile :: Path b
+          -> Maybe FileMode  -- ^ if Nothing, file must exist
+          -> ByteString
+          -> IO ()
+writeFile (MkPath fp) fmode bs =
+  bracket (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd) $ \fd -> void $ SPB.fdWrite fd bs
+
+
+-- |Write a given lazy ByteString to a file, truncating the file beforehand.
+-- Follows symlinks.
+--
+-- Throws:
+--
+--     - `InappropriateType` if file is not a regular file or a symlink
+--     - `PermissionDenied` if we cannot read the file or the directory
+--        containting it
+--     - `NoSuchThing` if the file does not exist
+--
+-- Note: uses streamly under the hood
+writeFileL :: Path b
+           -> Maybe FileMode  -- ^ if Nothing, file must exist
+           -> L.ByteString
+           -> IO ()
+writeFileL (MkPath fp) fmode lbs = do
+  handle <- bracketOnError (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd) $ SPI.fdToHandle
+  finally (streamlyCopy handle) (SIO.hClose handle)
+  where
+    streamlyCopy tH = S.fold (FH.writeChunks tH) $ SL.fromByteString lbs
 
 
 -- |Append a given ByteString to a file.
@@ -1022,6 +1079,16 @@ doesDirectoryExist (MkPath bs) =
     $ return False
 
 
+-- |Checks whether a file or folder is readable.
+--
+-- Only eACCES, eROFS, eTXTBSY, ePERM are catched (and return False).
+--
+-- Throws:
+--
+--     - `NoSuchThing` if the file does not exist
+isReadable :: Path b -> IO Bool
+isReadable (MkPath bs) = fileAccess bs True False False
+
 -- |Checks whether a file or folder is writable.
 --
 -- Only eACCES, eROFS, eTXTBSY, ePERM are catched (and return False).
@@ -1031,6 +1098,18 @@ doesDirectoryExist (MkPath bs) =
 --     - `NoSuchThing` if the file does not exist
 isWritable :: Path b -> IO Bool
 isWritable (MkPath bs) = fileAccess bs False True False
+
+
+-- |Checks whether a file or folder is executable.
+--
+-- Only eACCES, eROFS, eTXTBSY, ePERM are catched (and return False).
+--
+-- Throws:
+--
+--     - `NoSuchThing` if the file does not exist
+isExecutable :: Path b -> IO Bool
+isExecutable (MkPath bs) = fileAccess bs False False True
+
 
 
 -- |Checks whether the directory at the given path exists and can be
@@ -1043,6 +1122,30 @@ canOpenDirectory (MkPath bs) =
             (\_ -> return ())
     return True
 
+
+
+
+    ------------------
+    --[ File times ]--
+    ------------------
+
+
+getModificationTime :: Path b -> IO UTCTime
+getModificationTime (MkPath bs) = do
+  fs <- PF.getFileStatus bs
+  pure $ posixSecondsToUTCTime $ PF.modificationTimeHiRes fs
+
+setModificationTime :: Path b -> EpochTime -> IO ()
+setModificationTime (MkPath bs) t = do
+  -- TODO: setFileTimes doesn't allow to pass NULL to utime
+  ctime <- epochTime
+  PF.setFileTimes bs ctime t
+
+setModificationTimeHiRes :: Path b -> POSIXTime -> IO ()
+setModificationTimeHiRes (MkPath bs) t = do
+  -- TODO: setFileTimesHiRes doesn't allow to pass NULL to utimes
+  ctime <- getPOSIXTime
+  PF.setFileTimesHiRes bs ctime t
 
 
 
@@ -1063,17 +1166,25 @@ canOpenDirectory (MkPath bs) =
 --     - `InappropriateType` if file type is wrong (symlink to file)
 --     - `InappropriateType` if file type is wrong (symlink to dir)
 --     - `PermissionDenied` if directory cannot be opened
+--     - `PathParseException` if a filename could not be parsed (should never happen)
 getDirsFiles :: Path b        -- ^ dir to read
              -> IO [Path b]
 getDirsFiles p@(MkPath fp) = do
+  contents <- getDirsFiles' p
+  pure $ fmap (p </>) contents
+
+
+-- | Like 'getDirsFiles', but returns the filename only, instead
+-- of prepending the base path.
+getDirsFiles' :: Path b        -- ^ dir to read
+             -> IO [Path Fn]
+getDirsFiles' p@(MkPath fp) = do
   fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
-  return
-    . catMaybes
-    .   fmap (\x -> (</>) p <$> (parseMaybe . snd $ x))
-    =<< getDirectoryContents' fd
-  where
-    parseMaybe :: ByteString -> Maybe (Path Fn)
-    parseMaybe = parseFn
+  rawContents <- getDirectoryContents' fd
+  fmap catMaybes $ for rawContents $ \(_, f) ->
+      if FP.isSpecialDirectoryEntry f
+      then pure Nothing
+      else fmap Just $ parseFn f
 
 
 
@@ -1139,3 +1250,37 @@ toAbs (MkPath bs) = do
       cwd <- getWorkingDirectory >>= parseAbs
       rel <- parseRel bs -- we know it must be relative now
       return $ cwd </> rel
+
+
+-- | Helper function to use the Path library without
+-- buying into the Path type too much. This uses 'parseAny'
+-- under the hood and may throw `PathParseException`.
+--
+-- Throws:
+--
+--    - `PathParseException` if the bytestring could neither be parsed as
+--      relative or absolute Path
+withRawFilePath :: MonadThrow m => ByteString -> (Path a -> m b) -> m b
+withRawFilePath bs action = do
+  path <- parseAny bs
+  action path
+
+
+-- | Convenience function to open the path as a handle.
+--
+-- If the file does not exist, it will be created with 'newFilePerms'.
+--
+-- Throws:
+--
+--    - `PathParseException` if the bytestring could neither be parsed as
+--      relative or absolute Path
+withHandle :: ByteString
+           -> SPI.OpenMode
+           -> ((SIO.Handle, Path a) -> IO a)
+           -> IO a
+withHandle bs mode action = do
+  path   <- parseAny bs
+  handle <-
+    bracketOnError (openFd bs mode [] (Just newFilePerms)) (SPI.closeFd)
+      $ SPI.fdToHandle
+  finally (action (handle, path)) (SIO.hClose handle)

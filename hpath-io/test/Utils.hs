@@ -19,6 +19,7 @@ import Control.Monad.IfElse
     whenM
   )
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 import Data.IORef
   (
     newIORef
@@ -163,6 +164,10 @@ createDir' :: ByteString -> IO ()
 {-# NOINLINE createDir' #-}
 createDir' dest = withTmpDir dest (createDir newDirPerms)
 
+createDirIfMissing' :: ByteString -> IO ()
+{-# NOINLINE createDirIfMissing' #-}
+createDirIfMissing' dest = withTmpDir dest (createDirIfMissing newDirPerms)
+
 createDirRecursive' :: ByteString -> IO ()
 {-# NOINLINE createDirRecursive' #-}
 createDirRecursive' dest = withTmpDir dest (createDirRecursive newDirPerms)
@@ -262,8 +267,13 @@ canonicalizePath' p = withTmpDir p canonicalizePath
 
 writeFile' :: ByteString -> ByteString -> IO ()
 {-# NOINLINE writeFile' #-}
-writeFile' ip bs = 
-  withTmpDir ip $ \p -> writeFile p bs
+writeFile' ip bs =
+  withTmpDir ip $ \p -> writeFile p Nothing bs
+
+writeFileL' :: ByteString -> BSL.ByteString -> IO ()
+{-# NOINLINE writeFileL' #-}
+writeFileL' ip bs =
+  withTmpDir ip $ \p -> writeFileL p Nothing bs
 
 
 appendFile' :: ByteString -> ByteString -> IO ()
