@@ -125,7 +125,7 @@ pattern Path x <- (MkPath x)
 -- >>> parseAbs "/abc/def"      :: Maybe (Path Abs)
 -- Just "/abc/def"
 -- >>> parseAbs "/abc/def/.///" :: Maybe (Path Abs)
--- Just "/abc/def/"
+-- Just "/abc/def"
 -- >>> parseAbs "abc"           :: Maybe (Path Abs)
 -- Nothing
 -- >>> parseAbs ""              :: Maybe (Path Abs)
@@ -138,7 +138,7 @@ parseAbs filepath =
   if isAbsolute filepath &&
      isValid filepath &&
      not (hasParentDir filepath)
-     then return (MkPath $ normalise filepath)
+     then return (MkPath . dropTrailingPathSeparator . normalise $ filepath)
      else throwM (InvalidAbs filepath)
 
 
@@ -153,11 +153,11 @@ parseAbs filepath =
 -- >>> parseRel "abc"        :: Maybe (Path Rel)
 -- Just "abc"
 -- >>> parseRel "def/"       :: Maybe (Path Rel)
--- Just "def/"
+-- Just "def"
 -- >>> parseRel "abc/def"    :: Maybe (Path Rel)
 -- Just "abc/def"
 -- >>> parseRel "abc/def/."  :: Maybe (Path Rel)
--- Just "abc/def/"
+-- Just "abc/def"
 -- >>> parseRel "/abc"       :: Maybe (Path Rel)
 -- Nothing
 -- >>> parseRel ""           :: Maybe (Path Rel)
@@ -176,7 +176,7 @@ parseRel filepath =
      filepath /= BS.pack [_period, _period] &&
      not (hasParentDir filepath) &&
      isValid filepath
-     then return (MkPath $ normalise filepath)
+     then return (MkPath . dropTrailingPathSeparator . normalise $ filepath)
      else throwM (InvalidRel filepath)
 
 
@@ -197,7 +197,7 @@ parseRel filepath =
 -- >>> parseAny "abc/def"    :: Maybe (Either (Path Abs) (Path Rel))
 -- Just (Right "abc/def")
 -- >>> parseAny "abc/def/."  :: Maybe (Either (Path Abs) (Path Rel))
--- Just (Right "abc/def/")
+-- Just (Right "abc/def")
 -- >>> parseAny "/abc"       :: Maybe (Either (Path Abs) (Path Rel))
 -- Just (Left "/abc")
 -- >>> parseAny ""           :: Maybe (Either (Path Abs) (Path Rel))
@@ -253,14 +253,15 @@ fromAny = either toFilePath toFilePath
 -- "/path/to/file"
 -- >>> (MkPath "/")        </> (MkPath "file/lal" :: Path Rel)
 -- "/file/lal"
--- >>> (MkPath "/")        </> (MkPath "file/"    :: Path Rel)
--- "/file/"
+-- >>> (MkPath "/")        </> (MkPath "file"    :: Path Rel)
+-- "/file"
 (</>) :: Path b -> Path Rel -> Path b
 (</>) (MkPath a) (MkPath b) = MkPath (a' `BS.append` b)
   where
-    a' = if BS.last a == pathSeparator
-         then a
-         else addTrailingPathSeparator a
+    a' = if hasTrailingPathSeparator a
+            then a
+            else addTrailingPathSeparator a
+
 
 -- | Strip directory from path, making it relative to that directory.
 -- Throws 'Couldn'tStripPrefixDir' if directory is not a parent of the path.
@@ -309,6 +310,8 @@ isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
 --
 -- >>> getAllParents (MkPath "/abs/def/dod")
 -- ["/abs/def","/abs","/"]
+-- >>> getAllParents (MkPath "/foo")
+-- ["/"]
 -- >>> getAllParents (MkPath "/")
 -- []
 getAllParents :: Path Abs -> [Path Abs]
@@ -316,7 +319,7 @@ getAllParents (MkPath p)
   | np == BS.singleton pathSeparator = []
   | otherwise = dirname (MkPath np) : getAllParents (dirname $ MkPath np)
   where
-    np = dropTrailingPathSeparator . normalise $ p
+    np = normalise p
 
 
 -- | Extract the directory name of a path.
@@ -326,7 +329,7 @@ getAllParents (MkPath p)
 -- >>> dirname (MkPath "/")
 -- "/"
 dirname :: Path Abs -> Path Abs
-dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
+dirname (MkPath fp) = MkPath (takeDirectory fp)
 
 -- | Extract the file part of a path.
 --
@@ -339,7 +342,9 @@ dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 --
 -- >>> basename (MkPath "/abc/def/dod") :: Maybe (Path Rel)
 -- Just "dod"
--- >>> basename (MkPath "/abc/def/dod/") :: Maybe (Path Rel)
+-- >>> basename (MkPath "abc/def/dod")  :: Maybe (Path Rel)
+-- Just "dod"
+-- >>> basename (MkPath "dod")          :: Maybe (Path Rel)
 -- Just "dod"
 -- >>> basename (MkPath "/")            :: Maybe (Path Rel)
 -- Nothing
@@ -348,7 +353,7 @@ basename (MkPath l)
   | not (isAbsolute rl) = return $ MkPath rl
   | otherwise           = throwM RootDirHasNoBasename
   where
-    rl = last . splitPath . dropTrailingPathSeparator $ l
+    rl = last . splitPath $ l
 
 
 --------------------------------------------------------------------------------

@@ -28,7 +28,6 @@ Note: this library was written for __posix__ systems and it will probably not su
 ## Differences to 'path'
 
 * doesn't attempt to fake IO-related information into the path, so whether a path points to a file or directory is up to your IO-code to decide...
-* trailing path separators will be preserved if they exist, no messing with that
 * uses safe ByteString for filepaths under the hood instead of unsafe String
 * fixes broken [dirname](https://github.com/chrisdone/path/issues/18)
 * renames dirname/filename to basename/dirname to match the POSIX shell functions
