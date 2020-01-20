@@ -31,7 +31,7 @@ module HPath
   -- * PatternSynonyms/ViewPatterns
   ,pattern Path
 #endif
-   -- * Path Parsing
+   -- * Path Construction
   ,parseAbs
   ,parseRel
   ,parseAny
