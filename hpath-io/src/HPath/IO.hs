@@ -197,7 +197,6 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import HPath
-import HPath.Internal
 import HPath.IO.Errors
 import Prelude hiding (appendFile, readFile, writeFile)
 import Streamly
@@ -393,7 +392,7 @@ copyDirRecursive fromp destdirp cm rm
   where
     go :: IORef [(RecursiveFailureHint, IOException)]
        -> Path b1 -> Path b2 -> IO ()
-    go ce fromp'@(MkPath fromBS) destdirp'@(MkPath destdirpBS) = do
+    go ce fromp'@(Path fromBS) destdirp'@(Path destdirpBS) = do
 
       -- NOTE: order is important here, so we don't get empty directories
       -- on failure
@@ -477,7 +476,7 @@ recreateSymlink :: Path b1   -- ^ the old symlink file
                 -> Path b2   -- ^ destination file
                 -> CopyMode
                 -> IO ()
-recreateSymlink symsource@(MkPath symsourceBS) newsym@(MkPath newsymBS) cm
+recreateSymlink symsource@(Path symsourceBS) newsym@(Path newsymBS) cm
   = do
     throwSameFile symsource newsym
     sympoint <- readSymbolicLink symsourceBS
@@ -536,7 +535,7 @@ copyFile :: Path b1   -- ^ source file
          -> Path b2   -- ^ destination file
          -> CopyMode
          -> IO ()
-copyFile fp@(MkPath from) tp@(MkPath to) cm = do
+copyFile fp@(Path from) tp@(Path to) cm = do
   throwSameFile fp tp
   bracket (do
             fd <- openFd from SPI.ReadOnly [SPDF.oNofollow] Nothing
@@ -608,7 +607,7 @@ easyCopy from to cm rm = do
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if the directory cannot be read
 deleteFile :: Path b -> IO ()
-deleteFile (MkPath p) = removeLink p
+deleteFile (Path p) = removeLink p
 
 
 -- |Deletes the given directory, which must be empty, never symlinks.
@@ -623,7 +622,7 @@ deleteFile (MkPath p) = removeLink p
 --
 -- Notes: calls `rmdir`
 deleteDir :: Path b -> IO ()
-deleteDir (MkPath p) = removeDirectory p
+deleteDir (Path p) = removeDirectory p
 
 
 -- |Deletes the given directory recursively. Does not follow symbolic
@@ -691,7 +690,7 @@ easyDelete p = do
 -- is not checked. This forks a process.
 openFile :: Path b
          -> IO ProcessID
-openFile (MkPath fp) =
+openFile (Path fp) =
   SPP.forkProcess $ SPP.executeFile "xdg-open" True [fp] Nothing
 
 
@@ -699,7 +698,7 @@ openFile (MkPath fp) =
 executeFile :: Path b          -- ^ program
             -> [ByteString]    -- ^ arguments
             -> IO ProcessID
-executeFile (MkPath fp) args =
+executeFile (Path fp) args =
   SPP.forkProcess $ SPP.executeFile fp True args Nothing
 
 
@@ -720,7 +719,7 @@ executeFile (MkPath fp) args =
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
 createRegularFile :: FileMode -> Path b -> IO ()
-createRegularFile fm (MkPath destBS) =
+createRegularFile fm (Path destBS) =
   bracket (SPI.openFd destBS SPI.WriteOnly (Just fm)
                       (SPI.defaultFileFlags { exclusive = True }))
           SPI.closeFd
@@ -736,7 +735,7 @@ createRegularFile fm (MkPath destBS) =
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
 createDir :: FileMode -> Path b -> IO ()
-createDir fm (MkPath destBS) = createDirectory destBS fm
+createDir fm (Path destBS) = createDirectory destBS fm
 
 -- |Create an empty directory at the given directory with the given filename.
 --
@@ -746,7 +745,7 @@ createDir fm (MkPath destBS) = createDirectory destBS fm
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
 createDirIfMissing :: FileMode -> Path b -> IO ()
-createDirIfMissing fm (MkPath destBS) =
+createDirIfMissing fm (Path destBS) =
   hideError AlreadyExists $ createDirectory destBS fm
 
 
@@ -775,7 +774,7 @@ createDirRecursive fm p =
   toAbs p >>= go
   where
     go :: Path Abs -> IO ()
-    go dest@(MkPath destBS) = do
+    go dest@(Path destBS) = do
       catchIOError (createDirectory destBS fm) $ \e -> do
         errno <- getErrno
         case errno of
@@ -798,7 +797,7 @@ createDirRecursive fm p =
 createSymlink :: Path b     -- ^ destination file
               -> ByteString -- ^ path the symlink points to
               -> IO ()
-createSymlink (MkPath destBS) sympoint
+createSymlink (Path destBS) sympoint
   = createSymbolicLink sympoint destBS
 
 
@@ -830,7 +829,7 @@ createSymlink (MkPath destBS) sympoint
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
 renameFile :: Path b1 -> Path b2 -> IO ()
-renameFile fromf@(MkPath fromfBS) tof@(MkPath tofBS) = do
+renameFile fromf@(Path fromfBS) tof@(Path tofBS) = do
   throwSameFile fromf tof
   throwFileDoesExist tof
   throwDirDoesExist tof
@@ -940,7 +939,7 @@ readFile path = do
 --     - `NoSuchThing` if the file does not exist
 readFileStream :: Path b
                -> IO (SerialT IO ByteString)
-readFileStream (MkPath fp) = do
+readFileStream (Path fp) = do
   fd <- openFd fp SPI.ReadOnly [] Nothing
   handle <- SPI.fdToHandle fd
   let stream = (S.unfold (SU.finally SIO.hClose FH.readChunks) handle) >>= arrayToByteString
@@ -967,7 +966,7 @@ writeFile :: Path b
           -> Maybe FileMode  -- ^ if Nothing, file must exist
           -> ByteString
           -> IO ()
-writeFile (MkPath fp) fmode bs =
+writeFile (Path fp) fmode bs =
   bracket (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd) $ \fd -> void $ SPB.fdWrite fd bs
 
 
@@ -986,7 +985,7 @@ writeFileL :: Path b
            -> Maybe FileMode  -- ^ if Nothing, file must exist
            -> L.ByteString
            -> IO ()
-writeFileL (MkPath fp) fmode lbs = do
+writeFileL (Path fp) fmode lbs = do
   handle <- bracketOnError (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd) $ SPI.fdToHandle
   finally (streamlyCopy handle) (SIO.hClose handle)
   where
@@ -1003,7 +1002,7 @@ writeFileL (MkPath fp) fmode lbs = do
 --        containting it
 --     - `NoSuchThing` if the file does not exist
 appendFile :: Path b -> ByteString -> IO ()
-appendFile (MkPath fp) bs =
+appendFile (Path fp) bs =
   bracket (openFd fp SPI.WriteOnly [SPDF.oAppend] Nothing)
           (SPI.closeFd) $ \fd -> void $ SPB.fdWrite fd bs
 
@@ -1048,7 +1047,7 @@ newDirPerms
 --
 -- Only eNOENT is catched (and returns False).
 doesExist :: Path b -> IO Bool
-doesExist (MkPath bs) =
+doesExist (Path bs) =
   catchErrno [eNOENT] (do
       _  <- PF.getSymbolicLinkStatus bs
       return $ True)
@@ -1060,7 +1059,7 @@ doesExist (MkPath bs) =
 --
 -- Only eNOENT is catched (and returns False).
 doesFileExist :: Path b -> IO Bool
-doesFileExist (MkPath bs) =
+doesFileExist (Path bs) =
   catchErrno [eNOENT] (do
       fs  <- PF.getSymbolicLinkStatus bs
       return $ not . PF.isDirectory $ fs)
@@ -1072,7 +1071,7 @@ doesFileExist (MkPath bs) =
 --
 -- Only eNOENT is catched (and returns False).
 doesDirectoryExist :: Path b -> IO Bool
-doesDirectoryExist (MkPath bs) =
+doesDirectoryExist (Path bs) =
   catchErrno [eNOENT] (do
       fs  <- PF.getSymbolicLinkStatus bs
       return $ PF.isDirectory fs)
@@ -1087,7 +1086,7 @@ doesDirectoryExist (MkPath bs) =
 --
 --     - `NoSuchThing` if the file does not exist
 isReadable :: Path b -> IO Bool
-isReadable (MkPath bs) = fileAccess bs True False False
+isReadable (Path bs) = fileAccess bs True False False
 
 -- |Checks whether a file or folder is writable.
 --
@@ -1097,7 +1096,7 @@ isReadable (MkPath bs) = fileAccess bs True False False
 --
 --     - `NoSuchThing` if the file does not exist
 isWritable :: Path b -> IO Bool
-isWritable (MkPath bs) = fileAccess bs False True False
+isWritable (Path bs) = fileAccess bs False True False
 
 
 -- |Checks whether a file or folder is executable.
@@ -1108,14 +1107,14 @@ isWritable (MkPath bs) = fileAccess bs False True False
 --
 --     - `NoSuchThing` if the file does not exist
 isExecutable :: Path b -> IO Bool
-isExecutable (MkPath bs) = fileAccess bs False False True
+isExecutable (Path bs) = fileAccess bs False False True
 
 
 
 -- |Checks whether the directory at the given path exists and can be
 -- opened. This invokes `openDirStream` which follows symlinks.
 canOpenDirectory :: Path b -> IO Bool
-canOpenDirectory (MkPath bs) =
+canOpenDirectory (Path bs) =
   handleIOError (\_ -> return False) $ do
     bracket (openDirStream bs)
             closeDirStream
@@ -1131,18 +1130,18 @@ canOpenDirectory (MkPath bs) =
 
 
 getModificationTime :: Path b -> IO UTCTime
-getModificationTime (MkPath bs) = do
+getModificationTime (Path bs) = do
   fs <- PF.getFileStatus bs
   pure $ posixSecondsToUTCTime $ PF.modificationTimeHiRes fs
 
 setModificationTime :: Path b -> EpochTime -> IO ()
-setModificationTime (MkPath bs) t = do
+setModificationTime (Path bs) t = do
   -- TODO: setFileTimes doesn't allow to pass NULL to utime
   ctime <- epochTime
   PF.setFileTimes bs ctime t
 
 setModificationTimeHiRes :: Path b -> POSIXTime -> IO ()
-setModificationTimeHiRes (MkPath bs) t = do
+setModificationTimeHiRes (Path bs) t = do
   -- TODO: setFileTimesHiRes doesn't allow to pass NULL to utimes
   ctime <- getPOSIXTime
   PF.setFileTimesHiRes bs ctime t
@@ -1169,7 +1168,7 @@ setModificationTimeHiRes (MkPath bs) t = do
 --     - `PathParseException` if a filename could not be parsed (should never happen)
 getDirsFiles :: Path b        -- ^ dir to read
              -> IO [Path b]
-getDirsFiles p@(MkPath fp) = do
+getDirsFiles p@(Path fp) = do
   contents <- getDirsFiles' p
   pure $ fmap (p </>) contents
 
@@ -1178,7 +1177,7 @@ getDirsFiles p@(MkPath fp) = do
 -- of prepending the base path.
 getDirsFiles' :: Path b        -- ^ dir to read
              -> IO [Path Rel]
-getDirsFiles' p@(MkPath fp) = do
+getDirsFiles' p@(Path fp) = do
   fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
   rawContents <- getDirectoryContents' fd
   fmap catMaybes $ for rawContents $ \(_, f) ->
@@ -1202,7 +1201,7 @@ getDirsFiles' p@(MkPath fp) = do
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if any part of the path is not accessible
 getFileType :: Path b -> IO FileType
-getFileType (MkPath fp) = do
+getFileType (Path fp) = do
   fs <- PF.getSymbolicLinkStatus fp
   decide fs
   where
@@ -1230,10 +1229,11 @@ getFileType (MkPath fp) = do
 --
 --    - `NoSuchThing` if the file at the given path does not exist
 --    - `NoSuchThing` if the symlink is broken
+--    - `PathParseException` if realpath does not return an absolute path
 canonicalizePath :: Path b -> IO (Path Abs)
-canonicalizePath (MkPath l) = do
+canonicalizePath (Path l) = do
   nl <- SPDT.realpath l
-  return $ MkPath nl
+  parseAbs nl
 
 
 -- |Converts any path to an absolute path.
@@ -1242,7 +1242,7 @@ canonicalizePath (MkPath l) = do
 --    - if the path is already an absolute one, just return it
 --    - if it's a relative path, prepend the current directory to it
 toAbs :: Path b -> IO (Path Abs)
-toAbs (MkPath bs) = do
+toAbs (Path bs) = do
   let mabs = parseAbs bs :: Maybe (Path Abs)
   case mabs of
     Just a -> return a
@@ -1260,7 +1260,7 @@ toAbs (MkPath bs) = do
 --
 --    - `PathParseException` if the bytestring could neither be parsed as
 --      relative or absolute Path
-withRawFilePath :: MonadThrow m => ByteString -> (Path a -> m b) -> m b
+withRawFilePath :: MonadThrow m => ByteString -> (Either (Path Abs) (Path Rel) -> m b) -> m b
 withRawFilePath bs action = do
   path <- parseAny bs
   action path
@@ -1276,7 +1276,7 @@ withRawFilePath bs action = do
 --      relative or absolute Path
 withHandle :: ByteString
            -> SPI.OpenMode
-           -> ((SIO.Handle, Path a) -> IO a)
+           -> ((SIO.Handle, Either (Path Abs) (Path Rel)) -> IO a)
            -> IO a
 withHandle bs mode action = do
   path   <- parseAny bs

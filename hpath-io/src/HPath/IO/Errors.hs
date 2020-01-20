@@ -81,10 +81,6 @@ import GHC.IO.Exception
     IOErrorType
   )
 import HPath
-import HPath.Internal
-  (
-    Path(..)
-  )
 import {-# SOURCE #-} HPath.IO
   (
     canonicalizePath
@@ -175,7 +171,7 @@ isRecreateSymlinkFailed _ = False
 
 -- |Throws `AlreadyExists` `IOError` if file exists.
 throwFileDoesExist :: Path b -> IO ()
-throwFileDoesExist fp@(MkPath bs) =
+throwFileDoesExist fp@(Path bs) =
   whenM (doesFileExist fp)
         (ioError . mkIOError
                      alreadyExistsErrorType
@@ -187,7 +183,7 @@ throwFileDoesExist fp@(MkPath bs) =
 
 -- |Throws `AlreadyExists` `IOError` if directory exists.
 throwDirDoesExist :: Path b -> IO ()
-throwDirDoesExist fp@(MkPath bs) =
+throwDirDoesExist fp@(Path bs) =
   whenM (doesDirectoryExist fp)
         (ioError . mkIOError
                      alreadyExistsErrorType
@@ -201,7 +197,7 @@ throwDirDoesExist fp@(MkPath bs) =
 throwSameFile :: Path b1
               -> Path b2
               -> IO ()
-throwSameFile fp1@(MkPath bs1) fp2@(MkPath bs2) =
+throwSameFile fp1@(Path bs1) fp2@(Path bs2) =
   whenM (sameFile fp1 fp2)
         (throwIO $ SameFile bs1 bs2)
 
@@ -209,7 +205,7 @@ throwSameFile fp1@(MkPath bs1) fp2@(MkPath bs2) =
 -- |Check if the files are the same by examining device and file id.
 -- This follows symbolic links.
 sameFile :: Path b1 -> Path b2 -> IO Bool
-sameFile (MkPath fp1) (MkPath fp2) =
+sameFile (Path fp1) (Path fp2) =
   handleIOError (\_ -> return False) $ do
     fs1 <- getFileStatus fp1
     fs2 <- getFileStatus fp2
@@ -229,7 +225,7 @@ throwDestinationInSource :: Path b1 -- ^ source dir
                          -> Path b2 -- ^ full destination, @dirname dest@
                                     --   must exist
                          -> IO ()
-throwDestinationInSource (MkPath sbs) dest@(MkPath dbs) = do
+throwDestinationInSource (Path sbs) dest@(Path dbs) = do
   destAbs <- toAbs dest
   dest'   <- (\x -> maybe x (\y -> x </> y) $ basename dest)
              <$> (canonicalizePath $ dirname destAbs)
