@@ -486,6 +486,8 @@ joinPath = foldr (</>) BS.empty
 --
 -- >>> splitDirectories "/path/to/file.txt"
 -- ["/","path","to","file.txt"]
+-- >>> splitDirectories "path/to/file.txt"
+-- ["path","to","file.txt"]
 -- >>> splitDirectories ""
 -- []
 splitDirectories :: RawFilePath -> [RawFilePath]
