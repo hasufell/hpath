@@ -44,9 +44,10 @@ module HPath
   ,(</>)
   ,basename
   ,dirname
-  ,isParentOf
   ,getAllParents
   ,stripDir
+  -- * Path Examination
+  ,isParentOf
   -- * Path IO helpers
   ,withAbsPath
   ,withRelPath
@@ -289,22 +290,6 @@ stripDir (MkPath p) (MkPath l) =
   where
     p' = addTrailingPathSeparator p
 
--- | Is p a parent of the given location? Implemented in terms of
--- 'stripDir'. The bases must match.
---
--- >>> (MkPath "/lal/lad")     `isParentOf` (MkPath "/lal/lad/fad")
--- True
--- >>> (MkPath "lal/lad")      `isParentOf` (MkPath "lal/lad/fad")
--- True
--- >>> (MkPath "/")            `isParentOf` (MkPath "/")
--- False
--- >>> (MkPath "/lal/lad/fad") `isParentOf` (MkPath "/lal/lad")
--- False
--- >>> (MkPath "fad")          `isParentOf` (MkPath "fad")
--- False
-isParentOf :: Path b -> Path b -> Bool
-isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
-
 
 -- |Get all parents of a path.
 --
@@ -356,6 +341,25 @@ basename (MkPath l)
     rl = last . splitPath $ l
 
 
+
+--------------------------------------------------------------------------------
+-- Path Examination
+
+-- | Is p a parent of the given location? Implemented in terms of
+-- 'stripDir'. The bases must match.
+--
+-- >>> (MkPath "/lal/lad")     `isParentOf` (MkPath "/lal/lad/fad")
+-- True
+-- >>> (MkPath "lal/lad")      `isParentOf` (MkPath "lal/lad/fad")
+-- True
+-- >>> (MkPath "/")            `isParentOf` (MkPath "/")
+-- False
+-- >>> (MkPath "/lal/lad/fad") `isParentOf` (MkPath "/lal/lad")
+-- False
+-- >>> (MkPath "fad")          `isParentOf` (MkPath "fad")
+-- False
+isParentOf :: Path b -> Path b -> Bool
+isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
 --------------------------------------------------------------------------------
 -- Path IO helpers
 
