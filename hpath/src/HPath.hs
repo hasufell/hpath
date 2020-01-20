@@ -39,6 +39,7 @@ module HPath
   ,fromAbs
   ,fromRel
   ,toFilePath
+  ,fromAny
   -- * Path Operations
   ,(</>)
   ,basename
@@ -52,7 +53,6 @@ module HPath
   -- * Quasiquoters
   ,abs
   ,rel
-  ,any
   )
   where
 
@@ -190,30 +190,30 @@ parseRel filepath =
 --
 -- Throws: 'PathParseException'
 --
--- >>> parseAny "/abc"       :: Maybe (Path a)
--- Just "/abc"
--- >>> parseAny "..."        :: Maybe (Path a)
--- Just "..."
--- >>> parseAny "abc/def"    :: Maybe (Path a)
--- Just "abc/def"
--- >>> parseAny "abc/def/."  :: Maybe (Path a)
--- Just "abc/def/"
--- >>> parseAny "/abc"       :: Maybe (Path a)
--- Just "/abc"
--- >>> parseAny ""           :: Maybe (Path a)
+-- >>> parseAny "/abc"       :: Maybe (Either (Path Abs) (Path Rel))
+-- Just (Left "/abc")
+-- >>> parseAny "..."        :: Maybe (Either (Path Abs) (Path Rel))
+-- Just (Right "...")
+-- >>> parseAny "abc/def"    :: Maybe (Either (Path Abs) (Path Rel))
+-- Just (Right "abc/def")
+-- >>> parseAny "abc/def/."  :: Maybe (Either (Path Abs) (Path Rel))
+-- Just (Right "abc/def/")
+-- >>> parseAny "/abc"       :: Maybe (Either (Path Abs) (Path Rel))
+-- Just (Left "/abc")
+-- >>> parseAny ""           :: Maybe (Either (Path Abs) (Path Rel))
 -- Nothing
--- >>> parseAny "abc/../foo" :: Maybe (Path a)
+-- >>> parseAny "abc/../foo" :: Maybe (Either (Path Abs) (Path Rel))
 -- Nothing
--- >>> parseAny "."          :: Maybe (Path a)
+-- >>> parseAny "."          :: Maybe (Either (Path Abs) (Path Rel))
 -- Nothing
--- >>> parseAny ".."         :: Maybe (Path a)
+-- >>> parseAny ".."         :: Maybe (Either (Path Abs) (Path Rel))
 -- Nothing
-parseAny :: MonadThrow m => ByteString -> m (Path a)
+parseAny :: MonadThrow m => ByteString -> m (Either (Path Abs) (Path Rel))
 parseAny filepath = case parseAbs filepath of
-  Just (MkPath p) -> pure $ (MkPath p)
+  Just p -> pure $ Left p
   Nothing         -> case parseRel filepath of
-    Just (MkPath p) -> pure $ (MkPath p)
-    Nothing         -> throwM (InvalidRel filepath)
+    Just p -> pure $ Right p
+    Nothing       -> throwM (InvalidRel filepath)
 
 
 --------------------------------------------------------------------------------
@@ -230,6 +230,10 @@ fromAbs = toFilePath
 -- | Convert a relative Path to a ByteString type.
 fromRel :: Path Rel -> ByteString
 fromRel = toFilePath
+
+fromAny :: Either (Path Abs) (Path Rel) -> ByteString
+fromAny = either toFilePath toFilePath
+
 
 --------------------------------------------------------------------------------
 -- Path Operations
@@ -395,9 +399,6 @@ mkAbs = either (error . show) lift . parseAbs
 mkRel :: ByteString -> Q Exp
 mkRel = either (error . show) lift . parseRel
 
-mkAny :: ByteString -> Q Exp
-mkAny = either (error . show) lift . parseAny
-
 -- | Quasiquote an absolute Path. This accepts Unicode Chars and will encode as UTF-8.
 --
 -- >>> [abs|/etc/profile|] :: Path Abs
@@ -420,14 +421,3 @@ abs = qq mkAbs
 rel :: QuasiQuoter
 rel = qq mkRel
 
--- | Quasiquote any path (relative or absolute).
--- This accepts Unicode Chars and will encode as UTF-8.
---
--- >>> [any|/etc/profile|] :: Path a
--- "/etc/profile"
--- >>> [any|etc|] :: Path a
--- "etc"
--- >>> [any||] :: Path a
--- "\239\131\144"
-any :: QuasiQuoter
-any = qq mkAny
