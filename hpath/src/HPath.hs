@@ -35,6 +35,7 @@ module HPath
   ,parseAbs
   ,parseRel
   ,parseAny
+  ,rootPath
   -- * Path Conversion
   ,fromAbs
   ,fromRel
@@ -45,9 +46,12 @@ module HPath
   ,basename
   ,dirname
   ,getAllParents
+  ,getAllComponents
+  ,getAllComponentsAfterRoot
   ,stripDir
   -- * Path Examination
   ,isParentOf
+  ,isRootPath
   -- * Path IO helpers
   ,withAbsPath
   ,withRelPath
@@ -217,6 +221,10 @@ parseAny filepath = case parseAbs filepath of
     Nothing       -> throwM (InvalidRel filepath)
 
 
+rootPath :: Path Abs
+rootPath = (MkPath (BS.singleton _slash))
+
+
 --------------------------------------------------------------------------------
 -- Path Conversion
 
@@ -307,6 +315,26 @@ getAllParents (MkPath p)
     np = normalise p
 
 
+-- | Gets all path components.
+--
+-- >>> getAllComponents (MkPath "abs/def/dod")
+-- ["abs","def","dod"]
+-- >>> getAllComponents (MkPath "abs")
+-- ["abs"]
+getAllComponents :: Path Rel -> [Path Rel]
+getAllComponents (MkPath p) = fmap MkPath . splitDirectories $ p
+
+
+-- | Gets all path components after the "/" root directory.
+--
+-- >>> getAllComponentsAfterRoot (MkPath "/abs/def/dod")
+-- ["abs","def","dod"]
+-- >>> getAllComponentsAfterRoot (MkPath "/abs")
+-- ["abs"]
+getAllComponentsAfterRoot :: Path Abs -> [Path Rel]
+getAllComponentsAfterRoot p = getAllComponents (fromJust $ stripDir rootPath p)
+
+
 -- | Extract the directory name of a path.
 --
 -- >>> dirname (MkPath "/abc/def/dod")
@@ -360,6 +388,18 @@ basename (MkPath l)
 -- False
 isParentOf :: Path b -> Path b -> Bool
 isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
+
+
+-- | Check whether the given Path is the root "/" path.
+--
+-- >>> isRootPath (MkPath "/lal/lad")
+-- False
+-- >>> isRootPath (MkPath "/")
+-- True
+isRootPath :: Path Abs -> Bool
+isRootPath = (== rootPath)
+
+
 --------------------------------------------------------------------------------
 -- Path IO helpers
 
