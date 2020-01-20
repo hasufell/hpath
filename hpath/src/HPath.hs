@@ -25,17 +25,14 @@ module HPath
    Abs
   ,Path
   ,Rel
-  ,Fn
   ,PathParseException
   ,PathException
-  ,RelC
 #if __GLASGOW_HASKELL__ >= 708
   -- * PatternSynonyms/ViewPatterns
   ,pattern Path
 #endif
    -- * Path Parsing
   ,parseAbs
-  ,parseFn
   ,parseRel
   ,parseAny
   -- * Path Conversion
@@ -52,11 +49,9 @@ module HPath
   -- * Path IO helpers
   ,withAbsPath
   ,withRelPath
-  ,withFnPath
   -- * Quasiquoters
   ,abs
   ,rel
-  ,fn
   ,any
   )
   where
@@ -91,14 +86,10 @@ data Abs deriving (Typeable)
 -- | A relative path; one without a root.
 data Rel deriving (Typeable)
 
--- | A filename, without any '/'.
-data Fn deriving (Typeable)
-
 -- | Exception when parsing a location.
 data PathParseException
   = InvalidAbs ByteString
   | InvalidRel ByteString
-  | InvalidFn ByteString
   | Couldn'tStripPrefixTPS ByteString ByteString
   deriving (Show,Typeable)
 instance Exception PathParseException
@@ -107,10 +98,6 @@ data PathException = RootDirHasNoBasename
   deriving (Show,Typeable)
 instance Exception PathException
 
-class RelC m
-
-instance RelC Rel
-instance RelC Fn
 
 --------------------------------------------------------------------------------
 -- PatternSynonyms
@@ -193,41 +180,6 @@ parseRel filepath =
      else throwM (InvalidRel filepath)
 
 
--- | Parses a filename. Filenames must not contain slashes.
--- Excludes '.' and '..'.
---
--- Throws: 'PathParseException'
---
--- >>> parseFn "abc"        :: Maybe (Path Fn)
--- Just "abc"
--- >>> parseFn "..."        :: Maybe (Path Fn)
--- Just "..."
--- >>> parseFn "def/"       :: Maybe (Path Fn)
--- Nothing
--- >>> parseFn "abc/def"    :: Maybe (Path Fn)
--- Nothing
--- >>> parseFn "abc/def/."  :: Maybe (Path Fn)
--- Nothing
--- >>> parseFn "/abc"       :: Maybe (Path Fn)
--- Nothing
--- >>> parseFn ""           :: Maybe (Path Fn)
--- Nothing
--- >>> parseFn "abc/../foo" :: Maybe (Path Fn)
--- Nothing
--- >>> parseFn "."          :: Maybe (Path Fn)
--- Nothing
--- >>> parseFn ".."         :: Maybe (Path Fn)
--- Nothing
-parseFn :: MonadThrow m
-        => ByteString -> m (Path Fn)
-parseFn filepath =
-  if isFileName filepath &&
-     filepath /= BS.singleton _period &&
-     filepath /= BS.pack [_period, _period] &&
-     isValid filepath
-     then return (MkPath filepath)
-     else throwM (InvalidFn filepath)
-
 
 -- | Parses a path, whether it's relative or absolute. Will lose
 -- information on whether it's relative or absolute. If you need to know,
@@ -276,9 +228,8 @@ fromAbs :: Path Abs -> ByteString
 fromAbs = toFilePath
 
 -- | Convert a relative Path to a ByteString type.
-fromRel :: RelC r => Path r -> ByteString
+fromRel :: Path Rel -> ByteString
 fromRel = toFilePath
-
 
 --------------------------------------------------------------------------------
 -- Path Operations
@@ -300,7 +251,7 @@ fromRel = toFilePath
 -- "/file/lal"
 -- >>> (MkPath "/")        </> (MkPath "file/"    :: Path Rel)
 -- "/file/"
-(</>) :: RelC r => Path b -> Path r -> Path b
+(</>) :: Path b -> Path Rel -> Path b
 (</>) (MkPath a) (MkPath b) = MkPath (a' `BS.append` b)
   where
     a' = if BS.last a == pathSeparator
@@ -382,13 +333,13 @@ dirname (MkPath fp) = MkPath (takeDirectory $ dropTrailingPathSeparator fp)
 --
 -- Throws: `PathException` if given the root path "/"
 --
--- >>> basename (MkPath "/abc/def/dod") :: Maybe (Path Fn)
+-- >>> basename (MkPath "/abc/def/dod") :: Maybe (Path Rel)
 -- Just "dod"
--- >>> basename (MkPath "/abc/def/dod/") :: Maybe (Path Fn)
+-- >>> basename (MkPath "/abc/def/dod/") :: Maybe (Path Rel)
 -- Just "dod"
--- >>> basename (MkPath "/")            :: Maybe (Path Fn)
+-- >>> basename (MkPath "/")            :: Maybe (Path Rel)
 -- Nothing
-basename :: MonadThrow m => Path b -> m (Path Fn)
+basename :: MonadThrow m => Path b -> m (Path Rel)
 basename (MkPath l)
   | not (isAbsolute rl) = return $ MkPath rl
   | otherwise           = throwM RootDirHasNoBasename
@@ -407,9 +358,6 @@ withAbsPath (MkPath p) action = action p
 withRelPath :: Path Rel -> (ByteString -> IO a) -> IO a
 withRelPath (MkPath p) action = action p
 
-
-withFnPath :: Path Fn -> (ByteString -> IO a) -> IO a
-withFnPath (MkPath p) action = action p
 
 
 ------------------------
@@ -447,9 +395,6 @@ mkAbs = either (error . show) lift . parseAbs
 mkRel :: ByteString -> Q Exp
 mkRel = either (error . show) lift . parseRel
 
-mkFN :: ByteString -> Q Exp
-mkFN = either (error . show) lift . parseFn
-
 mkAny :: ByteString -> Q Exp
 mkAny = either (error . show) lift . parseAny
 
@@ -474,15 +419,6 @@ abs = qq mkAbs
 -- "\239\131\144"
 rel :: QuasiQuoter
 rel = qq mkRel
-
--- | Quasiquote a file name. This accepts Unicode Chars and will encode as UTF-8.
---
--- >>> [fn|etc|] :: Path Fn
--- "etc"
--- >>> [fn||] :: Path Fn
--- "\239\131\144"
-fn :: QuasiQuoter
-fn = qq mkFN
 
 -- | Quasiquote any path (relative or absolute).
 -- This accepts Unicode Chars and will encode as UTF-8.

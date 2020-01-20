@@ -32,7 +32,6 @@ Note: this library was written for __posix__ systems and it will probably not su
 * uses safe ByteString for filepaths under the hood instead of unsafe String
 * fixes broken [dirname](https://github.com/chrisdone/path/issues/18)
 * renames dirname/filename to basename/dirname to match the POSIX shell functions
-* introduces a new `Path Fn` for safe filename guarantees and a `RelC` class
 * allows pattern matching via unidirectional PatternSynonym
 * uses simple doctest for testing
 * allows `~/` as relative path, because on posix level `~` is just a regular filename that does _NOT_ point to `$HOME`

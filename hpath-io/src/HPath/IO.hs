@@ -1177,14 +1177,14 @@ getDirsFiles p@(MkPath fp) = do
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
 getDirsFiles' :: Path b        -- ^ dir to read
-             -> IO [Path Fn]
+             -> IO [Path Rel]
 getDirsFiles' p@(MkPath fp) = do
   fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
   rawContents <- getDirectoryContents' fd
   fmap catMaybes $ for rawContents $ \(_, f) ->
       if FP.isSpecialDirectoryEntry f
       then pure Nothing
-      else fmap Just $ parseFn f
+      else fmap Just $ parseRel f
 
 
 
