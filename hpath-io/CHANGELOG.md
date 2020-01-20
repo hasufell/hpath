@@ -1,5 +1,12 @@
 # Revision history for hpath-io
 
+## 0.12.0 -- 2020-01-20
+
+* breaking API changes
+	* RelC and Fn were removed from `hpath`
+	* further changes to `parseAny`
+
+
 ## 0.11.0 -- 2020-01-18
 
 * `writeFile` not allows to set file mode and create file if it does not exist (this broke API)

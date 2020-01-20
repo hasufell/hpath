@@ -1,3 +1,10 @@
+0.11.0
+	* Many API breaking changes
+	* Remove RelC and Fn, because they complicate API/break semantics (see #29)
+	* Redo 'parseAny'
+	* Unexpose HPath.Internal
+	* Don't preserve trailing path separators (if you need to pass something to a C function that way, do it manually)
+	* Added `rooPath`, `isRootPath`, `getAllComponents`, `getAllComponentsAfterRoot`
 0.10.2
 	* Add `parseAny` and the related QuasiQuoter
 0.10.1
