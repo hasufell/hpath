@@ -727,7 +727,8 @@ makeValid path
   | otherwise    = BS.map (\x -> if x == _nul then _underscore else x) path
 
 
--- | Is a FilePath valid, i.e. could you create a file like it?
+-- | Whether the filename is a special directory entry
+-- (. and ..). Does not normalise filepaths.
 --
 -- >>> isSpecialDirectoryEntry "."
 -- True
