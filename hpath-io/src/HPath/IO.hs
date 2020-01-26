@@ -200,8 +200,8 @@ import HPath
 import HPath.IO.Errors
 import Prelude hiding (appendFile, readFile, writeFile)
 import Streamly
-import Streamly.ByteString
-import qualified Streamly.ByteString.Lazy as SL
+import Streamly.External.ByteString
+import qualified Streamly.External.ByteString.Lazy as SL
 import qualified Streamly.Data.Fold as FL
 import Streamly.Memory.Array
 import qualified Streamly.FileSystem.Handle as FH
@@ -942,7 +942,7 @@ readFileStream :: Path b
 readFileStream (Path fp) = do
   fd <- openFd fp SPI.ReadOnly [] Nothing
   handle <- SPI.fdToHandle fd
-  let stream = (S.unfold (SU.finally SIO.hClose FH.readChunks) handle) >>= arrayToByteString
+  let stream = fmap fromArray (S.unfold (SU.finally SIO.hClose FH.readChunks) handle)
   pure stream
 
 
@@ -989,7 +989,7 @@ writeFileL (Path fp) fmode lbs = do
   handle <- bracketOnError (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd) $ SPI.fdToHandle
   finally (streamlyCopy handle) (SIO.hClose handle)
   where
-    streamlyCopy tH = S.fold (FH.writeChunks tH) $ SL.fromByteString lbs
+    streamlyCopy tH = S.fold (FH.writeChunks tH) $ SL.toChunks lbs
 
 
 -- |Append a given ByteString to a file.
