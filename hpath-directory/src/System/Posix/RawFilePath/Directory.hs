@@ -480,9 +480,9 @@ recreateSymlink symsource newsym cm
     case cm of
       Strict -> return ()
       Overwrite -> do
-        writable <- toAbs newsym >>= (\p -> do
-                                        e <- doesExist p
-                                        if e then isWritable p else pure False)
+        writable <- do
+                      e <- doesExist newsym
+                      if e then isWritable newsym else pure False
         isfile   <- doesFileExist newsym
         isdir    <- doesDirectoryExist newsym
         when (writable && isfile) (deleteFile newsym)
@@ -770,7 +770,7 @@ createDirIfMissing fm destBS =
 -- Note: calls `getcwd` if the input path is a relative path
 createDirRecursive :: FileMode -> RawFilePath -> IO ()
 createDirRecursive fm p =
-  toAbs p >>= go
+  go p
   where
     go :: RawFilePath -> IO ()
     go dest = do
@@ -879,9 +879,9 @@ moveFile from to cm = do
                 easyDelete from
     Overwrite -> do
       ft <- getFileType from
-      writable <- toAbs to >>= (\p -> do
-                                      e <- doesFileExist p
-                                      if e then isWritable p else pure False)
+      writable <- do
+                    e <- doesFileExist to
+                    if e then isWritable to else pure False
 
       case ft of
         RegularFile -> do
