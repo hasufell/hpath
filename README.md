@@ -14,4 +14,5 @@ Set of libraries to deal with filepaths and files.
 
 * [![Hackage version](https://img.shields.io/hackage/v/hpath.svg?label=Hackage)](https://hackage.haskell.org/package/hpath) [hpath](./hpath): Support for well-typed paths
 * [![Hackage version](https://img.shields.io/hackage/v/hpath-filepath.svg?label=Hackage)](https://hackage.haskell.org/package/hpath-filepath) [hpath-filepath](./hpath-filepath): ByteString based filepath manipulation (can be used without hpath)
-* [![Hackage version](https://img.shields.io/hackage/v/hpath-io.svg?label=Hackage)](https://hackage.haskell.org/package/hpath-io) [hpath-io](./hpath-io): high-level file API (recursive copy, writeFile etc.) using hpath
+* [![Hackage version](https://img.shields.io/hackage/v/hpath-directory.svg?label=Hackage)](https://hackage.haskell.org/package/hpath-directory) [hpath-directory](./hpath-directory): Hhigh-level IO operations for files/directories on raw ByteString filepaths (use hpath-io for the type-safe path version)
+* [![Hackage version](https://img.shields.io/hackage/v/hpath-io.svg?label=Hackage)](https://hackage.haskell.org/package/hpath-io) [hpath-io](./hpath-io): High-level IO operations for files/directories utilizing type-safe Path

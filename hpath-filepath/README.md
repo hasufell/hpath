@@ -4,7 +4,11 @@
 
 Support for bytestring based filepath manipulation, similar to 'filepath'.
 
-This package is part of the HPath suite, also check out [hpath](https://hackage.haskell.org/package/hpath) and [hpath-io](https://hackage.haskell.org/package/hpath-io).
+This package is part of the HPath suite, also check out:
+
+* [hpath](https://hackage.haskell.org/package/hpath)
+* [hpath-directory](https://hackage.haskell.org/package/hpath-directory)
+* [hpath-io](https://hackage.haskell.org/package/hpath-io)
 
 ## Motivation
 

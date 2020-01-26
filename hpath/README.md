@@ -4,7 +4,11 @@
 
 Support for well-typed paths in Haskell.
 
-This package is part of the HPath suite, also check out [hpath-filepath](https://hackage.haskell.org/package/hpath-filepath) and [hpath-io](https://hackage.haskell.org/package/hpath-io).
+This package is part of the HPath suite, also check out:
+
+* [hpath-directory](https://hackage.haskell.org/package/hpath-directory)
+* [hpath-filepath](https://hackage.haskell.org/package/hpath-filepath)
+* [hpath-io](https://hackage.haskell.org/package/hpath-io)
 
 ## Motivation
 

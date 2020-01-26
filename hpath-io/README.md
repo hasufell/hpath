@@ -2,9 +2,13 @@
 
 [![Gitter chat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/hasufell/hpath?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![Hackage version](https://img.shields.io/hackage/v/hpath-io.svg?label=Hackage)](https://hackage.haskell.org/package/hpath-io) [![Build Status](https://api.travis-ci.org/hasufell/hpath.png?branch=master)](http://travis-ci.org/hasufell/hpath) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/hpath-io.svg)](http://packdeps.haskellers.com/feed?needle=hpath-io)
 
-High-level IO operations on files/directories, utilizing type-safe Paths.
+High-level IO operations on files/directories, utilizing type-safe Paths. This uses [hpath-directory](https://hackage.haskell.org/package/hpath-directory) under the hood.
 
-This package is part of the HPath suite, also check out [hpath](https://hackage.haskell.org/package/hpath) and [hpath-filepath](https://hackage.haskell.org/package/hpath-filepath).
+This package is part of the HPath suite, also check out:
+
+* [hpath](https://hackage.haskell.org/package/hpath)
+* [hpath-directory](https://hackage.haskell.org/package/hpath-directory)
+* [hpath-filepath](https://hackage.haskell.org/package/hpath-filepath)
 
 ## Motivation
 
@@ -20,9 +24,4 @@ while utilizing type-safe Paths.
 * unit-testing exceptions (because yes, people may rely on them)
 
 Note: this library was written for __posix__ systems and it will probably not support other systems.
-
-## Differences to 'posix-paths'
-
-* has a custom versions of `openFd` which allows more control over the flags than its unix package counterpart
-* adds a `getDirectoryContents'` version that works on Fd
 
