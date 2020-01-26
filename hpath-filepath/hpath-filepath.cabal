@@ -1,5 +1,5 @@
 name:                hpath-filepath
-version:             0.10.3
+version:             0.10.4
 synopsis:            ByteString based filepath manipulation
 description:         ByteString based filepath manipulation, similar to 'filepath' package. This is POSIX only.
 -- bug-reports:
