@@ -27,10 +27,7 @@
 -- For other functions (like `copyFile`), the behavior on these file types is
 -- unreliable/unsafe. Check the documentation of those functions for details.
 
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE PackageImports #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module HPath.IO
   (
@@ -68,8 +65,8 @@ module HPath.IO
   , writeFileL
   , appendFile
   -- * File permissions
-  , newFilePerms
-  , newDirPerms
+  , RD.newFilePerms
+  , RD.newDirPerms
   -- * File checks
   , doesExist
   , doesFileExist
@@ -94,180 +91,43 @@ module HPath.IO
   , withHandle
   , module System.Posix.RawFilePath.Directory.Errors
   )
-  where
+where
 
 
-import Control.Applicative
-  (
-    (<$>)
-  )
-import Control.Exception.Safe
-  (
-    IOException
-  , bracket
-  , bracketOnError
-  , throwIO
-  , finally
-  )
-import Control.Monad
-  (
-    unless
-  , void
-  , when
-  )
-import Control.Monad.Catch (MonadThrow(..))
-import Control.Monad.IfElse
-  (
-    unlessM
-  )
-import Data.ByteString
-  (
-    ByteString
-  )
+import           Control.Exception.Safe         ( bracketOnError
+                                                , finally
+                                                )
+import           Control.Monad.Catch            ( MonadThrow(..) )
+
+import           Data.ByteString                ( ByteString )
 import           Data.Traversable               ( for )
-import           Data.Functor                   ( ($>) )
-#if MIN_VERSION_bytestring(0,10,2)
-import Data.ByteString.Builder
-#else
-import Data.ByteString.Lazy.Builder
-#endif
-  (
-    Builder
-  , byteString
-  , toLazyByteString
-  )
-import qualified Data.ByteString.Lazy as L
-import Data.ByteString.Unsafe
-  (
-    unsafePackCStringFinalizer
-  )
-import Data.Foldable
-  (
-    for_
-  )
-import Data.IORef
-  (
-    IORef
-  , modifyIORef
-  , newIORef
-  , readIORef
-  )
-import Data.Maybe
-  (
-    catMaybes
-  )
-import Data.Monoid
-  (
-    (<>)
-  , mempty
-  )
-import Data.Time.Clock
-import Data.Time.Clock.POSIX (getPOSIXTime, posixSecondsToUTCTime, POSIXTime)
-import Data.Word
-  (
-    Word8
-  )
-import Foreign.C.Error
-  (
-    eEXIST
-  , eNOENT
-  , eNOTEMPTY
-  , eXDEV
-  , getErrno
-  )
-import Foreign.C.Types
-  (
-    CSize
-  )
-import Foreign.Marshal.Alloc
-  (
-    allocaBytes
-  )
-import Foreign.Ptr
-  (
-    Ptr
-  )
-import GHC.IO.Exception
-  (
-    IOErrorType(..)
-  )
-import HPath
-import Prelude hiding (appendFile, readFile, writeFile)
-import Streamly
-import Streamly.External.ByteString
-import qualified Streamly.External.ByteString.Lazy as SL
-import qualified Streamly.Data.Fold as FL
-import Streamly.Memory.Array
-import qualified Streamly.FileSystem.Handle as FH
-import qualified Streamly.Internal.Data.Unfold as SU
-import qualified Streamly.Internal.FileSystem.Handle as IFH
-import qualified Streamly.Internal.Memory.ArrayStream as AS
-import qualified Streamly.Prelude as S
-import qualified System.IO as SIO
-import System.IO.Error
-  (
-    catchIOError
-  , ioeGetErrorType
-  )
-import System.Posix.ByteString
-  (
-    exclusive
-  )
-import System.Posix.Directory.ByteString
-  (
-    createDirectory
-  , closeDirStream
-  , getWorkingDirectory
-  , openDirStream
-  , removeDirectory
-  )
-import System.Posix.Files.ByteString
-  (
-    createSymbolicLink
-  , fileAccess
-  , fileMode
-  , getFdStatus
-  , groupExecuteMode
-  , groupReadMode
-  , groupWriteMode
-  , otherExecuteMode
-  , otherReadMode
-  , otherWriteMode
-  , ownerModes
-  , ownerReadMode
-  , ownerWriteMode
-  , readSymbolicLink
-  , removeLink
-  , rename
-  , setFileMode
-  , unionFileModes
-  )
-import qualified System.Posix.FilePath as FP
-import qualified System.Posix.Files.ByteString as PF
-import qualified "unix" System.Posix.IO.ByteString as SPI
-import qualified "unix-bytestring" System.Posix.IO.ByteString as SPB
-import System.Posix.FD
-  (
-    openFd
-  )
-import qualified System.Posix.Process.ByteString as SPP
-import System.Posix.RawFilePath.Directory.Errors
-import System.Posix.Types
-  (
-    FileMode
-  , ProcessID
-  , Fd
-  , EpochTime
-  )
-import System.Posix.Time
-
-import qualified System.Posix.RawFilePath.Directory as RD
-import System.Posix.RawFilePath.Directory
-  (
-    FileType
-  , RecursiveErrorMode
-  , CopyMode
-  )
+import qualified Data.ByteString.Lazy          as L
+import           Data.Time.Clock
+import           Data.Time.Clock.POSIX          ( POSIXTime )
+import           HPath
+import           Prelude                 hiding ( appendFile
+                                                , readFile
+                                                , writeFile
+                                                )
+import           Streamly
+import qualified System.IO                     as SIO
+import           System.Posix.Directory.ByteString
+                                                ( getWorkingDirectory )
+import qualified "unix" System.Posix.IO.ByteString
+                                               as SPI
+import           System.Posix.FD                ( openFd )
+import           System.Posix.RawFilePath.Directory.Errors
+import           System.Posix.Types             ( FileMode
+                                                , ProcessID
+                                                , EpochTime
+                                                )
+import qualified System.Posix.RawFilePath.Directory
+                                               as RD
+import           System.Posix.RawFilePath.Directory
+                                                ( FileType
+                                                , RecursiveErrorMode
+                                                , CopyMode
+                                                )
 
 
 
@@ -337,8 +197,8 @@ copyDirRecursive :: Path b1  -- ^ source dir
                  -> CopyMode
                  -> RecursiveErrorMode
                  -> IO ()
-copyDirRecursive (Path fromp) (Path destdirp) cm rm
-  = RD.copyDirRecursive fromp destdirp cm rm
+copyDirRecursive (Path fromp) (Path destdirp) cm rm =
+  RD.copyDirRecursive fromp destdirp cm rm
 
 
 -- |Recreate a symlink.
@@ -374,8 +234,8 @@ recreateSymlink :: Path b1   -- ^ the old symlink file
                 -> Path b2   -- ^ destination file
                 -> CopyMode
                 -> IO ()
-recreateSymlink (Path symsourceBS) (Path newsymBS) cm
-  = RD.recreateSymlink symsourceBS newsymBS cm
+recreateSymlink (Path symsourceBS) (Path newsymBS) cm =
+  RD.recreateSymlink symsourceBS newsymBS cm
 
 
 -- |Copies the given regular file to the given destination.
@@ -432,11 +292,7 @@ copyFile (Path from) (Path to) cm = RD.copyFile from to cm
 --    * calls `copyDirRecursive` for directories
 --
 -- Note: may call `getcwd` in Overwrite mode (if destination is a relative path)
-easyCopy :: Path b1
-         -> Path b2
-         -> CopyMode
-         -> RecursiveErrorMode
-         -> IO ()
+easyCopy :: Path b1 -> Path b2 -> CopyMode -> RecursiveErrorMode -> IO ()
 easyCopy (Path from) (Path to) cm rm = RD.easyCopy from to cm rm
 
 
@@ -522,8 +378,7 @@ easyDelete (Path p) = RD.easyDelete p
 
 -- |Opens a file appropriately by invoking xdg-open. The file type
 -- is not checked. This forks a process.
-openFile :: Path b
-         -> IO ProcessID
+openFile :: Path b -> IO ProcessID
 openFile (Path fp) = RD.openFile fp
 
 
@@ -725,8 +580,7 @@ readFile (Path path) = RD.readFile path
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFileStream :: Path b
-               -> IO (SerialT IO ByteString)
+readFileStream :: Path b -> IO (SerialT IO ByteString)
 readFileStream (Path fp) = RD.readFileStream fp
 
 
@@ -783,33 +637,6 @@ writeFileL (Path fp) fmode lbs = RD.writeFileL fp fmode lbs
 appendFile :: Path b -> ByteString -> IO ()
 appendFile (Path fp) bs = RD.appendFile fp bs
 
-
-
-
-    -----------------------
-    --[ File Permissions]--
-    -----------------------
-
-
--- |Default permissions for a new file.
-newFilePerms :: FileMode
-newFilePerms
-  =                  ownerWriteMode
-    `unionFileModes` ownerReadMode
-    `unionFileModes` groupWriteMode
-    `unionFileModes` groupReadMode
-    `unionFileModes` otherWriteMode
-    `unionFileModes` otherReadMode
-
-
--- |Default permissions for a new directory.
-newDirPerms :: FileMode
-newDirPerms
-  =                  ownerModes
-    `unionFileModes` groupExecuteMode
-    `unionFileModes` groupReadMode
-    `unionFileModes` otherExecuteMode
-    `unionFileModes` otherReadMode
 
 
 
@@ -920,7 +747,7 @@ setModificationTimeHiRes (Path bs) t = RD.setModificationTimeHiRes bs t
 --     - `PathParseException` if a filename could not be parsed (should never happen)
 getDirsFiles :: Path b        -- ^ dir to read
              -> IO [Path b]
-getDirsFiles p@(Path fp) = do
+getDirsFiles p = do
   contents <- getDirsFiles' p
   pure $ fmap (p </>) contents
 
@@ -928,7 +755,7 @@ getDirsFiles p@(Path fp) = do
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
 getDirsFiles' :: Path b        -- ^ dir to read
-             -> IO [Path Rel]
+              -> IO [Path Rel]
 getDirsFiles' (Path fp) = do
   rawContents <- RD.getDirsFiles' fp
   for rawContents $ \r -> parseRel r
@@ -981,11 +808,11 @@ toAbs :: Path b -> IO (Path Abs)
 toAbs (Path bs) = do
   let mabs = parseAbs bs :: Maybe (Path Abs)
   case mabs of
-    Just a -> return a
-    Nothing  -> do
+    Just a  -> return a
+    Nothing -> do
       cwd <- getWorkingDirectory >>= parseAbs
-      rel <- parseRel bs -- we know it must be relative now
-      return $ cwd </> rel
+      r   <- parseRel bs -- we know it must be relative now
+      return $ cwd </> r
 
 
 -- | Helper function to use the Path library without
@@ -996,7 +823,10 @@ toAbs (Path bs) = do
 --
 --    - `PathParseException` if the bytestring could neither be parsed as
 --      relative or absolute Path
-withRawFilePath :: MonadThrow m => ByteString -> (Either (Path Abs) (Path Rel) -> m b) -> m b
+withRawFilePath :: MonadThrow m
+                => ByteString
+                -> (Either (Path Abs) (Path Rel) -> m b)
+                -> m b
 withRawFilePath bs action = do
   path <- parseAny bs
   action path
@@ -1017,6 +847,6 @@ withHandle :: ByteString
 withHandle bs mode action = do
   path   <- parseAny bs
   handle <-
-    bracketOnError (openFd bs mode [] (Just newFilePerms)) (SPI.closeFd)
+    bracketOnError (openFd bs mode [] (Just RD.newFilePerms)) (SPI.closeFd)
       $ SPI.fdToHandle
   finally (action (handle, path)) (SIO.hClose handle)
