@@ -59,6 +59,7 @@ module System.Posix.FilePath (
 , splitPath
 , joinPath
 , splitDirectories
+, takeAllParents
 
   -- * Trailing slash functions
 , hasTrailingPathSeparator
@@ -499,6 +500,21 @@ splitDirectories x
   where
     splitter = filter (not . BS.null) . BS.split pathSeparator
 
+
+-- |Get all parents of a path.
+--
+-- >>> takeAllParents "/abs/def/dod"
+-- ["/abs/def","/abs","/"]
+-- >>> takeAllParents "/foo"
+-- ["/"]
+-- >>> takeAllParents "/"
+-- []
+takeAllParents :: RawFilePath -> [RawFilePath]
+takeAllParents p
+  | np == BS.singleton pathSeparator = []
+  | otherwise = takeDirectory np : takeAllParents (takeDirectory np)
+  where
+    np = normalise p
 
 
 ------------------------
