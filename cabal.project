@@ -1,4 +1,5 @@
 packages: ./hpath
+          ./hpath-directory
           ./hpath-filepath
           ./hpath-io
 
