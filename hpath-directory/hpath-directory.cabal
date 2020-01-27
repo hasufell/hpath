@@ -47,7 +47,7 @@ library
                        , hpath-filepath      >= 0.10.3
                        , safe-exceptions     >= 0.1
                        , streamly            >= 0.7
-                       , streamly-bytestring >= 0.1
+                       , streamly-bytestring >= 0.1.0.1
                        , time                >= 1.8
                        , unix                >= 2.5
                        , unix-bytestring     >= 0.3
