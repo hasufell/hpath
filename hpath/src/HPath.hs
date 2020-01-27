@@ -64,9 +64,8 @@ module HPath
 import           Control.Exception (Exception)
 import           Control.Monad.Catch (MonadThrow(..))
 #if MIN_VERSION_bytestring(0,10,8)
-import           Data.ByteString(ByteString, stripPrefix)
+import           Data.ByteString(stripPrefix)
 #else
-import           Data.ByteString(ByteString)
 import qualified Data.List as L
 #endif
 import qualified Data.ByteString as BS
@@ -76,7 +75,7 @@ import           Data.Maybe
 import           Data.Word8
 import           HPath.Internal
 import           Language.Haskell.TH
-import           Language.Haskell.TH.Syntax (Exp(..), Lift(..), lift)
+import           Language.Haskell.TH.Syntax (Lift(..), lift)
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 import           Prelude hiding (abs, any)
 import           System.Posix.FilePath hiding ((</>))

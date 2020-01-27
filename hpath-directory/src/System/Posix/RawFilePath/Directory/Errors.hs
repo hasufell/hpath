@@ -45,10 +45,7 @@ module System.Posix.RawFilePath.Directory.Errors
   where
 
 
-import Control.Applicative
-  (
-    (<$>)
-  )
+
 import Control.Exception.Safe hiding (handleIOError)
 import Control.Monad
   (
@@ -68,10 +65,6 @@ import Data.ByteString.UTF8
   (
     toString
   )
-import Data.Typeable
-  (
-    Typeable
-  )
 import Foreign.C.Error
   (
     getErrno
@@ -87,8 +80,6 @@ import {-# SOURCE #-} System.Posix.RawFilePath.Directory
   , toAbs
   , doesFileExist
   , doesDirectoryExist
-  , isWritable
-  , canOpenDirectory
   )
 import System.IO.Error
   (
@@ -97,11 +88,9 @@ import System.IO.Error
   , mkIOError
   )
 import System.Posix.FilePath
-import qualified System.Posix.Directory.ByteString as PFD
 import System.Posix.Files.ByteString
   (
-    fileAccess
-  , getFileStatus
+    getFileStatus
   )
 import qualified System.Posix.Files.ByteString as PF
 

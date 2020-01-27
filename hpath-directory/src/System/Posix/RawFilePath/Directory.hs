@@ -94,7 +94,6 @@ import           Control.Monad.IO.Class         ( MonadIO )
 import           System.IO.Unsafe
 import qualified Data.ByteString.Lazy.Internal as BSLI
 import qualified Streamly.External.ByteString as Strict
-import           Control.Applicative            ( (<$>) )
 import           Control.Exception.Safe         ( IOException
                                                 , bracket
                                                 , bracketOnError
@@ -105,24 +104,14 @@ import           Control.Monad                  ( unless
                                                 , void
                                                 , when
                                                 )
-import           Control.Monad.Catch            ( MonadThrow(..) )
+#if !MIN_VERSION_base(4,13,0)
 import           Control.Monad.Fail             ( MonadFail )
+#endif
 import           Control.Monad.IfElse           ( unlessM )
 import qualified Data.ByteString               as BS
 import           Data.ByteString                ( ByteString )
 import           Data.Traversable               ( for )
-import           Data.Functor                   ( ($>) )
-#if MIN_VERSION_bytestring(0,10,2)
-import           Data.ByteString.Builder
-#else
-import           Data.ByteString.Lazy.Builder
-#endif
-                                                ( Builder
-                                                , byteString
-                                                , toLazyByteString
-                                                )
 import qualified Data.ByteString.Lazy          as L
-import           Data.ByteString.Unsafe         ( unsafePackCStringFinalizer )
 import qualified Data.ByteString.UTF8          as UTF8
 import           Data.Foldable                  ( for_ )
 import           Data.IORef                     ( IORef
@@ -131,9 +120,6 @@ import           Data.IORef                     ( IORef
                                                 , readIORef
                                                 )
 import           Data.Maybe                     ( catMaybes )
-import           Data.Monoid                    ( (<>)
-                                                , mempty
-                                                )
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX          ( getPOSIXTime
                                                 , posixSecondsToUTCTime
@@ -146,26 +132,18 @@ import           Foreign.C.Error                ( eEXIST
                                                 , eXDEV
                                                 , getErrno
                                                 )
-import           Foreign.C.Types                ( CSize )
-import           Foreign.Marshal.Alloc          ( allocaBytes )
-import           Foreign.Ptr                    ( Ptr )
 import           GHC.IO.Exception               ( IOErrorType(..) )
 import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
 import           Streamly
-import           Streamly.External.ByteString
 import qualified Streamly.External.ByteString.Lazy
                                                as SL
-import qualified Streamly.Data.Fold            as FL
 import           Streamly.Memory.Array
 import qualified Streamly.FileSystem.Handle    as FH
-import qualified Streamly.Internal.Data.Unfold as SU
 import qualified Streamly.Internal.FileSystem.Handle
                                                as IFH
-import qualified Streamly.Internal.Memory.ArrayStream
-                                               as AS
 import qualified Streamly.Prelude              as S
 import qualified System.IO                     as SIO
 import           System.IO.Error                ( catchIOError
@@ -216,7 +194,6 @@ import qualified System.Posix.Process.ByteString
                                                as SPP
 import           System.Posix.Types             ( FileMode
                                                 , ProcessID
-                                                , Fd
                                                 , EpochTime
                                                 )
 import           System.Posix.Time

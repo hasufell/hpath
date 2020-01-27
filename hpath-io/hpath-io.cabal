@@ -25,6 +25,7 @@ library
     build-depends: unbuildable<0
     buildable: False
   exposed-modules:   HPath.IO
+  GHC-Options:          -Wall
   build-depends:     base >= 4.8 && <5
                    , bytestring >= 0.10.0.0
                    , exceptions

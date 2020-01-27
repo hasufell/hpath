@@ -27,6 +27,7 @@ library
   exposed-modules:     System.Posix.FilePath
   -- other-modules:
   -- other-extensions:
+  GHC-Options:          -Wall
   build-depends:       base >=4.8 && <5
                      , bytestring >= 0.10.0.0
                      , unix >= 2.5
