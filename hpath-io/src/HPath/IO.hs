@@ -28,6 +28,7 @@
 -- unreliable/unsafe. Check the documentation of those functions for details.
 
 {-# LANGUAGE PackageImports #-}
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
 
 module HPath.IO
   (
@@ -59,7 +60,6 @@ module HPath.IO
   , moveFile
   -- * File reading
   , readFile
-  , readFileStream
   -- * File writing
   , writeFile
   , writeFileL
@@ -109,7 +109,6 @@ import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
-import           Streamly
 import qualified System.IO                     as SIO
 import           System.Posix.Directory.ByteString
                                                 ( getWorkingDirectory )
@@ -571,17 +570,6 @@ readFile (Path path) = RD.readFile path
 
 
 
--- | Open the given file as a filestream. Once the filestream is
--- exits, the filehandle is cleaned up.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFileStream :: Path b -> IO (SerialT IO ByteString)
-readFileStream (Path fp) = RD.readFileStream fp
 
 
 

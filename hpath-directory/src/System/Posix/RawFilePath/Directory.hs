@@ -90,7 +90,10 @@ module System.Posix.RawFilePath.Directory
   )
 where
 
-
+import           Control.Monad.IO.Class         ( MonadIO )
+import           System.IO.Unsafe
+import qualified Data.ByteString.Lazy.Internal as BSLI
+import qualified Streamly.External.ByteString as Strict
 import           Control.Applicative            ( (<$>) )
 import           Control.Exception.Safe         ( IOException
                                                 , bracket
@@ -869,14 +872,14 @@ moveFile from to cm = do
     --------------------
 
 
--- |Read the given file *at once* into memory as a lazy ByteString.
+-- |Read the given file lazily as a lazy ByteString.
 -- Symbolic links are followed, no sanity checks on file size
--- or file type. File must exist. Uses Builders under the hood
--- (hence lazy ByteString).
+-- or file type. File must exist. Uses streamly under the hood
+-- and closes the internal file handle once the last byte is read.
 --
 -- Safety/reliability concerns:
 --
---    * the whole file is read into memory, this doesn't read lazily
+--    * unsafeInterleaveIO
 --
 -- Throws:
 --
@@ -886,27 +889,23 @@ moveFile from to cm = do
 --     - `NoSuchThing` if the file does not exist
 readFile :: RawFilePath -> IO L.ByteString
 readFile path = do
-  stream <- readFileStream path
-  toLazyByteString <$> S.fold FL.mconcat (fmap byteString stream)
+  handle <-
+    bracketOnError (openFd path SPI.ReadOnly [] Nothing) (SPI.closeFd)
+      $ SPI.fdToHandle
+  fromChunks $ S.finally (SIO.hClose handle) (readFileStream handle)
+  where
+  -- https://github.com/psibi/streamly-bytestring/issues/7
+  fromChunks = S.foldrM (\x b -> unsafeInterleaveIO b >>= pure . BSLI.chunk x) (pure BSLI.Empty)
+    . S.map Strict.fromArray
 
 
-
--- | Open the given file as a filestream. Once the filestream is
--- exits, the filehandle is cleaned up.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFileStream :: RawFilePath -> IO (SerialT IO ByteString)
-readFileStream fp = do
-  fd     <- openFd fp SPI.ReadOnly [] Nothing
-  handle <- SPI.fdToHandle fd
-  let stream =
-        fmap fromArray (S.unfold (SU.finally SIO.hClose FH.readChunks) handle)
-  pure stream
+-- | Read from the given handle as a streamly filestream. The handle
+-- is NOT closed automatically. You may want `finallyIO` from streamly
+-- to attach a handler that runs after the stream exits.
+readFileStream :: MonadIO m
+               => SIO.Handle
+               -> SerialT m (Array Word8)
+readFileStream = S.unfold (FH.readChunks)
 
 
 
