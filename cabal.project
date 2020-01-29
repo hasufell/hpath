@@ -2,6 +2,7 @@ packages: ./hpath
           ./hpath-directory
           ./hpath-filepath
           ./hpath-io
+          ./hpath-posix
 
 package hpath-io
     ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
