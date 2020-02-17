@@ -49,6 +49,11 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       createDirRecursive' "newDir"
       deleteDir' "newDir"
 
+    it "createDirRecursive with trailing path separator, all fine" $ do
+      createDirRecursive' "newDir/foo/"
+      deleteDir' "newDir/foo"
+      deleteDir' "newDir"
+
     it "createDirRecursive, parent directories do not exist" $ do
       createDirRecursive' "some/thing/dada"
       deleteDir' "some/thing/dada"
