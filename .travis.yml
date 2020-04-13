@@ -9,18 +9,50 @@ matrix:
   include:
     - env: CABALVER=3.0 GHCVER=7.10.3 SKIP_DOCTESTS=yes
       addons: {apt: {packages: [cabal-install-3.0,ghc-7.10.3], sources: [hvr-ghc]}}
+      before_install:
+       - sudo apt-get install -y hscolour
+       - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
     - env: CABALVER=3.0 GHCVER=8.0.2 SKIP_DOCTESTS=yes
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.0.2], sources: [hvr-ghc]}}
+      before_install:
+       - sudo apt-get install -y hscolour
+       - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
     - env: CABALVER=3.0 GHCVER=8.2.2
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.2.2], sources: [hvr-ghc]}}
+      before_install:
+       - sudo apt-get install -y hscolour
+       - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
     - env: CABALVER=3.0 GHCVER=8.4.4
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.4.4], sources: [hvr-ghc]}}
+      before_install:
+       - sudo apt-get install -y hscolour
+       - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
     - env: CABALVER=3.0 GHCVER=8.6.5
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.6.5], sources: [hvr-ghc]}}
+      before_install:
+       - sudo apt-get install -y hscolour
+       - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
     - env: CABALVER=3.0 GHCVER=8.8.1
       addons: {apt: {packages: [cabal-install-3.0,ghc-8.8.1], sources: [hvr-ghc]}}
+      before_install:
+       - sudo apt-get install -y hscolour
+       - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
     - env: CABALVER=head GHCVER=head
       addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
+      before_install:
+       - sudo apt-get install -y hscolour
+       - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+    - os: osx
+      osx_image: xcode11.3
+      language: generic
+      before_install:
+       - mkdir -p ~/.ghcup/bin
+       - curl https://gitlab.haskell.org/haskell/ghcup/raw/master/ghcup > ~/.ghcup/bin/ghcup
+       - chmod +x ~/.ghcup/bin/ghcup
+       - export PATH=~/.cabal/bin:~/.ghcup/bin:$PATH
+       - ghcup install 8.6.5
+       - ghcup set 8.6.5
+       - ghcup install-cabal
 
   allow_failures:
     - env: CABALVER=head GHCVER=head
@@ -28,10 +60,6 @@ matrix:
 env:
   global:
     - secure: HPBARvNM85ea2U0Ynq5MMe6BRlnuwqXWuSn20VY3EYCAT2njkVPYnR3O7+bGE6aq0KHAV87zz5iUfGJontd86tE0sDVjcSuRY0hqjOeJTkQq5M8WXJZOpVqlBTwDP1Q3x/fwoRa0dt9Z0tZZdKMlrf2XdcKPDdhcP1QYP4aV/jO4ZCfAQr7zVCvTae+Lp/KmwFYcBbFo/pj0duF1M4Oqx/D388b/W4jVE3lgd/TK7Ja1xWP6g+Oyvo6iQK8yJVYGdm6E+cVsNueiisnTJ/rRA53lsaC9dmWtZaFGl41wPviSU5zPq03vOuZMiyE2WtCHoo46ONXrXJ9N2soqdQVfEkr9Nw5LQl+6C5lCPEejZ575YUkuO05H3wvHMk3YY4zWXNFA9eZ47PEH8tpoUk9LPBacCKQFtp5lfRk63crba5CiFtcMyFq++0mLpNthNvtto7ffHMZrt6fvK9axI+r21VPftf/3FiFY4mnCp/Bln+ijklfZSN71VqiT20EWuqxQHw8aCpT00KA/PKGl9iJfoN4OO3XzNRTtmM+L9Im4bc1ni9YQ6N3UYg3z0nEnCLwFcTmTH/tDMHRremE0dM6B++YfcnyIhen8w+hG4bcXk7jbMUizRhUhStN7TZQuC9S4wE5whhp9c03rJZMmH5E2rlXY3lwVgeyWm1TuMp1RYWI=
-
-before_install:
- - sudo apt-get install -y hscolour
- - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
 install:
  - cabal --version
@@ -48,7 +76,6 @@ script:
  - (cd hpath-filepath && cabal check)
  - (cd hpath-io && cabal check)
  - cabal sdist all
- - cabal haddock --haddock-hyperlink-source --haddock-html-location=https://hackage.haskell.org/package/\$pkg-\$version/docs/ all
  - cabal install --lib all
 
 notifications:
