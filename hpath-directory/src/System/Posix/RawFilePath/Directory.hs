@@ -1150,7 +1150,7 @@ getDirsFiles' :: RawFilePath        -- ^ dir to read
 getDirsFiles' fp = do
   fd          <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
   rawContents <- getDirectoryContents' fd
-  fmap catMaybes $ for rawContents $ \(_, f) ->
+  fmap catMaybes $ for rawContents $ \f ->
     if FP.isSpecialDirectoryEntry f then pure Nothing else pure $ Just f
 
 
