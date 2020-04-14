@@ -30,8 +30,6 @@ module System.Posix.RawFilePath.Directory.Traversals (
 
 -- lower-level stuff
 , readDirEnt
-, packDirStream
-, unpackDirStream
 , fdOpendir
 
 , realpath
@@ -52,11 +50,11 @@ import Control.Exception
 import qualified Data.ByteString.Char8 as BS
 import System.Posix.ByteString.FilePath
 import System.Posix.Directory.ByteString as PosixBS
+import System.Posix.Directory.Common
 import System.Posix.Files.ByteString
 
 import System.IO.Unsafe
 import "unix" System.Posix.IO.ByteString (closeFd)
-import Unsafe.Coerce (unsafeCoerce)
 import Foreign.C.Error
 import Foreign.C.String
 import Foreign.C.Types
@@ -148,18 +146,6 @@ actOnDirContents pathRelToTop b f =
 ----------------------------------------------------------
 -- dodgy stuff
 
-type CDir = ()
-type CDirent = ()
-
--- Posix doesn't export DirStream, so to re-use that type we need to use
--- unsafeCoerce.  It's just a newtype, so this is a legitimate usage.
--- ugly trick.
-unpackDirStream :: DirStream -> Ptr CDir
-unpackDirStream = unsafeCoerce
-
-packDirStream :: Ptr CDir -> DirStream
-packDirStream = unsafeCoerce
-
 -- the __hscore_* functions are defined in the unix package.  We can import them and let
 -- the linker figure it out.
 foreign import ccall unsafe "__hscore_readdir"
@@ -178,14 +164,14 @@ foreign import ccall "realpath"
   c_realpath :: CString -> CString -> IO CString
 
 foreign import ccall unsafe "fdopendir"
-  c_fdopendir :: Posix.Fd -> IO (Ptr ())
+  c_fdopendir :: Posix.Fd -> IO (Ptr CDir)
 
 ----------------------------------------------------------
 -- less dodgy but still lower-level
 
 
 readDirEnt :: DirStream -> IO (DirType, RawFilePath)
-readDirEnt (unpackDirStream -> dirp) =
+readDirEnt (DirStream dirp) =
   alloca $ \ptr_dEnt  -> loop ptr_dEnt
  where
   loop ptr_dEnt = do
@@ -228,7 +214,7 @@ getDirectoryContents path =
 -- |Binding to @fdopendir(3)@.
 fdOpendir :: Posix.Fd -> IO DirStream
 fdOpendir fd =
-    packDirStream <$> throwErrnoIfNull "fdOpendir" (c_fdopendir fd)
+    DirStream <$> throwErrnoIfNull "fdOpendir" (c_fdopendir fd)
 
 
 -- |Like `getDirectoryContents` except for a file descriptor.

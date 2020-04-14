@@ -680,8 +680,7 @@ createRegularFile :: FileMode -> RawFilePath -> IO ()
 createRegularFile fm destBS = bracket
   (SPI.openFd destBS
               SPI.WriteOnly
-              (Just fm)
-              (SPI.defaultFileFlags { exclusive = True })
+              (SPI.defaultFileFlags { exclusive = True, SPI.creat = (Just fm) })
   )
   SPI.closeFd
   (\_ -> return ())

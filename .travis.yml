@@ -68,6 +68,7 @@ install:
  - cabal install --installdir=$HOME/.cabal/bin doctest
 
 script:
+ - (cd unix && autoreconf -fi)
  - cabal build --enable-tests all
  - cabal run spec
  - ./hpath/run-doctests.sh
