@@ -41,6 +41,7 @@ module System.Posix.RawFilePath.Directory.Traversals (
 #if __GLASGOW_HASKELL__ < 710
 import Control.Applicative ((<$>))
 #endif
+import Control.DeepSeq
 import Control.Monad
 import System.Posix.FilePath ((</>))
 import System.Posix.Foreign
@@ -193,10 +194,11 @@ readDirEnt (unpackDirStream -> dirp) =
     if (r == 0)
        then do
          dEnt <- peek ptr_dEnt
+         putStrLn $ "readDirEnt dEnt " ++ (show dEnt)
          if (dEnt == nullPtr)
             then return (dtUnknown,BS.empty)
             else do
-                 dName <- c_name dEnt >>= peekFilePath
+                 dName <- c_name dEnt >>= peekFilePath >>= evaluate . force
                  dType <- c_type dEnt
                  c_freeDirEnt dEnt
                  putStrLn $ "readDirEnt" ++ (show dName)
