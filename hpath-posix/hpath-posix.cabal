@@ -1,7 +1,7 @@
 cabal-version:       >=1.10
 
 name:                hpath-posix
-version:             0.13.1
+version:             0.13.2
 synopsis:            Some low-level POSIX glue code, that is not in 'unix'
 homepage:            https://github.com/hasufell/hpath
 bug-reports:         https://github.com/hasufell/hpath/issues
