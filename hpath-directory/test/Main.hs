@@ -8,6 +8,8 @@ import Test.Hspec.Formatters
 import qualified Spec
 import Utils
 import System.Posix.Temp.ByteString (mkdtemp)
+import System.Posix.Env.ByteString (getEnvDefault)
+import System.Posix.FilePath ((</>))
 
 
 -- TODO: chardev, blockdev, namedpipe, socket
@@ -15,7 +17,8 @@ import System.Posix.Temp.ByteString (mkdtemp)
 
 main :: IO ()
 main = do
-  tmpBase <- mkdtemp "/tmp/"
+  tmpdir <- getEnvDefault "TMPDIR" "/tmp"
+  tmpBase <- mkdtemp (tmpdir </> "hpath-directory")
   writeIORef baseTmpDir (Just (tmpBase `BS.append` "/"))
   putStrLn $ ("Temporary test directory at: " ++ show tmpBase)
   hspecWith
