@@ -1,5 +1,9 @@
 # Revision history for hpath-directory
 
+## 0.13.3 -- 2020-04-14
+
+* Fix tests on mac
+
 ## 0.13.2 -- 2020-02-17
 
 * Fix bug in `createDirRecursive` with trailing path separators
