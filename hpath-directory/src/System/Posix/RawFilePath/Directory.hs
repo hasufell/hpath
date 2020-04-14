@@ -179,7 +179,7 @@ import           System.Posix.Directory.ByteString
                                                 , removeDirectory
                                                 )
 import           System.Posix.RawFilePath.Directory.Traversals
-                                                ( getDirectoryContents' )
+                                                ( getDirectoryContents )
 import           System.Posix.Files.ByteString  ( createSymbolicLink
                                                 , fileAccess
                                                 , fileMode
@@ -1148,8 +1148,9 @@ getDirsFiles p = do
 getDirsFiles' :: RawFilePath        -- ^ dir to read
               -> IO [RawFilePath]
 getDirsFiles' fp = do
-  fd          <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
-  rawContents <- getDirectoryContents' fd
+  fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing -- trigger errors
+  SPI.closeFd fd
+  rawContents <- getDirectoryContents fp
   fmap catMaybes $ for rawContents $ \f ->
     if FP.isSpecialDirectoryEntry f then pure Nothing else pure $ Just f
 
