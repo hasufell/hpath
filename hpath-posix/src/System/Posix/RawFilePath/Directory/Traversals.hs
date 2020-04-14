@@ -10,6 +10,7 @@
 -- Traversal and read operations on directories.
 
 
+{-# LANGUAGE CApiFFI #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -173,11 +174,15 @@ foreign import ccall unsafe "__hscore_d_name"
 foreign import ccall unsafe "__posixdir_d_type"
   c_type :: Ptr CDirent -> IO DirType
 
-foreign import ccall "realpath"
+foreign import capi "stdlib.h realpath"
   c_realpath :: CString -> CString -> IO CString
 
-foreign import ccall unsafe "fdopendir"
-  c_fdopendir :: Posix.Fd -> IO (Ptr ())
+-- Using normal 'ccall' here lead to memory bugs, crashes
+-- and corrupted d_name entries. It appears there are two fdopendirs:
+--   https://opensource.apple.com/source/Libc/Libc-1244.1.7/include/dirent.h.auto.html
+-- The capi call picks the correct one.
+foreign import capi unsafe "dirent.h fdopendir"
+  c_fdopendir :: Posix.Fd -> IO (Ptr CDir)
 
 ----------------------------------------------------------
 -- less dodgy but still lower-level
