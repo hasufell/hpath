@@ -30,7 +30,6 @@ module System.Posix.RawFilePath.Directory.Traversals (
 
 -- lower-level stuff
 , fdOpendir
-
 , realpath
 ) where
 
