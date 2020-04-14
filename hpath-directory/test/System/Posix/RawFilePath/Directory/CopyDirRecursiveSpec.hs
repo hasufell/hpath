@@ -89,7 +89,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         "outputDir"
                         Strict
                         FailEarly
-      (system $ "diff -r --no-dereference "
+      (system $ "diff -r "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
                           ++ toString tmpDir' ++ "outputDir"
                           ++ " >/dev/null")

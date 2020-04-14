@@ -10,6 +10,7 @@ import Utils
 import System.Posix.Temp.ByteString (mkdtemp)
 import System.Posix.Env.ByteString (getEnvDefault)
 import System.Posix.FilePath ((</>))
+import "hpath-directory" System.Posix.RawFilePath.Directory
 
 
 -- TODO: chardev, blockdev, namedpipe, socket
@@ -17,7 +18,7 @@ import System.Posix.FilePath ((</>))
 
 main :: IO ()
 main = do
-  tmpdir <- getEnvDefault "TMPDIR" "/tmp"
+  tmpdir <- getEnvDefault "TMPDIR" "/tmp" >>= canonicalizePath
   tmpBase <- mkdtemp (tmpdir </> "hpath-directory")
   writeIORef baseTmpDir (Just (tmpBase `BS.append` "/"))
   putStrLn $ ("Temporary test directory at: " ++ show tmpBase)
