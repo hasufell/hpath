@@ -70,7 +70,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
     it "deleteFile, wrong file type (directory)" $
       deleteFile' "dir"
         `shouldThrow`
-        (\e -> ioeGetErrorType e == InappropriateType)
+        (\e -> ioeGetErrorType e == InappropriateType || ioeGetErrorType e == PermissionDenied)
 
     it "deleteFile, file does not exist" $
       deleteFile' "doesNotExist"
