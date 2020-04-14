@@ -564,7 +564,7 @@ easyCopy from to cm rm = do
 --
 -- Throws:
 --
---    - `InappropriateType` for wrong file type (directory)
+--    - `InappropriateType` or `PermissionDenied` for wrong file type (directory)
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if the directory cannot be read
 --
