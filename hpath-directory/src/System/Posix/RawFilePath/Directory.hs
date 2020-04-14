@@ -564,7 +564,7 @@ easyCopy from to cm rm = do
 --
 -- Throws:
 --
---    - `InappropriateType` for wrong file type (directory)
+--    - `InappropriateType` or `PermissionDenied` for wrong file type (directory)
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if the directory cannot be read
 --
@@ -742,8 +742,8 @@ createDirRecursive fm p = go p
           | en == eEXIST
           -> unlessM (doesDirectoryExist dest) (ioError e)
           | en == eNOENT
-          -> createDirRecursive fm (takeDirectory dest)
-            >> createDirectory dest fm
+          -> go (takeDirectory $ dropTrailingPathSeparator dest)
+            >> createDir fm dest
           | otherwise
           -> ioError e
 

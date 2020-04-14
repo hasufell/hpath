@@ -7,7 +7,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+
 extern unsigned int
     __posixdir_d_type(struct dirent* d)
     ;
+
 #endif

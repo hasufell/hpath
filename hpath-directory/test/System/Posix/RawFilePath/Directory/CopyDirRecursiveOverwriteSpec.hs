@@ -104,7 +104,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         "outputDir"
                         Overwrite
                         FailEarly
-      (system $ "diff -r --no-dereference "
+      (system $ "diff -r "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
                           ++ toString tmpDir' ++ "outputDir"
                           ++ " >/dev/null")
@@ -113,7 +113,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyDirRecursive (Overwrite, FailEarly), destination dir already exists" $ do
       tmpDir' <- getRawTmpDir
-      (system $ "diff -r --no-dereference "
+      (system $ "diff -r "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
                           ++ toString tmpDir' ++ "alreadyExistsD"
                           ++ " >/dev/null")
@@ -122,7 +122,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         "alreadyExistsD"
                         Overwrite
                         FailEarly
-      (system $ "diff -r --no-dereference "
+      (system $ "diff -r "
                           ++ toString tmpDir' ++ "inputDir" ++ " "
                           ++ toString tmpDir' ++ "alreadyExistsD"
                           ++ " >/dev/null")

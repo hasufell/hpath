@@ -1,7 +1,7 @@
 cabal-version:       >=1.10
 
 name:                hpath-posix
-version:             0.13.0
+version:             0.13.2
 synopsis:            Some low-level POSIX glue code, that is not in 'unix'
 homepage:            https://github.com/hasufell/hpath
 bug-reports:         https://github.com/hasufell/hpath/issues
@@ -32,17 +32,9 @@ library
   -- other-extensions:
   c-sources:           cbits/dirutils.c
   build-depends:         base                >= 4.8  && <5
-                       , IfElse
                        , bytestring          >= 0.10
-                       , exceptions          >= 0.10
                        , hpath-filepath      >= 0.10.3
-                       , safe-exceptions     >= 0.1
-                       , streamly            >= 0.7
-                       , streamly-bytestring >= 0.1.0.1
-                       , time                >= 1.8
                        , unix                >= 2.5
-                       , unix-bytestring     >= 0.3
-                       , utf8-string
   if impl(ghc < 8.0)
     build-depends:
         fail >= 4.9
