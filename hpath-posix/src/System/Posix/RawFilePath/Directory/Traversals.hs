@@ -199,6 +199,7 @@ readDirEnt (unpackDirStream -> dirp) =
                  dName <- c_name dEnt >>= peekFilePath
                  dType <- c_type dEnt
                  c_freeDirEnt dEnt
+                 putStrLn $ "readDirEnt" ++ (show dName)
                  return (dType, dName)
        else do
          errno <- getErrno

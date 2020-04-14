@@ -69,7 +69,7 @@ install:
 
 script:
  - cabal build --enable-tests all
- - cabal test all
+ - cabal run spec
  - ./hpath/run-doctests.sh
  - ./hpath-filepath/run-doctests.sh
  - (cd hpath && cabal check)
