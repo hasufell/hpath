@@ -32,8 +32,8 @@ matrix:
       before_install:
        - sudo apt-get install -y hscolour
        - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
-    - env: CABALVER=3.0 GHCVER=8.8.1
-      addons: {apt: {packages: [cabal-install-3.0,ghc-8.8.1], sources: [hvr-ghc]}}
+    - env: CABALVER=3.0 GHCVER=8.8.3
+      addons: {apt: {packages: [cabal-install-3.0,ghc-8.8.3], sources: [hvr-ghc]}}
       before_install:
        - sudo apt-get install -y hscolour
        - export PATH=~/.cabal/bin:/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
@@ -52,7 +52,7 @@ matrix:
        - export PATH=~/.cabal/bin:~/.ghcup/bin:$PATH
        - ghcup install 8.6.5
        - ghcup set 8.6.5
-       - ghcup install-cabal
+       - ghcup install-cabal 3.2.0.0
 
   allow_failures:
     - env: CABALVER=head GHCVER=head
