@@ -177,8 +177,8 @@ foreign import ccall unsafe "__posixdir_d_type"
 foreign import ccall "realpath"
   c_realpath :: CString -> CString -> IO CString
 
-foreign import ccall unsafe "fdopendir"
-  c_fdopendir :: Posix.Fd -> IO (Ptr ())
+foreign import ccall unsafe "__posixdir_fdopendir"
+  c_fdopendir :: Posix.Fd -> IO (Ptr CDir)
 
 ----------------------------------------------------------
 -- less dodgy but still lower-level
