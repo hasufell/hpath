@@ -186,11 +186,8 @@ parseRel filepath =
 
 
 
--- | Parses a path, whether it's relative or absolute. Will lose
--- information on whether it's relative or absolute. If you need to know,
--- reparse it.
+-- | Parses a path, whether it's relative or absolute.
 --
--- Filenames must not contain slashes.
 -- Excludes '.' and '..'.
 --
 -- Throws: 'PathParseException'
