@@ -44,7 +44,7 @@ library
                        , safe-exceptions     >= 0.1
                        , streamly            >= 0.7
                        , streamly-bytestring >= 0.1.2
-                       , streamly-posix      >= 0.1.0.0
+                       , streamly-posix      >= 0.1.0.1
                        , time                >= 1.8
                        , unix                >= 2.5
                        , unix-bytestring     >= 0.3
