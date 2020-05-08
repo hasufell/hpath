@@ -46,6 +46,7 @@ library
                        , streamly-bytestring >= 0.1.2
                        , streamly-posix      >= 0.1.0.1
                        , time                >= 1.8
+                       , transformers
                        , unix                >= 2.5
                        , unix-bytestring     >= 0.3
                        , utf8-string
