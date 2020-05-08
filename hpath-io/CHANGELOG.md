@@ -1,5 +1,9 @@
 # Revision history for hpath-io
 
+## 0.13.2 -- 2020-05-08
+
+* Add getDirsFilesStream and use streamly-posix for dircontents (#34)
+
 ## 0.13.0 -- 2020-01-26
 
 * switch to using 'hpath-bytestring' for the implementation (this is now just a wrapper module, mostly)

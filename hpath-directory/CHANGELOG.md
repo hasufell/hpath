@@ -1,5 +1,9 @@
 # Revision history for hpath-directory
 
+## 0.13.4 -- 2020-05-08
+
+* Add getDirsFilesStream and use streamly-posix for dircontents (#34)
+
 ## 0.13.3 -- 2020-04-14
 
 * Fix tests on mac

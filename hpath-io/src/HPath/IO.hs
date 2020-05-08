@@ -27,7 +27,8 @@
 -- For other functions (like `copyFile`), the behavior on these file types is
 -- unreliable/unsafe. Check the documentation of those functions for details.
 
-{-# LANGUAGE PackageImports #-}
+{-# LANGUAGE FlexibleContexts #-} -- streamly
+{-# LANGUAGE PackageImports   #-}
 
 module HPath.IO
   (
@@ -82,6 +83,7 @@ module HPath.IO
   -- * Directory reading
   , getDirsFiles
   , getDirsFiles'
+  , getDirsFilesStream
   -- * Filetype operations
   , getFileType
   -- * Others
@@ -94,7 +96,9 @@ module HPath.IO
 where
 
 
-import           Control.Exception.Safe         ( bracketOnError
+import           Control.Exception.Safe         ( MonadMask
+                                                , MonadCatch
+                                                , bracketOnError
                                                 , finally
                                                 )
 import           Control.Monad.Catch            ( MonadThrow(..) )
@@ -759,6 +763,15 @@ getDirsFiles' :: Path b        -- ^ dir to read
 getDirsFiles' (Path fp) = do
   rawContents <- RD.getDirsFiles' fp
   for rawContents $ \r -> parseRel r
+
+
+-- | Like 'getDirsFiles'', except returning a Stream.
+getDirsFilesStream :: (MonadCatch m, MonadAsync m, MonadMask m)
+                   => Path b
+                   -> IO (SerialT m (Path Rel))
+getDirsFilesStream (Path fp) = do
+  s <- RD.getDirsFilesStream fp
+  pure (s >>= parseRel)
 
 
 

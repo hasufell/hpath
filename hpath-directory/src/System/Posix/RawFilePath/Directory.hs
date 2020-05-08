@@ -27,7 +27,8 @@
 -- Import as:
 -- > import System.Posix.RawFilePath.Directory
 
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-} -- streamly
 
 module System.Posix.RawFilePath.Directory
   (
@@ -82,6 +83,7 @@ module System.Posix.RawFilePath.Directory
   -- * Directory reading
   , getDirsFiles
   , getDirsFiles'
+  , getDirsFilesStream
   -- * Filetype operations
   , getFileType
   -- * Others
@@ -93,8 +95,11 @@ where
 
 import           Control.Applicative            ( (<$>) )
 import           Control.Exception.Safe         ( IOException
+                                                , MonadCatch
+                                                , MonadMask
                                                 , bracket
                                                 , bracketOnError
+                                                , onException
                                                 , throwIO
                                                 , finally
                                                 )
@@ -105,6 +110,7 @@ import           Control.Monad                  ( unless
 import           Control.Monad.Catch            ( MonadThrow(..) )
 import           Control.Monad.Fail             ( MonadFail )
 import           Control.Monad.IfElse           ( unlessM )
+import           Control.Monad.IO.Class         ( liftIO )
 import qualified Data.ByteString               as BS
 import           Data.ByteString                ( ByteString )
 import           Data.Traversable               ( for )
@@ -155,6 +161,8 @@ import           Streamly
 import           Streamly.External.ByteString
 import qualified Streamly.External.ByteString.Lazy
                                                as SL
+import qualified Streamly.External.Posix.DirStream
+                                               as SD
 import qualified Streamly.Data.Fold            as FL
 import           Streamly.Memory.Array
 import qualified Streamly.FileSystem.Handle    as FH
@@ -1147,11 +1155,17 @@ getDirsFiles p = do
 -- of prepending the base path.
 getDirsFiles' :: RawFilePath        -- ^ dir to read
               -> IO [RawFilePath]
-getDirsFiles' fp = do
-  fd          <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
-  rawContents <- getDirectoryContents' fd
-  fmap catMaybes $ for rawContents $ \(_, f) ->
-    if FP.isSpecialDirectoryEntry f then pure Nothing else pure $ Just f
+getDirsFiles' fp = getDirsFilesStream fp >>= S.toList
+
+
+-- | Like 'getDirsFiles'', except returning a Stream.
+getDirsFilesStream :: (MonadCatch m, MonadAsync m, MonadMask m)
+                   => RawFilePath
+                   -> IO (SerialT m RawFilePath)
+getDirsFilesStream fp = do
+  fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
+  ds <- SPDT.fdOpendir fd `onException` SPI.closeFd fd
+  pure $ fmap snd $ SD.dirContentsStream ds
 
 
 
