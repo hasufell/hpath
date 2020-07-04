@@ -325,8 +325,6 @@ data CopyMode = Strict    -- ^ fail if any target exists
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
---
--- Note: may call `getcwd` (only if destination is a relative path)
 copyDirRecursive :: RawFilePath  -- ^ source dir
                  -> RawFilePath  -- ^ destination (parent dirs
                                  --   are not automatically created)
@@ -431,7 +429,6 @@ copyDirRecursive fromp destdirp cm rm = do
 -- Notes:
 --
 --    - calls `symlink`
---    - calls `getcwd` in Overwrite mode (if destination is a relative path)
 recreateSymlink :: RawFilePath   -- ^ the old symlink file
                 -> RawFilePath   -- ^ destination file
                 -> CopyMode
@@ -486,10 +483,6 @@ recreateSymlink symsource newsym cm = do
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
---
--- Notes:
---
---    - may call `getcwd` in Overwrite mode (if destination is a relative path)
 copyFile :: RawFilePath   -- ^ source file
          -> RawFilePath   -- ^ destination file
          -> CopyMode
@@ -543,8 +536,6 @@ copyFile from to cm = do
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
---
--- Note: may call `getcwd` in Overwrite mode (if destination is a relative path)
 easyCopy :: RawFilePath
          -> RawFilePath
          -> CopyMode
@@ -572,7 +563,7 @@ easyCopy from to cm rm = do
 --
 -- Throws:
 --
---    - `InappropriateType` or `PermissionDenied` for wrong file type (directory)
+--    - `InappropriateType` for wrong file type (directory)
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if the directory cannot be read
 --
@@ -736,8 +727,6 @@ createDirIfMissing fm destBS =
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
---
--- Note: calls `getcwd` if the input path is a relative path
 createDirRecursive :: FileMode -> RawFilePath -> IO ()
 createDirRecursive fm p = go p
  where
@@ -838,7 +827,6 @@ renameFile fromf tof = do
 -- Notes:
 --
 --    - calls `rename` (but does not allow to rename over existing files)
---    - calls `getcwd` in Overwrite mode if destination is a relative path
 moveFile :: RawFilePath   -- ^ file to move
          -> RawFilePath   -- ^ destination
          -> CopyMode
@@ -877,14 +865,9 @@ moveFile from to cm = do
     --------------------
 
 
--- |Read the given file *at once* into memory as a lazy ByteString.
--- Symbolic links are followed, no sanity checks on file size
--- or file type. File must exist. Uses Builders under the hood
--- (hence lazy ByteString).
+-- |Read the given file lazily.
 --
--- Safety/reliability concerns:
---
---    * the whole file is read into memory, this doesn't read lazily
+-- Symbolic links are followed. File must exist.
 --
 -- Throws:
 --
@@ -895,8 +878,7 @@ moveFile from to cm = do
 readFile :: RawFilePath -> IO L.ByteString
 readFile path = do
   stream <- readFileStream path
-  toLazyByteString <$> S.fold FL.mconcat (fmap byteString stream)
-
+  SL.fromChunksIO stream
 
 
 -- | Open the given file as a filestream. Once the filestream is
@@ -908,12 +890,11 @@ readFile path = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFileStream :: RawFilePath -> IO (SerialT IO ByteString)
+readFileStream :: RawFilePath -> IO (SerialT IO (Array Word8))
 readFileStream fp = do
   fd     <- openFd fp SPI.ReadOnly [] Nothing
   handle <- SPI.fdToHandle fd
-  let stream =
-        fmap fromArray (S.unfold (SU.finally SIO.hClose FH.readChunks) handle)
+  let stream = S.unfold (SU.finally SIO.hClose FH.readChunks) handle
   pure stream
 
 

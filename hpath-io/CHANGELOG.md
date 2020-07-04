@@ -1,5 +1,9 @@
 # Revision history for hpath-io
 
+## 0.14.0 -- 2020-07-04
+
+* Use hpath-directory-0.14.0
+
 ## 0.13.2 -- 2020-05-08
 
 * Add getDirsFilesStream and use streamly-posix for dircontents (#34)

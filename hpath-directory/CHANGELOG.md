@@ -1,5 +1,11 @@
 # Revision history for hpath-directory
 
+## 0.14.0 -- 2020-07-04
+
+* Fix `readFile` to do proper lazy IO
+  * change type signature of `readFileStream` slightly
+* Fix some documentation
+
 ## 0.13.4 -- 2020-05-08
 
 * Add getDirsFilesStream and use streamly-posix for dircontents (#34)

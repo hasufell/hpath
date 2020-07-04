@@ -108,12 +108,14 @@ import           Data.Traversable               ( for )
 import qualified Data.ByteString.Lazy          as L
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX          ( POSIXTime )
+import           Data.Word                      ( Word8 )
 import           HPath
 import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
 import           Streamly
+import           Streamly.Memory.Array
 import qualified System.IO                     as SIO
 import           System.Posix.Directory.ByteString
                                                 ( getWorkingDirectory )
@@ -193,8 +195,6 @@ import           System.Posix.RawFilePath.Directory
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
---
--- Note: may call `getcwd` (only if destination is a relative path)
 copyDirRecursive :: Path b1  -- ^ source dir
                  -> Path b2  -- ^ destination (parent dirs
                              --   are not automatically created)
@@ -233,7 +233,6 @@ copyDirRecursive (Path fromp) (Path destdirp) cm rm =
 -- Notes:
 --
 --    - calls `symlink`
---    - calls `getcwd` in Overwrite mode (if destination is a relative path)
 recreateSymlink :: Path b1   -- ^ the old symlink file
                 -> Path b2   -- ^ destination file
                 -> CopyMode
@@ -276,10 +275,6 @@ recreateSymlink (Path symsourceBS) (Path newsymBS) cm =
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
---
--- Notes:
---
---    - may call `getcwd` in Overwrite mode (if destination is a relative path)
 copyFile :: Path b1   -- ^ source file
          -> Path b2   -- ^ destination file
          -> CopyMode
@@ -294,8 +289,6 @@ copyFile (Path from) (Path to) cm = RD.copyFile from to cm
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
---
--- Note: may call `getcwd` in Overwrite mode (if destination is a relative path)
 easyCopy :: Path b1 -> Path b2 -> CopyMode -> RecursiveErrorMode -> IO ()
 easyCopy (Path from) (Path to) cm rm = RD.easyCopy from to cm rm
 
@@ -317,6 +310,8 @@ easyCopy (Path from) (Path to) cm rm = RD.easyCopy from to cm rm
 --    - `InappropriateType` for wrong file type (directory)
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if the directory cannot be read
+--
+-- Notes: calls `unlink`
 deleteFile :: Path b -> IO ()
 deleteFile (Path p) = RD.deleteFile p
 
@@ -453,8 +448,6 @@ createDirIfMissing fm (Path destBS) = RD.createDirIfMissing fm destBS
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
---
--- Note: calls `getcwd` if the input path is a relative path
 createDirRecursive :: FileMode -> Path b -> IO ()
 createDirRecursive fm (Path p) = RD.createDirRecursive fm p
 
@@ -539,7 +532,6 @@ renameFile (Path from) (Path to) = RD.renameFile from to
 -- Notes:
 --
 --    - calls `rename` (but does not allow to rename over existing files)
---    - calls `getcwd` in Overwrite mode if destination is a relative path
 moveFile :: Path b1   -- ^ file to move
          -> Path b2   -- ^ destination
          -> CopyMode
@@ -555,14 +547,9 @@ moveFile (Path from) (Path to) cm = RD.moveFile from to cm
     --------------------
 
 
--- |Read the given file *at once* into memory as a lazy ByteString.
--- Symbolic links are followed, no sanity checks on file size
--- or file type. File must exist. Uses Builders under the hood
--- (hence lazy ByteString).
+-- |Read the given file lazily.
 --
--- Safety/reliability concerns:
---
---    * the whole file is read into memory, this doesn't read lazily
+-- Symbolic links are followed. File must exist.
 --
 -- Throws:
 --
@@ -584,7 +571,7 @@ readFile (Path path) = RD.readFile path
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFileStream :: Path b -> IO (SerialT IO ByteString)
+readFileStream :: Path b -> IO (SerialT IO (Array Word8))
 readFileStream (Path fp) = RD.readFileStream fp
 
 
