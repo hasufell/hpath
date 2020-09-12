@@ -1,7 +1,7 @@
 cabal-version:       >=1.10
 
 name:                hpath-directory
-version:             0.14.0
+version:             0.14.1
 synopsis:            Alternative to 'directory' package with ByteString based filepaths
 description:         This provides a safer alternative to the 'directory'
                      package. FilePaths are ByteString based, so this

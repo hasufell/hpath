@@ -41,7 +41,6 @@ import Data.ByteString
   (
     ByteString
   )
-import qualified Data.ByteString.Lazy as L
 import System.Posix.FilePath
 import System.Posix.Files.ByteString
   (
@@ -289,5 +288,9 @@ allDirectoryContents' ip =
 
 readFile' :: ByteString -> IO ByteString
 {-# NOINLINE readFile' #-}
-readFile' p = withTmpDir p (fmap L.toStrict . readFile)
+readFile' p = withTmpDir p readFileStrict
 
+
+readFileL :: ByteString -> IO BSL.ByteString
+{-# NOINLINE readFileL #-}
+readFileL p = withTmpDir p readFile

@@ -60,6 +60,7 @@ module System.Posix.RawFilePath.Directory
   , moveFile
   -- * File reading
   , readFile
+  , readFileStrict
   , readFileStream
   -- * File writing
   , writeFile
@@ -881,7 +882,23 @@ readFile path = do
   SL.fromChunksIO stream
 
 
--- | Open the given file as a filestream. Once the filestream is
+-- |Read the given file strictly into memory.
+--
+-- Symbolic links are followed. File must exist.
+--
+-- Throws:
+--
+--     - `InappropriateType` if file is not a regular file or a symlink
+--     - `PermissionDenied` if we cannot read the file or the directory
+--        containting it
+--     - `NoSuchThing` if the file does not exist
+readFileStrict :: RawFilePath -> IO BS.ByteString
+readFileStrict path = do
+  stream <- readFileStream path
+  fmap fromArray $ S.foldr (<>) mempty stream
+
+
+-- | Open the given file as a filestream. Once the filestream
 -- exits, the filehandle is cleaned up.
 --
 -- Throws:

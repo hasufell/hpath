@@ -60,6 +60,7 @@ module HPath.IO
   , moveFile
   -- * File reading
   , readFile
+  , readFileStrict
   , readFileStream
   -- * File writing
   , writeFile
@@ -104,6 +105,7 @@ import           Control.Exception.Safe         ( MonadMask
 import           Control.Monad.Catch            ( MonadThrow(..) )
 
 import           Data.ByteString                ( ByteString )
+import qualified Data.ByteString               as BS
 import           Data.Traversable               ( for )
 import qualified Data.ByteString.Lazy          as L
 import           Data.Time.Clock
@@ -560,6 +562,19 @@ moveFile (Path from) (Path to) cm = RD.moveFile from to cm
 readFile :: Path b -> IO L.ByteString
 readFile (Path path) = RD.readFile path
 
+
+-- |Read the given file strictly into memory.
+--
+-- Symbolic links are followed. File must exist.
+--
+-- Throws:
+--
+--     - `InappropriateType` if file is not a regular file or a symlink
+--     - `PermissionDenied` if we cannot read the file or the directory
+--        containting it
+--     - `NoSuchThing` if the file does not exist
+readFileStrict :: Path b -> IO BS.ByteString
+readFileStrict (Path path) = RD.readFileStrict path
 
 
 -- | Open the given file as a filestream. Once the filestream is
