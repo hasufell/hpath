@@ -18,6 +18,7 @@
 #endif
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module HPath
   (
@@ -76,7 +77,8 @@ import           Data.Maybe
 import           Data.Word8
 import           HPath.Internal
 import           Language.Haskell.TH
-import           Language.Haskell.TH.Syntax (Exp(..), Lift(..), lift)
+import           Language.Haskell.TH.Syntax (Lift(..), lift)
+import qualified Language.Haskell.TH.Syntax as TH
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 import           Prelude hiding (abs, any)
 import           System.Posix.FilePath hiding ((</>))
@@ -423,8 +425,14 @@ stripPrefix a b = BS.pack `fmap` L.stripPrefix (BS.unpack a) (BS.unpack b)
 ------------------------
 -- QuasiQuoters
 
-instance Lift (Path a) where
-  lift (MkPath bs) = AppE <$> [| MkPath . BS.pack |] <*> lift (BS.unpack bs)
+instance Typeable a => Lift (Path a) where
+  lift (MkPath bs) = [| MkPath (BS.pack $(lift $ BS.unpack bs)) :: Path $(pure a) |]
+    where
+      a = TH.ConT $ TH.Name occ flav
+        where
+        tc   = typeRepTyCon (typeRep (Proxy :: Proxy a))
+        occ  = TH.OccName (tyConName tc)
+        flav = TH.NameG TH.TcClsName (TH.PkgName (tyConPackage tc)) (TH.ModName (tyConModule tc))
 
 
 qq :: (ByteString -> Q Exp) -> QuasiQuoter
