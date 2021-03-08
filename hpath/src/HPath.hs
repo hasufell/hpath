@@ -37,6 +37,7 @@ module HPath
   ,parseRel
   ,parseAny
   ,rootPath
+  ,pwdPath
   -- * Path Conversion
   ,fromAbs
   ,fromRel
@@ -53,6 +54,7 @@ module HPath
   -- * Path Examination
   ,isParentOf
   ,isRootPath
+  ,isPwdPath
   -- * Path IO helpers
   ,withAbsPath
   ,withRelPath
@@ -62,6 +64,7 @@ module HPath
   )
   where
 
+import           Control.Applicative ((<|>))
 import           Control.Exception (Exception)
 import           Control.Monad.Catch (MonadThrow(..))
 #if MIN_VERSION_bytestring(0,10,8)
@@ -152,8 +155,8 @@ parseAbs filepath =
 -- | Get a location for a relative path. Produces a normalised
 -- path.
 --
--- Note that @filepath@ may contain any number of @./@ but may not consist
--- solely of @./@.  It also may not contain a single @..@ anywhere.
+-- Note that @filepath@ may contain any number of @./@.
+-- It also may not contain a single @..@ anywhere.
 --
 -- Throws: 'PathParseException'
 --
@@ -172,14 +175,17 @@ parseAbs filepath =
 -- >>> parseRel "abc/../foo" :: Maybe (Path Rel)
 -- Nothing
 -- >>> parseRel "."          :: Maybe (Path Rel)
--- Nothing
+-- Just "."
+-- >>> parseRel "././././."  :: Maybe (Path Rel)
+-- Just "."
+-- >>> parseRel "./..."      :: Maybe (Path Rel)
+-- Just "..."
 -- >>> parseRel ".."         :: Maybe (Path Rel)
 -- Nothing
 parseRel :: MonadThrow m
          => ByteString -> m (Path Rel)
 parseRel filepath =
   if not (isAbsolute filepath) &&
-     filepath /= BS.singleton _period &&
      filepath /= BS.pack [_period, _period] &&
      not (hasParentDir filepath) &&
      isValid filepath
@@ -209,7 +215,7 @@ parseRel filepath =
 -- >>> parseAny "abc/../foo" :: Maybe (Either (Path Abs) (Path Rel))
 -- Nothing
 -- >>> parseAny "."          :: Maybe (Either (Path Abs) (Path Rel))
--- Nothing
+-- Just (Right ".")
 -- >>> parseAny ".."         :: Maybe (Either (Path Abs) (Path Rel))
 -- Nothing
 parseAny :: MonadThrow m => ByteString -> m (Either (Path Abs) (Path Rel))
@@ -222,6 +228,9 @@ parseAny filepath = case parseAbs filepath of
 
 rootPath :: Path Abs
 rootPath = (MkPath (BS.singleton _slash))
+
+pwdPath :: Path Rel
+pwdPath = (MkPath (BS.singleton _period))
 
 
 --------------------------------------------------------------------------------
@@ -261,14 +270,15 @@ fromAny = either toFilePath toFilePath
 -- "/path/to/file"
 -- >>> (MkPath "/")        </> (MkPath "file/lal" :: Path Rel)
 -- "/file/lal"
--- >>> (MkPath "/")        </> (MkPath "file"    :: Path Rel)
+-- >>> (MkPath "/")        </> (MkPath "file/"    :: Path Rel)
 -- "/file"
+-- >>> (MkPath "/")        </> (MkPath "."        :: Path Rel)
+-- "/"
+-- >>> (MkPath ".")        </> (MkPath "."        :: Path Rel)
+-- "."
 (</>) :: Path b -> Path Rel -> Path b
-(</>) (MkPath a) (MkPath b) = MkPath (a' `BS.append` b)
-  where
-    a' = if hasTrailingPathSeparator a
-            then a
-            else addTrailingPathSeparator a
+(</>) (MkPath a) (MkPath b) =
+  MkPath (dropTrailingPathSeparator $ normalise (addTrailingPathSeparator a `BS.append` b))
 
 
 -- | Strip directory from path, making it relative to that directory.
@@ -281,18 +291,20 @@ fromAny = either toFilePath toFilePath
 -- >>> (MkPath "lal/lad")      `stripDir` (MkPath "lal/lad/fad")  :: Maybe (Path Rel)
 -- Just "fad"
 -- >>> (MkPath "/")            `stripDir` (MkPath "/")            :: Maybe (Path Rel)
--- Nothing
+-- Just "."
 -- >>> (MkPath "/lal/lad/fad") `stripDir` (MkPath "/lal/lad")     :: Maybe (Path Rel)
 -- Nothing
--- >>> (MkPath "fad")          `stripDir` (MkPath "fad")          :: Maybe (Path Rel)
+-- >>> (MkPath "/abs")         `stripDir` (MkPath "/lal/lad")     :: Maybe (Path Rel)
 -- Nothing
+-- >>> (MkPath "fad")          `stripDir` (MkPath "fad")          :: Maybe (Path Rel)
+-- Just "."
 stripDir :: MonadThrow m
          => Path b -> Path b -> m (Path Rel)
 stripDir (MkPath p) (MkPath l) =
-  case stripPrefix p' l of
+  case stripPrefix p' l <|> stripPrefix p l of
     Nothing -> throwM (Couldn'tStripPrefixTPS p' l)
     Just ok -> if BS.null ok
-                 then throwM (Couldn'tStripPrefixTPS p' l)
+                 then return (MkPath $ BS.singleton _period)
                  else return (MkPath ok)
   where
     p' = addTrailingPathSeparator p
@@ -358,6 +370,8 @@ dirname (MkPath fp) = MkPath (takeDirectory fp)
 -- Just "dod"
 -- >>> basename (MkPath "dod")          :: Maybe (Path Rel)
 -- Just "dod"
+-- >>> basename (MkPath ".")            :: Maybe (Path Rel)
+-- Just "."
 -- >>> basename (MkPath "/")            :: Maybe (Path Rel)
 -- Nothing
 basename :: MonadThrow m => Path b -> m (Path Rel)
@@ -386,7 +400,11 @@ basename (MkPath l)
 -- >>> (MkPath "fad")          `isParentOf` (MkPath "fad")
 -- False
 isParentOf :: Path b -> Path b -> Bool
-isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
+isParentOf p l = case stripDir p l :: Maybe (Path Rel) of
+  Nothing -> False
+  Just ok
+    | isPwdPath ok -> False
+    | otherwise -> True
 
 
 -- | Check whether the given Path is the root "/" path.
@@ -397,6 +415,15 @@ isParentOf p l = isJust (stripDir p l :: Maybe (Path Rel))
 -- True
 isRootPath :: Path Abs -> Bool
 isRootPath = (== rootPath)
+
+-- | Check whether the given Path is the pwd "." path.
+--
+-- >>> isPwdPath (MkPath "/lal/lad")
+-- False
+-- >>> isPwdPath (MkPath ".")
+-- True
+isPwdPath :: Path Rel -> Bool
+isPwdPath = (== pwdPath)
 
 
 --------------------------------------------------------------------------------
