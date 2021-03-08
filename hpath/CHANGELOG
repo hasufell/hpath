@@ -1,3 +1,6 @@
+0.12.1
+	* Fix bug in "stripDir" and "isParentOf"
+	* Improve documentation
 0.12.0
 	* Type-safe quasi-quoters wrt [MR #39](https://github.com/hasufell/hpath/pull/39)
 	* Allow "." as relative dir wrt #36
