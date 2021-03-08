@@ -1,4 +1,5 @@
 0.12.0
+	* Type-safe quasi-quoters wrt [MR #39](https://github.com/hasufell/hpath/pull/39)
 	* Allow "." as relative dir wrt #36
 0.11.0
 	* Many API breaking changes
