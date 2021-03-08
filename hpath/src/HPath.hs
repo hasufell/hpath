@@ -64,7 +64,6 @@ module HPath
   )
   where
 
-import           Control.Applicative ((<|>))
 import           Control.Exception (Exception)
 import           Control.Monad.Catch (MonadThrow(..))
 #if MIN_VERSION_bytestring(0,10,8)
@@ -298,16 +297,17 @@ fromAny = either toFilePath toFilePath
 -- Nothing
 -- >>> (MkPath "fad")          `stripDir` (MkPath "fad")          :: Maybe (Path Rel)
 -- Just "."
-stripDir :: MonadThrow m
-         => Path b -> Path b -> m (Path Rel)
-stripDir (MkPath p) (MkPath l) =
-  case stripPrefix p' l <|> stripPrefix p l of
+-- >>> (MkPath ".")            `stripDir` (MkPath ".")            :: Maybe (Path Rel)
+-- Just "."
+-- >>> (MkPath ".")            `stripDir` (MkPath ".foo")         :: Maybe (Path Rel)
+-- Nothing
+stripDir :: MonadThrow m => Path b -> Path b -> m (Path Rel)
+stripDir (MkPath p) (MkPath l)
+  | p == l = return pwdPath
+  | otherwise = case stripPrefix p' l of
     Nothing -> throwM (Couldn'tStripPrefixTPS p' l)
-    Just ok -> if BS.null ok
-                 then return (MkPath $ BS.singleton _period)
-                 else return (MkPath ok)
-  where
-    p' = addTrailingPathSeparator p
+    Just ok -> return (MkPath ok)
+  where p' = addTrailingPathSeparator p
 
 
 -- |Get all parents of a path.
@@ -332,6 +332,8 @@ getAllParents (MkPath p)
 -- ["abs","def","dod"]
 -- >>> getAllComponents (MkPath "abs")
 -- ["abs"]
+-- >>> getAllComponents (MkPath ".")
+-- ["."]
 getAllComponents :: Path Rel -> [Path Rel]
 getAllComponents (MkPath p) = fmap MkPath . splitDirectories $ p
 
@@ -398,6 +400,8 @@ basename (MkPath l)
 -- >>> (MkPath "/lal/lad/fad") `isParentOf` (MkPath "/lal/lad")
 -- False
 -- >>> (MkPath "fad")          `isParentOf` (MkPath "fad")
+-- False
+-- >>> (MkPath ".")            `isParentOf` (MkPath ".foo")
 -- False
 isParentOf :: Path b -> Path b -> Bool
 isParentOf p l = case stripDir p l :: Maybe (Path Rel) of
