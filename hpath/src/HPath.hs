@@ -23,8 +23,8 @@
 module HPath
   (
   -- * Types
-   Abs
-  ,Path
+   Path
+  ,Abs
   ,Rel
   ,PathParseException
   ,PathException
@@ -154,8 +154,8 @@ parseAbs filepath =
 -- | Get a location for a relative path. Produces a normalised
 -- path.
 --
--- Note that @filepath@ may contain any number of @./@.
--- It also may not contain a single @..@ anywhere.
+-- Note that @filepath@ may contain any number of @./@,
+-- but not a single @..@ anywhere.
 --
 -- Throws: 'PathParseException'
 --
@@ -195,8 +195,6 @@ parseRel filepath =
 
 -- | Parses a path, whether it's relative or absolute.
 --
--- Excludes '.' and '..'.
---
 -- Throws: 'PathParseException'
 --
 -- >>> parseAny "/abc"       :: Maybe (Either (Path Abs) (Path Rel))
@@ -225,9 +223,11 @@ parseAny filepath = case parseAbs filepath of
     Nothing       -> throwM (InvalidRel filepath)
 
 
+-- | The @"/"@ root path.
 rootPath :: Path Abs
 rootPath = (MkPath (BS.singleton _slash))
 
+-- | The @"."@ pwd path.
 pwdPath :: Path Rel
 pwdPath = (MkPath (BS.singleton _period))
 

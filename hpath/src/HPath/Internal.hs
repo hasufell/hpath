@@ -14,15 +14,23 @@ import Data.Data
 --
 -- The type variable 'b' is either:
 --
---   * Abs -- absolute path
---   * Rel -- relative path
+--   * 'HPath.Abs' -- absolute path (starting with a @"/"@)
+--   * 'HPath.Rel' -- relative path (not starting with a @"/"@)
 --
--- Internally is a ByteString. The path is guaranteed to
+-- Internally it is a ByteString. The path is guaranteed to
 -- be normalised and contain no trailing Path separators,
--- except for the '/' root path.
+-- except for the @"/"@ root path.
 --
 -- There are no duplicate path separators
--- @\/\/@, no @..@, no @.\/@, no @~\/@, etc.
+-- @"\/\/"@, no @".."@, no @".\/"@, etc.
+-- 
+-- Two special paths exist:
+--
+--  * @"/"@ -- the 'HPath.rootPath' (absolute)
+--  * @"."@ -- the 'HPath.pwdPath' (relative)
+--
+-- The constructor is not exposed. Instead, use the smart constructors
+-- 'HPath.parseAbs', 'HPath.parseRel' and 'HPath.parseAny'.
 data Path b = MkPath ByteString
   deriving (Typeable)
 
