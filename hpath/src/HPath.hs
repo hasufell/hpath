@@ -46,6 +46,7 @@ module HPath
   -- * Path Operations
   ,(</>)
   ,basename
+  ,basename'
   ,dirname
   ,getAllParents
   ,getAllComponents
@@ -383,6 +384,20 @@ basename (MkPath l)
   where
     rl = last . splitPath $ l
 
+-- | Extract the file part of a relative path.
+--
+-- The following properties hold:
+--
+-- @basename' (p \<\/> a) == basename' a@
+--
+-- >>> basename' [rel|abc/def/dod|]
+-- "dod"
+-- >>> basename' [rel|dod|]
+-- "dod"
+-- >>> basename' [rel|.|]
+-- "."
+basename' :: Path Rel -> Path Rel
+basename' (MkPath l) = MkPath . last . splitPath $ l
 
 
 --------------------------------------------------------------------------------
