@@ -128,20 +128,20 @@ pattern Path x <- (MkPath x)
 --
 -- Throws: 'PathParseException'
 --
--- >>> parseAbs "/abc"          :: Maybe (Path Abs)
--- Just "/abc"
--- >>> parseAbs "/"             :: Maybe (Path Abs)
--- Just "/"
--- >>> parseAbs "/abc/def"      :: Maybe (Path Abs)
--- Just "/abc/def"
--- >>> parseAbs "/abc/def/.///" :: Maybe (Path Abs)
--- Just "/abc/def"
--- >>> parseAbs "abc"           :: Maybe (Path Abs)
--- Nothing
--- >>> parseAbs ""              :: Maybe (Path Abs)
--- Nothing
--- >>> parseAbs "/abc/../foo"   :: Maybe (Path Abs)
--- Nothing
+-- >>> parseAbs "/abc"
+-- "/abc"
+-- >>> parseAbs "/"
+-- "/"
+-- >>> parseAbs "/abc/def"
+-- "/abc/def"
+-- >>> parseAbs "/abc/def/.///"
+-- "/abc/def"
+-- >>> parseAbs "abc"
+-- *** Exception: InvalidAbs "abc"
+-- >>> parseAbs ""
+-- *** Exception: InvalidAbs ""
+-- >>> parseAbs "/abc/../foo"
+-- *** Exception: InvalidAbs "/abc/../foo"
 parseAbs :: MonadThrow m
          => ByteString -> m (Path Abs)
 parseAbs filepath =
@@ -160,28 +160,28 @@ parseAbs filepath =
 --
 -- Throws: 'PathParseException'
 --
--- >>> parseRel "abc"        :: Maybe (Path Rel)
--- Just "abc"
--- >>> parseRel "def/"       :: Maybe (Path Rel)
--- Just "def"
--- >>> parseRel "abc/def"    :: Maybe (Path Rel)
--- Just "abc/def"
--- >>> parseRel "abc/def/."  :: Maybe (Path Rel)
--- Just "abc/def"
--- >>> parseRel "/abc"       :: Maybe (Path Rel)
--- Nothing
--- >>> parseRel ""           :: Maybe (Path Rel)
--- Nothing
--- >>> parseRel "abc/../foo" :: Maybe (Path Rel)
--- Nothing
--- >>> parseRel "."          :: Maybe (Path Rel)
--- Just "."
--- >>> parseRel "././././."  :: Maybe (Path Rel)
--- Just "."
--- >>> parseRel "./..."      :: Maybe (Path Rel)
--- Just "..."
--- >>> parseRel ".."         :: Maybe (Path Rel)
--- Nothing
+-- >>> parseRel "abc"
+-- "abc"
+-- >>> parseRel "def/"
+-- "def"
+-- >>> parseRel "abc/def"
+-- "abc/def"
+-- >>> parseRel "abc/def/."
+-- "abc/def"
+-- >>> parseRel "/abc"
+-- *** Exception: InvalidRel "/abc"
+-- >>> parseRel ""
+-- *** Exception: InvalidRel ""
+-- >>> parseRel "abc/../foo"
+-- *** Exception: InvalidRel "abc/../foo"
+-- >>> parseRel "."
+-- "."
+-- >>> parseRel "././././."
+-- "."
+-- >>> parseRel "./..."
+-- "..."
+-- >>> parseRel ".."
+-- *** Exception: InvalidRel ".."
 parseRel :: MonadThrow m
          => ByteString -> m (Path Rel)
 parseRel filepath =
@@ -198,24 +198,24 @@ parseRel filepath =
 --
 -- Throws: 'PathParseException'
 --
--- >>> parseAny "/abc"       :: Maybe (Either (Path Abs) (Path Rel))
--- Just (Left "/abc")
--- >>> parseAny "..."        :: Maybe (Either (Path Abs) (Path Rel))
--- Just (Right "...")
--- >>> parseAny "abc/def"    :: Maybe (Either (Path Abs) (Path Rel))
--- Just (Right "abc/def")
--- >>> parseAny "abc/def/."  :: Maybe (Either (Path Abs) (Path Rel))
--- Just (Right "abc/def")
--- >>> parseAny "/abc"       :: Maybe (Either (Path Abs) (Path Rel))
--- Just (Left "/abc")
--- >>> parseAny ""           :: Maybe (Either (Path Abs) (Path Rel))
--- Nothing
--- >>> parseAny "abc/../foo" :: Maybe (Either (Path Abs) (Path Rel))
--- Nothing
--- >>> parseAny "."          :: Maybe (Either (Path Abs) (Path Rel))
--- Just (Right ".")
--- >>> parseAny ".."         :: Maybe (Either (Path Abs) (Path Rel))
--- Nothing
+-- >>> parseAny "/abc"
+-- Left "/abc"
+-- >>> parseAny "..."
+-- Right "..."
+-- >>> parseAny "abc/def"
+-- Right "abc/def"
+-- >>> parseAny "abc/def/."
+-- Right "abc/def"
+-- >>> parseAny "/abc"
+-- Left "/abc"
+-- >>> parseAny ""
+-- *** Exception: InvalidRel ""
+-- >>> parseAny "abc/../foo"
+-- *** Exception: InvalidRel "abc/../foo"
+-- >>> parseAny "."
+-- Right "."
+-- >>> parseAny ".."
+-- *** Exception: InvalidRel ".."
 parseAny :: MonadThrow m => ByteString -> m (Either (Path Abs) (Path Rel))
 parseAny filepath = case parseAbs filepath of
   Just p -> pure $ Left p
@@ -264,17 +264,15 @@ fromAny = either toFilePath toFilePath
 -- because this library is IO-agnostic and makes no assumptions about
 -- file types.
 --
--- >>> (MkPath "/")        </> (MkPath "file"     :: Path Rel)
+-- >>> [abs|/|] </> [rel|file|]
 -- "/file"
--- >>> (MkPath "/path/to") </> (MkPath "file"     :: Path Rel)
+-- >>> [abs|/path/to|] </> [rel|file|]
 -- "/path/to/file"
--- >>> (MkPath "/")        </> (MkPath "file/lal" :: Path Rel)
+-- >>> [abs|/|] </> [rel|file/lal|]
 -- "/file/lal"
--- >>> (MkPath "/")        </> (MkPath "file/"    :: Path Rel)
--- "/file"
--- >>> (MkPath "/")        </> (MkPath "."        :: Path Rel)
+-- >>> [abs|/|] </> [rel|.|]
 -- "/"
--- >>> (MkPath ".")        </> (MkPath "."        :: Path Rel)
+-- >>> [rel|.|] </> [rel|.|]
 -- "."
 (</>) :: Path b -> Path Rel -> Path b
 (</>) (MkPath a) (MkPath b) =
@@ -286,38 +284,37 @@ fromAny = either toFilePath toFilePath
 --
 -- The bases must match.
 --
--- >>> (MkPath "/lal/lad")     `stripDir` (MkPath "/lal/lad/fad") :: Maybe (Path Rel)
--- Just "fad"
--- >>> (MkPath "lal/lad")      `stripDir` (MkPath "lal/lad/fad")  :: Maybe (Path Rel)
--- Just "fad"
--- >>> (MkPath "/")            `stripDir` (MkPath "/")            :: Maybe (Path Rel)
--- Just "."
--- >>> (MkPath "/lal/lad/fad") `stripDir` (MkPath "/lal/lad")     :: Maybe (Path Rel)
--- Nothing
--- >>> (MkPath "/abs")         `stripDir` (MkPath "/lal/lad")     :: Maybe (Path Rel)
--- Nothing
--- >>> (MkPath "fad")          `stripDir` (MkPath "fad")          :: Maybe (Path Rel)
--- Just "."
--- >>> (MkPath ".")            `stripDir` (MkPath ".")            :: Maybe (Path Rel)
--- Just "."
--- >>> (MkPath ".")            `stripDir` (MkPath ".foo")         :: Maybe (Path Rel)
--- Nothing
+-- >>> [abs|/lal/lad|]     `stripDir` [abs|/lal/lad/fad|]
+-- "fad"
+-- >>> [rel|lal/lad|]      `stripDir` [rel|lal/lad/fad|]
+-- "fad"
+-- >>> [abs|/|]            `stripDir` [abs|/|]
+-- "."
+-- >>> [abs|/lal/lad/fad|] `stripDir` [abs|/lal/lad|]
+-- *** Exception: Couldn'tStripPrefixTPS "/lal/lad/fad" "/lal/lad"
+-- >>> [abs|/abs|]         `stripDir` [abs|/lal/lad|]
+-- *** Exception: Couldn'tStripPrefixTPS "/abs" "/lal/lad"
+-- >>> [rel|fad|]          `stripDir` [rel|fad|]
+-- "."
+-- >>> [rel|.|]            `stripDir` [rel|.|]
+-- "."
+-- >>> [rel|.|]            `stripDir` [rel|.foo|]
+-- *** Exception: Couldn'tStripPrefixTPS "." ".foo"
 stripDir :: MonadThrow m => Path b -> Path b -> m (Path Rel)
 stripDir (MkPath p) (MkPath l)
   | p == l = return pwdPath
-  | otherwise = case stripPrefix p' l of
-    Nothing -> throwM (Couldn'tStripPrefixTPS p' l)
+  | otherwise = case stripPrefix (addTrailingPathSeparator p) l of
+    Nothing -> throwM (Couldn'tStripPrefixTPS p l)
     Just ok -> return (MkPath ok)
-  where p' = addTrailingPathSeparator p
 
 
 -- |Get all parents of a path.
 --
--- >>> getAllParents (MkPath "/abs/def/dod")
+-- >>> getAllParents [abs|/abs/def/dod|]
 -- ["/abs/def","/abs","/"]
--- >>> getAllParents (MkPath "/foo")
+-- >>> getAllParents [abs|/foo|]
 -- ["/"]
--- >>> getAllParents (MkPath "/")
+-- >>> getAllParents [abs|/|]
 -- []
 getAllParents :: Path Abs -> [Path Abs]
 getAllParents (MkPath p)
@@ -329,11 +326,11 @@ getAllParents (MkPath p)
 
 -- | Gets all path components.
 --
--- >>> getAllComponents (MkPath "abs/def/dod")
+-- >>> getAllComponents [rel|abs/def/dod|]
 -- ["abs","def","dod"]
--- >>> getAllComponents (MkPath "abs")
+-- >>> getAllComponents [rel|abs|]
 -- ["abs"]
--- >>> getAllComponents (MkPath ".")
+-- >>> getAllComponents [rel|.|]
 -- ["."]
 getAllComponents :: Path Rel -> [Path Rel]
 getAllComponents (MkPath p) = fmap MkPath . splitDirectories $ p
@@ -341,9 +338,9 @@ getAllComponents (MkPath p) = fmap MkPath . splitDirectories $ p
 
 -- | Gets all path components after the "/" root directory.
 --
--- >>> getAllComponentsAfterRoot (MkPath "/abs/def/dod")
+-- >>> getAllComponentsAfterRoot [abs|/abs/def/dod|]
 -- ["abs","def","dod"]
--- >>> getAllComponentsAfterRoot (MkPath "/abs")
+-- >>> getAllComponentsAfterRoot [abs|/abs|]
 -- ["abs"]
 getAllComponentsAfterRoot :: Path Abs -> [Path Rel]
 getAllComponentsAfterRoot p = getAllComponents (fromJust $ stripDir rootPath p)
@@ -351,9 +348,9 @@ getAllComponentsAfterRoot p = getAllComponents (fromJust $ stripDir rootPath p)
 
 -- | Extract the directory name of a path.
 --
--- >>> dirname (MkPath "/abc/def/dod")
+-- >>> dirname [abs|/abc/def/dod|]
 -- "/abc/def"
--- >>> dirname (MkPath "/")
+-- >>> dirname [abs|/|]
 -- "/"
 dirname :: Path Abs -> Path Abs
 dirname (MkPath fp) = MkPath (takeDirectory fp)
@@ -367,16 +364,16 @@ dirname (MkPath fp) = MkPath (takeDirectory fp)
 --
 -- Throws: `PathException` if given the root path "/"
 --
--- >>> basename (MkPath "/abc/def/dod") :: Maybe (Path Rel)
--- Just "dod"
--- >>> basename (MkPath "abc/def/dod")  :: Maybe (Path Rel)
--- Just "dod"
--- >>> basename (MkPath "dod")          :: Maybe (Path Rel)
--- Just "dod"
--- >>> basename (MkPath ".")            :: Maybe (Path Rel)
--- Just "."
--- >>> basename (MkPath "/")            :: Maybe (Path Rel)
--- Nothing
+-- >>> basename [abs|/abc/def/dod|]
+-- "dod"
+-- >>> basename [rel|abc/def/dod|]
+-- "dod"
+-- >>> basename [rel|dod|]
+-- "dod"
+-- >>> basename [rel|.|]
+-- "."
+-- >>> basename [abs|/|]
+-- *** Exception: RootDirHasNoBasename
 basename :: MonadThrow m => Path b -> m (Path Rel)
 basename (MkPath l)
   | not (isAbsolute rl) = return $ MkPath rl
@@ -406,17 +403,17 @@ basename' (MkPath l) = MkPath . last . splitPath $ l
 -- | Is p a parent of the given location? Implemented in terms of
 -- 'stripDir'. The bases must match.
 --
--- >>> (MkPath "/lal/lad")     `isParentOf` (MkPath "/lal/lad/fad")
+-- >>> [abs|/lal/lad|]     `isParentOf` [abs|/lal/lad/fad|]
 -- True
--- >>> (MkPath "lal/lad")      `isParentOf` (MkPath "lal/lad/fad")
+-- >>> [rel|lal/lad|]      `isParentOf` [rel|lal/lad/fad|]
 -- True
--- >>> (MkPath "/")            `isParentOf` (MkPath "/")
+-- >>> [abs|/|]            `isParentOf` [abs|/|]
 -- False
--- >>> (MkPath "/lal/lad/fad") `isParentOf` (MkPath "/lal/lad")
+-- >>> [abs|/lal/lad/fad|] `isParentOf` [abs|/lal/lad|]
 -- False
--- >>> (MkPath "fad")          `isParentOf` (MkPath "fad")
+-- >>> [rel|fad|]          `isParentOf` [rel|fad|]
 -- False
--- >>> (MkPath ".")            `isParentOf` (MkPath ".foo")
+-- >>> [rel|.|]            `isParentOf` [rel|.foo|]
 -- False
 isParentOf :: Path b -> Path b -> Bool
 isParentOf p l = case stripDir p l :: Maybe (Path Rel) of
@@ -428,18 +425,18 @@ isParentOf p l = case stripDir p l :: Maybe (Path Rel) of
 
 -- | Check whether the given Path is the root "/" path.
 --
--- >>> isRootPath (MkPath "/lal/lad")
+-- >>> isRootPath [abs|/lal/lad|]
 -- False
--- >>> isRootPath (MkPath "/")
+-- >>> isRootPath [abs|/|]
 -- True
 isRootPath :: Path Abs -> Bool
 isRootPath = (== rootPath)
 
 -- | Check whether the given Path is the pwd "." path.
 --
--- >>> isPwdPath (MkPath "/lal/lad")
+-- >>> isPwdPath [rel|lal/lad|]
 -- False
--- >>> isPwdPath (MkPath ".")
+-- >>> isPwdPath [rel|.|]
 -- True
 isPwdPath :: Path Rel -> Bool
 isPwdPath = (== pwdPath)
