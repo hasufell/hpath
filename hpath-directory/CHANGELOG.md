@@ -3,6 +3,7 @@
 ## 0.14.1 -- ????-??-??
 
 - add `readFileStrict`
+- improve efficiency of `readFileStrict`
 
 ## 0.14.0 -- 2020-07-04
 

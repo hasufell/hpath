@@ -895,7 +895,7 @@ readFile path = do
 readFileStrict :: RawFilePath -> IO BS.ByteString
 readFileStrict path = do
   stream <- readFileStream path
-  fmap fromArray $ S.foldr (<>) mempty stream
+  fromArray <$> AS.toArray stream
 
 
 -- | Open the given file as a filestream. Once the filestream
