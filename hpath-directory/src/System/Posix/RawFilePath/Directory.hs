@@ -94,7 +94,6 @@ module System.Posix.RawFilePath.Directory
 where
 
 
-import           Control.Applicative            ( (<$>) )
 import           Control.Exception.Safe         ( IOException
                                                 , MonadCatch
                                                 , MonadMask
@@ -108,35 +107,17 @@ import           Control.Monad                  ( unless
                                                 , void
                                                 , when
                                                 )
-import           Control.Monad.Catch            ( MonadThrow(..) )
-import           Control.Monad.Fail             ( MonadFail )
 import           Control.Monad.IfElse           ( unlessM )
 import           Control.Monad.IO.Class         ( liftIO )
 import qualified Data.ByteString               as BS
 import           Data.ByteString                ( ByteString )
-import           Data.Traversable               ( for )
-import           Data.Functor                   ( ($>) )
-#if MIN_VERSION_bytestring(0,10,2)
-import           Data.ByteString.Builder
-#else
-import           Data.ByteString.Lazy.Builder
-#endif
-                                                ( Builder
-                                                , byteString
-                                                , toLazyByteString
-                                                )
 import qualified Data.ByteString.Lazy          as L
-import           Data.ByteString.Unsafe         ( unsafePackCStringFinalizer )
 import qualified Data.ByteString.UTF8          as UTF8
 import           Data.Foldable                  ( for_ )
 import           Data.IORef                     ( IORef
                                                 , modifyIORef
                                                 , newIORef
                                                 , readIORef
-                                                )
-import           Data.Maybe                     ( catMaybes )
-import           Data.Monoid                    ( (<>)
-                                                , mempty
                                                 )
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX          ( getPOSIXTime
@@ -150,9 +131,6 @@ import           Foreign.C.Error                ( eEXIST
                                                 , eXDEV
                                                 , getErrno
                                                 )
-import           Foreign.C.Types                ( CSize )
-import           Foreign.Marshal.Alloc          ( allocaBytes )
-import           Foreign.Ptr                    ( Ptr )
 import           GHC.IO.Exception               ( IOErrorType(..) )
 import           Prelude                 hiding ( appendFile
                                                 , readFile
@@ -164,7 +142,6 @@ import qualified Streamly.External.ByteString.Lazy
                                                as SL
 import qualified Streamly.External.Posix.DirStream
                                                as SD
-import qualified Streamly.Data.Fold            as FL
 import           Streamly.Memory.Array
 import qualified Streamly.FileSystem.Handle    as FH
 import qualified Streamly.Internal.Data.Unfold as SU
@@ -187,8 +164,6 @@ import           System.Posix.Directory.ByteString
                                                 , openDirStream
                                                 , removeDirectory
                                                 )
-import           System.Posix.RawFilePath.Directory.Traversals
-                                                ( getDirectoryContents' )
 import           System.Posix.Files.ByteString  ( createSymbolicLink
                                                 , fileAccess
                                                 , fileMode
@@ -208,7 +183,6 @@ import           System.Posix.Files.ByteString  ( createSymbolicLink
                                                 , setFileMode
                                                 , unionFileModes
                                                 )
-import qualified System.Posix.FilePath         as FP
 import qualified System.Posix.Files.ByteString as PF
 import qualified "unix" System.Posix.IO.ByteString
                                                as SPI
@@ -222,7 +196,6 @@ import qualified System.Posix.Process.ByteString
                                                as SPP
 import           System.Posix.Types             ( FileMode
                                                 , ProcessID
-                                                , Fd
                                                 , EpochTime
                                                 )
 import           System.Posix.Time
