@@ -147,8 +147,13 @@ import qualified Streamly.FileSystem.Handle    as FH
 import qualified Streamly.Internal.Data.Unfold as SU
 import qualified Streamly.Internal.FileSystem.Handle
                                                as IFH
+#if MIN_VERSION_streamly(0,8,0)
+import qualified Streamly.Internal.Data.Array.Stream.Foreign
+                                               as AS
+#else
 import qualified Streamly.Internal.Memory.ArrayStream
                                                as AS
+#endif
 import qualified Streamly.Prelude              as S
 import qualified System.IO                     as SIO
 import           System.IO.Error                ( catchIOError
