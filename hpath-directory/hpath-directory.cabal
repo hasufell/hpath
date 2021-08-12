@@ -110,6 +110,7 @@ test-suite spec
                       , unix
                       , unix-bytestring
                       , utf8-string
+  build-tool-depends: hspec-discover:hspec-discover
   default-extensions: PackageImports
 
 source-repository head
