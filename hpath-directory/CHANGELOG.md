@@ -1,5 +1,9 @@
 # Revision history for hpath-directory
 
+## 0.14.2.1 -- 2021-08-12
+
+- Make compatible with streamly 0.8.0
+
 ## 0.14.1 -- ????-??-??
 
 - add `readFileStrict`
