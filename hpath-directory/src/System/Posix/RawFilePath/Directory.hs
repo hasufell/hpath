@@ -103,6 +103,11 @@ import           Control.Exception.Safe         ( IOException
                                                 , throwIO
                                                 , finally
                                                 )
+#if MIN_VERSION_base(4,9,0)
+import qualified Control.Monad.Fail             as Fail
+#else
+import qualified Control.Monad                  as Fail
+#endif
 import           Control.Monad                  ( unless
                                                 , void
                                                 , when
@@ -320,10 +325,14 @@ copyDirRecursive fromp destdirp cm rm = do
   unless (null collectedExceptions)
          (throwIO . RecursiveFailure $ collectedExceptions)
  where
-  basename :: MonadFail m => RawFilePath -> m RawFilePath
+#if MIN_VERSION_base(4,9,0)
+  basename :: Fail.MonadFail m => RawFilePath -> m RawFilePath
+#else
+  basename :: Fail.Monad m => RawFilePath -> m RawFilePath
+#endif
   basename x =
     let b = takeBaseName x
-    in  if BS.null b then fail ("No base name" :: String) else pure b
+    in  if BS.null b then Fail.fail ("No base name" :: String) else pure b
 
   go :: IORef [(RecursiveFailureHint, IOException)]
      -> RawFilePath
