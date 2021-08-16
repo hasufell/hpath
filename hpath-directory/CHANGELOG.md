@@ -1,5 +1,9 @@
 # Revision history for hpath-directory
 
+## 0.14.2.2 -- 2021-08-16
+
+- Fix hpath-directory for base < 4.13
+
 ## 0.14.2.1 -- 2021-08-12
 
 - Make compatible with streamly 0.8.0
