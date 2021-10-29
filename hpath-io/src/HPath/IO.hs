@@ -33,9 +33,8 @@
 module HPath.IO
   (
   -- * Types
-    FileType(..)
-  , RecursiveErrorMode(..)
-  , CopyMode(..)
+    module System.Directory.Types
+  , Permissions
   -- * File copying
   , copyDirRecursive
   , recreateSymlink
@@ -46,9 +45,6 @@ module HPath.IO
   , deleteDir
   , deleteDirRecursive
   , easyDelete
-  -- * File opening
-  , openFile
-  , executeFile
   -- * File creation
   , createRegularFile
   , createDir
@@ -66,9 +62,6 @@ module HPath.IO
   , writeFile
   , writeFileL
   , appendFile
-  -- * File permissions
-  , RD.newFilePerms
-  , RD.newDirPerms
   -- * File checks
   , doesExist
   , doesFileExist
@@ -87,58 +80,82 @@ module HPath.IO
   , getDirsFilesStream
   -- * Filetype operations
   , getFileType
+  -- * Permissions
+  , getPermissions
+  , setPermissions
+  , emptyPermissions
+  , setOwnerReadable
+  , setOwnerWritable
+  , setOwnerExecutable
+  , setOwnerSearchable
+  , newFilePerms
+  , newDirPerms
   -- * Others
   , canonicalizePath
   , toAbs
-  , withRawFilePath
-  , withHandle
-  , module System.Posix.RawFilePath.Directory.Errors
   )
 where
 
-
-import           Control.Exception.Safe         ( MonadMask
-                                                , MonadCatch
-                                                , bracketOnError
-                                                , finally
-                                                )
-import           Control.Monad.Catch            ( MonadThrow(..) )
-
-import           Data.ByteString                ( ByteString )
-import qualified Data.ByteString               as BS
-import           Data.Traversable               ( for )
-import qualified Data.ByteString.Lazy          as L
-import           Data.Time.Clock
-import           Data.Time.Clock.POSIX          ( POSIXTime )
-import           Data.Word                      ( Word8 )
 import           HPath
+import           HPath.Internal
 import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
-import           Streamly
-import           Streamly.Memory.Array
-import qualified System.IO                     as SIO
-import           System.Posix.Directory.ByteString
-                                                ( getWorkingDirectory )
-import qualified "unix" System.Posix.IO.ByteString
-                                               as SPI
-import           System.Posix.FD                ( openFd )
-import           System.Posix.RawFilePath.Directory.Errors
-import           System.Posix.Types             ( FileMode
-                                                , ProcessID
-                                                , EpochTime
-                                                )
-import qualified System.Posix.RawFilePath.Directory
-                                               as RD
-import           System.Posix.RawFilePath.Directory
-                                                ( FileType
-                                                , RecursiveErrorMode
-                                                , CopyMode
-                                                )
+import AFP.AbstractFilePath.Types
+import AFP.OsString.Internal.Types
+import Control.Exception.Safe ( MonadCatch, MonadMask)
+import Control.Monad.Catch
+import Data.Bits
+import Data.Time.Clock
+import Data.Time.Clock.POSIX
+import Data.Traversable
+import Data.Word                      ( Word8 )
+import Streamly.Data.Array.Foreign
+import Streamly.Prelude               ( SerialT, MonadAsync )
+import System.Directory.Types
+import System.Directory.AFP (
+    Permissions
+  , emptyPermissions
+  , setOwnerReadable
+  , setOwnerWritable
+  , setOwnerExecutable
+  , setOwnerSearchable
+  , newFilePerms
+  , newDirPerms
+  )
+
+import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString      as BS
+import qualified System.Directory.AFP as Dir
 
 
 
+    ------------------------
+    --[ File Permissions ]--
+    ------------------------
+
+
+-- | Get the permissions of a file or directory.
+--
+-- On Windows, the 'writable' permission corresponds to the "read-only"
+-- attribute.  The 'executable' permission is set if the file extension is of
+-- an executable file type.  The 'readable' permission is always set.
+--
+-- On POSIX systems, this returns the result of @access@.
+--
+-- The operation may fail with:
+--
+-- * 'isPermissionError' if the user is not permitted to access the
+--   permissions, or
+--
+-- * 'isDoesNotExistError' if the file or directory does not exist.
+getPermissions :: Path b -> IO Permissions
+getPermissions (MkPath b) = Dir.getPermissions b
+
+
+setPermissions :: Path b -> Permissions -> IO ()
+setPermissions (MkPath b) perms = Dir.setPermissions b perms
 
 
 
@@ -147,64 +164,14 @@ import           System.Posix.RawFilePath.Directory
     --------------------
 
 
-
--- |Copies the contents of a directory recursively to the given destination, while preserving permissions.
--- Does not follow symbolic links. This behaves more or less like
--- the following, without descending into the destination if it
--- already exists:
---
--- @
---   cp -a \/source\/dir \/destination\/somedir
--- @
---
--- For directory contents, this will ignore any file type that is not
--- `RegularFile`, `SymbolicLink` or `Directory`.
---
--- For `Overwrite` copy mode this does not prune destination directory
--- contents, so the destination might contain more files than the source after
--- the operation has completed. Permissions of existing directories are
--- fixed.
---
--- Safety/reliability concerns:
---
---    * not atomic
---    * examines filetypes explicitly
---    * an explicit check `throwDestinationInSource` is carried out for the
---      top directory for basic sanity, because otherwise we might end up
---      with an infinite copy loop... however, this operation is not
---      carried out recursively (because it's slow)
---
--- Throws:
---
---    - `NoSuchThing` if source directory does not exist
---    - `PermissionDenied` if source directory can't be opened
---    - `SameFile` if source and destination are the same file
---      (`HPathIOException`)
---    - `DestinationInSource` if destination is contained in source
---      (`HPathIOException`)
---
--- Throws in `FailEarly` RecursiveErrorMode only:
---
---    - `PermissionDenied` if output directory is not writable
---    - `InvalidArgument` if source directory is wrong type (symlink)
---    - `InappropriateType` if source directory is wrong type (regular file)
---
--- Throws in `CollectFailures` RecursiveErrorMode only:
---
---    - `RecursiveFailure` if any of the recursive operations that are not
---      part of the top-directory sanity-checks fail (`HPathIOException`)
---
--- Throws in `Strict` CopyMode only:
---
---    - `AlreadyExists` if destination already exists
-copyDirRecursive :: Path b1  -- ^ source dir
-                 -> Path b2  -- ^ destination (parent dirs
-                             --   are not automatically created)
+copyDirRecursive :: Path b1 -- ^ source dir
+                 -> Path b2 -- ^ destination (parent dirs
+                                 --   are not automatically created)
                  -> CopyMode
                  -> RecursiveErrorMode
                  -> IO ()
-copyDirRecursive (Path fromp) (Path destdirp) cm rm =
-  RD.copyDirRecursive fromp destdirp cm rm
+copyDirRecursive (MkPath fromp) (MkPath destdirp) cm rm =
+  Dir.copyDirRecursive fromp destdirp cm rm
 
 
 -- |Recreate a symlink.
@@ -235,12 +202,12 @@ copyDirRecursive (Path fromp) (Path destdirp) cm rm =
 -- Notes:
 --
 --    - calls `symlink`
-recreateSymlink :: Path b1   -- ^ the old symlink file
-                -> Path b2   -- ^ destination file
+recreateSymlink :: Path b1  -- ^ the old symlink file
+                -> Path b2  -- ^ destination file
                 -> CopyMode
                 -> IO ()
-recreateSymlink (Path symsourceBS) (Path newsymBS) cm =
-  RD.recreateSymlink symsourceBS newsymBS cm
+recreateSymlink (MkPath symsource) (MkPath newsym) cm =
+  Dir.recreateSymlink symsource newsym cm
 
 
 -- |Copies the given regular file to the given destination.
@@ -277,11 +244,13 @@ recreateSymlink (Path symsourceBS) (Path newsymBS) cm =
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyFile :: Path b1   -- ^ source file
-         -> Path b2   -- ^ destination file
+copyFile :: Path b1  -- ^ source file
+         -> Path b2  -- ^ destination file
          -> CopyMode
          -> IO ()
-copyFile (Path from) (Path to) cm = RD.copyFile from to cm
+copyFile (MkPath from) (MkPath to) cm =
+  Dir.copyFile from to cm
+
 
 -- |Copies a regular file, directory or symbolic link. In case of a
 -- symbolic link it is just recreated, even if it points to a directory.
@@ -291,9 +260,13 @@ copyFile (Path from) (Path to) cm = RD.copyFile from to cm
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
-easyCopy :: Path b1 -> Path b2 -> CopyMode -> RecursiveErrorMode -> IO ()
-easyCopy (Path from) (Path to) cm rm = RD.easyCopy from to cm rm
-
+easyCopy :: Path b1
+         -> Path b2
+         -> CopyMode
+         -> RecursiveErrorMode
+         -> IO ()
+easyCopy (MkPath from) (MkPath to) cm rm =
+  Dir.easyCopy from to cm rm
 
 
 
@@ -315,7 +288,8 @@ easyCopy (Path from) (Path to) cm rm = RD.easyCopy from to cm rm
 --
 -- Notes: calls `unlink`
 deleteFile :: Path b -> IO ()
-deleteFile (Path p) = RD.deleteFile p
+deleteFile (MkPath fp) =
+  Dir.deleteFile fp
 
 
 -- |Deletes the given directory, which must be empty, never symlinks.
@@ -330,7 +304,7 @@ deleteFile (Path p) = RD.deleteFile p
 --
 -- Notes: calls `rmdir`
 deleteDir :: Path b -> IO ()
-deleteDir (Path p) = RD.deleteDir p
+deleteDir (MkPath fp) = Dir.deleteDir fp
 
 
 -- |Deletes the given directory recursively. Does not follow symbolic
@@ -353,8 +327,7 @@ deleteDir (Path p) = RD.deleteDir p
 --    - `NoSuchThing` if directory does not exist
 --    - `PermissionDenied` if we can't open or write to parent directory
 deleteDirRecursive :: Path b -> IO ()
-deleteDirRecursive (Path p) = RD.deleteDirRecursive p
-
+deleteDirRecursive (MkPath p) = Dir.deleteDirRecursive p
 
 
 -- |Deletes a file, directory or symlink.
@@ -367,27 +340,7 @@ deleteDirRecursive (Path p) = RD.deleteDirRecursive p
 --    * examines filetypes explicitly
 --    * calls `deleteDirRecursive` for directories
 easyDelete :: Path b -> IO ()
-easyDelete (Path p) = RD.easyDelete p
-
-
-
-
-    --------------------
-    --[ File Opening ]--
-    --------------------
-
-
--- |Opens a file appropriately by invoking xdg-open. The file type
--- is not checked. This forks a process.
-openFile :: Path b -> IO ProcessID
-openFile (Path fp) = RD.openFile fp
-
-
--- |Executes a program with the given arguments. This forks a process.
-executeFile :: Path b          -- ^ program
-            -> [ByteString]    -- ^ arguments
-            -> IO ProcessID
-executeFile (Path fp) args = RD.executeFile fp args
+easyDelete (MkPath p) = Dir.easyDelete p
 
 
 
@@ -406,8 +359,8 @@ executeFile (Path fp) args = RD.executeFile fp args
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createRegularFile :: FileMode -> Path b -> IO ()
-createRegularFile fm (Path destBS) = RD.createRegularFile fm destBS
+createRegularFile :: Path b -> IO ()
+createRegularFile (MkPath destBS) = Dir.createRegularFile destBS
 
 
 -- |Create an empty directory at the given directory with the given filename.
@@ -418,8 +371,8 @@ createRegularFile fm (Path destBS) = RD.createRegularFile fm destBS
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDir :: FileMode -> Path b -> IO ()
-createDir fm (Path destBS) = RD.createDir fm destBS
+createDir :: Path b -> IO ()
+createDir (MkPath destBS) = Dir.createDir destBS
 
 -- |Create an empty directory at the given directory with the given filename.
 --
@@ -428,8 +381,8 @@ createDir fm (Path destBS) = RD.createDir fm destBS
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDirIfMissing :: FileMode -> Path b -> IO ()
-createDirIfMissing fm (Path destBS) = RD.createDirIfMissing fm destBS
+createDirIfMissing :: Path b -> IO ()
+createDirIfMissing (MkPath destBS) = Dir.createDirIfMissing destBS
 
 
 -- |Create an empty directory at the given directory with the given filename.
@@ -450,9 +403,8 @@ createDirIfMissing fm (Path destBS) = RD.createDirIfMissing fm destBS
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
-createDirRecursive :: FileMode -> Path b -> IO ()
-createDirRecursive fm (Path p) = RD.createDirRecursive fm p
-
+createDirRecursive :: Path b -> IO ()
+createDirRecursive (MkPath p) = Dir.createDirRecursive p
 
 
 -- |Create a symlink.
@@ -465,10 +417,10 @@ createDirRecursive fm (Path p) = RD.createDirRecursive fm p
 --      do not exist
 --
 -- Note: calls `symlink`
-createSymlink :: Path b     -- ^ destination file
-              -> ByteString -- ^ path the symlink points to
+createSymlink :: Path b1     -- ^ destination file
+              -> Path b2     -- ^ path the symlink points to
               -> IO ()
-createSymlink (Path destBS) sympoint = RD.createSymlink destBS sympoint
+createSymlink (MkPath destBS) (MkPath sympoint) = Dir.createSymlink destBS sympoint
 
 
 
@@ -499,8 +451,7 @@ createSymlink (Path destBS) sympoint = RD.createSymlink destBS sympoint
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
 renameFile :: Path b1 -> Path b2 -> IO ()
-renameFile (Path from) (Path to) = RD.renameFile from to
-
+renameFile (MkPath fromf) (MkPath tof) = Dir.renameFile fromf tof
 
 
 -- |Move a file. This also works across devices by copy-delete fallback.
@@ -538,7 +489,7 @@ moveFile :: Path b1   -- ^ file to move
          -> Path b2   -- ^ destination
          -> CopyMode
          -> IO ()
-moveFile (Path from) (Path to) cm = RD.moveFile from to cm
+moveFile (MkPath from) (MkPath to) cm = Dir.moveFile from to cm
 
 
 
@@ -560,7 +511,7 @@ moveFile (Path from) (Path to) cm = RD.moveFile from to cm
 --        containting it
 --     - `NoSuchThing` if the file does not exist
 readFile :: Path b -> IO L.ByteString
-readFile (Path path) = RD.readFile path
+readFile (MkPath path) = Dir.readFile path
 
 
 -- |Read the given file strictly into memory.
@@ -574,10 +525,10 @@ readFile (Path path) = RD.readFile path
 --        containting it
 --     - `NoSuchThing` if the file does not exist
 readFileStrict :: Path b -> IO BS.ByteString
-readFileStrict (Path path) = RD.readFileStrict path
+readFileStrict (MkPath path) = Dir.readFileStrict path
 
 
--- | Open the given file as a filestream. Once the filestream is
+-- | Open the given file as a filestream. Once the filestream
 -- exits, the filehandle is cleaned up.
 --
 -- Throws:
@@ -587,7 +538,7 @@ readFileStrict (Path path) = RD.readFileStrict path
 --        containting it
 --     - `NoSuchThing` if the file does not exist
 readFileStream :: Path b -> IO (SerialT IO (Array Word8))
-readFileStream (Path fp) = RD.readFileStream fp
+readFileStream (MkPath fp) = Dir.readFileStream fp
 
 
 
@@ -607,10 +558,10 @@ readFileStream (Path fp) = RD.readFileStream fp
 --        containting it
 --     - `NoSuchThing` if the file does not exist
 writeFile :: Path b
-          -> Maybe FileMode  -- ^ if Nothing, file must exist
-          -> ByteString
+          -> Bool             -- ^ True if file must exist
+          -> BS.ByteString
           -> IO ()
-writeFile (Path fp) fmode bs = RD.writeFile fp fmode bs
+writeFile (MkPath fp) nocreat bs = Dir.writeFile fp nocreat bs
 
 
 -- |Write a given lazy ByteString to a file, truncating the file beforehand.
@@ -625,10 +576,10 @@ writeFile (Path fp) fmode bs = RD.writeFile fp fmode bs
 --
 -- Note: uses streamly under the hood
 writeFileL :: Path b
-           -> Maybe FileMode  -- ^ if Nothing, file must exist
+           -> Bool             -- ^ True if file must exist
            -> L.ByteString
            -> IO ()
-writeFileL (Path fp) fmode lbs = RD.writeFileL fp fmode lbs
+writeFileL (MkPath fp) nocreat lbs = Dir.writeFileL fp nocreat lbs
 
 
 -- |Append a given ByteString to a file.
@@ -640,10 +591,8 @@ writeFileL (Path fp) fmode lbs = RD.writeFileL fp fmode lbs
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-appendFile :: Path b -> ByteString -> IO ()
-appendFile (Path fp) bs = RD.appendFile fp bs
-
-
+appendFile :: Path b -> BS.ByteString -> IO ()
+appendFile (MkPath fp) bs = Dir.appendFile fp bs
 
 
 
@@ -657,7 +606,7 @@ appendFile (Path fp) bs = RD.appendFile fp bs
 --
 -- Only eNOENT is catched (and returns False).
 doesExist :: Path b -> IO Bool
-doesExist (Path bs) = RD.doesExist bs
+doesExist (MkPath bs) = Dir.doesExist bs
 
 
 -- |Checks if the given file exists and is not a directory.
@@ -665,7 +614,7 @@ doesExist (Path bs) = RD.doesExist bs
 --
 -- Only eNOENT is catched (and returns False).
 doesFileExist :: Path b -> IO Bool
-doesFileExist (Path bs) = RD.doesFileExist bs
+doesFileExist (MkPath bs) = Dir.doesFileExist bs
 
 
 -- |Checks if the given file exists and is a directory.
@@ -673,7 +622,7 @@ doesFileExist (Path bs) = RD.doesFileExist bs
 --
 -- Only eNOENT is catched (and returns False).
 doesDirectoryExist :: Path b -> IO Bool
-doesDirectoryExist (Path bs) = RD.doesDirectoryExist bs
+doesDirectoryExist (MkPath bs) = Dir.doesDirectoryExist bs
 
 
 -- |Checks whether a file or folder is readable.
@@ -684,7 +633,7 @@ doesDirectoryExist (Path bs) = RD.doesDirectoryExist bs
 --
 --     - `NoSuchThing` if the file does not exist
 isReadable :: Path b -> IO Bool
-isReadable (Path bs) = RD.isReadable bs
+isReadable (MkPath bs) = Dir.isReadable bs
 
 -- |Checks whether a file or folder is writable.
 --
@@ -694,7 +643,7 @@ isReadable (Path bs) = RD.isReadable bs
 --
 --     - `NoSuchThing` if the file does not exist
 isWritable :: Path b -> IO Bool
-isWritable (Path bs) = RD.isWritable bs
+isWritable (MkPath bs) = Dir.isWritable bs
 
 
 -- |Checks whether a file or folder is executable.
@@ -705,14 +654,14 @@ isWritable (Path bs) = RD.isWritable bs
 --
 --     - `NoSuchThing` if the file does not exist
 isExecutable :: Path b -> IO Bool
-isExecutable (Path bs) = RD.isExecutable bs
+isExecutable (MkPath bs) = Dir.isExecutable bs
 
 
 
 -- |Checks whether the directory at the given path exists and can be
 -- opened. This invokes `openDirStream` which follows symlinks.
 canOpenDirectory :: Path b -> IO Bool
-canOpenDirectory (Path bs) = RD.canOpenDirectory bs
+canOpenDirectory (MkPath bs) = Dir.canOpenDirectory bs
 
 
 
@@ -723,13 +672,13 @@ canOpenDirectory (Path bs) = RD.canOpenDirectory bs
 
 
 getModificationTime :: Path b -> IO UTCTime
-getModificationTime (Path bs) = RD.getModificationTime bs
+getModificationTime (MkPath bs) = Dir.getModificationTime bs
 
-setModificationTime :: Path b -> EpochTime -> IO ()
-setModificationTime (Path bs) t = RD.setModificationTime bs t
+setModificationTime :: Path b -> UTCTime -> IO ()
+setModificationTime (MkPath bs) t = Dir.setModificationTime bs t
 
 setModificationTimeHiRes :: Path b -> POSIXTime -> IO ()
-setModificationTimeHiRes (Path bs) t = RD.setModificationTimeHiRes bs t
+setModificationTimeHiRes (MkPath bs) t = Dir.setModificationTimeHiRes bs t
 
 
 
@@ -750,20 +699,17 @@ setModificationTimeHiRes (Path bs) t = RD.setModificationTimeHiRes bs t
 --     - `InappropriateType` if file type is wrong (symlink to file)
 --     - `InappropriateType` if file type is wrong (symlink to dir)
 --     - `PermissionDenied` if directory cannot be opened
---     - `PathParseException` if a filename could not be parsed (should never happen)
 getDirsFiles :: Path b        -- ^ dir to read
              -> IO [Path b]
-getDirsFiles p = do
-  contents <- getDirsFiles' p
-  pure $ fmap (p </>) contents
+getDirsFiles (MkPath p) = fmap MkPath <$> Dir.getDirsFiles p
 
 
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
 getDirsFiles' :: Path b        -- ^ dir to read
               -> IO [Path Rel]
-getDirsFiles' (Path fp) = do
-  rawContents <- RD.getDirsFiles' fp
+getDirsFiles' (MkPath fp) = do
+  rawContents <- Dir.getDirsFiles' fp
   for rawContents $ \r -> parseRel r
 
 
@@ -771,8 +717,8 @@ getDirsFiles' (Path fp) = do
 getDirsFilesStream :: (MonadCatch m, MonadAsync m, MonadMask m)
                    => Path b
                    -> IO (SerialT m (Path Rel))
-getDirsFilesStream (Path fp) = do
-  s <- RD.getDirsFilesStream fp
+getDirsFilesStream (MkPath fp) = do
+  s <- Dir.getDirsFilesStream fp
   pure (s >>= parseRel)
 
 
@@ -791,7 +737,7 @@ getDirsFilesStream (Path fp) = do
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if any part of the path is not accessible
 getFileType :: Path b -> IO FileType
-getFileType (Path fp) = RD.getFileType fp
+getFileType (MkPath fp) = Dir.getFileType fp
 
 
 
@@ -807,10 +753,9 @@ getFileType (Path fp) = RD.getFileType fp
 --
 --    - `NoSuchThing` if the file at the given path does not exist
 --    - `NoSuchThing` if the symlink is broken
---    - `PathParseException` if realpath does not return an absolute path
 canonicalizePath :: Path b -> IO (Path Abs)
-canonicalizePath (Path l) = do
-  nl <- RD.canonicalizePath l
+canonicalizePath (MkPath l) = do
+  nl <- Dir.canonicalizePath l
   parseAbs nl
 
 
@@ -820,14 +765,7 @@ canonicalizePath (Path l) = do
 --    - if the path is already an absolute one, just return it
 --    - if it's a relative path, prepend the current directory to it
 toAbs :: Path b -> IO (Path Abs)
-toAbs (Path bs) = do
-  let mabs = parseAbs bs :: Maybe (Path Abs)
-  case mabs of
-    Just a  -> return a
-    Nothing -> do
-      cwd <- getWorkingDirectory >>= parseAbs
-      r   <- parseRel bs -- we know it must be relative now
-      return $ cwd </> r
+toAbs (MkPath bs) = MkPath <$> Dir.toAbs bs
 
 
 -- | Helper function to use the Path library without
@@ -839,29 +777,10 @@ toAbs (Path bs) = do
 --    - `PathParseException` if the bytestring could neither be parsed as
 --      relative or absolute Path
 withRawFilePath :: MonadThrow m
-                => ByteString
+                => AbstractFilePath
                 -> (Either (Path Abs) (Path Rel) -> m b)
                 -> m b
 withRawFilePath bs action = do
   path <- parseAny bs
   action path
 
-
--- | Convenience function to open the path as a handle.
---
--- If the file does not exist, it will be created with 'newFilePerms'.
---
--- Throws:
---
---    - `PathParseException` if the bytestring could neither be parsed as
---      relative or absolute Path
-withHandle :: ByteString
-           -> SPI.OpenMode
-           -> ((SIO.Handle, Either (Path Abs) (Path Rel)) -> IO a)
-           -> IO a
-withHandle bs mode action = do
-  path   <- parseAny bs
-  handle <-
-    bracketOnError (openFd bs mode [] (Just RD.newFilePerms)) (SPI.closeFd)
-      $ SPI.fdToHandle
-  finally (action (handle, path)) (SIO.hClose handle)
