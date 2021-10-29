@@ -17,7 +17,6 @@ import Control.Monad.IfElse
   (
     whenM
   )
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import Data.IORef
   (
@@ -26,7 +25,7 @@ import Data.IORef
   , writeIORef
   , IORef
   )
-import "hpath-directory" System.Posix.RawFilePath.Directory
+import "hpath-directory" System.Posix.PosixFilePath.Directory
 import Prelude hiding (appendFile, readFile, writeFile)
 import Data.Maybe
   (
@@ -36,13 +35,12 @@ import System.IO.Unsafe
   (
     unsafePerformIO
   )
-import qualified System.Posix.RawFilePath.Directory.Traversals as DT
+import qualified System.Posix.PosixFilePath.Directory.Traversals as DT
 import Data.ByteString
   (
     ByteString
   )
-import System.Posix.FilePath
-import System.Posix.Files.ByteString
+import System.Posix.Files.PosixString
   (
     groupExecuteMode
   , groupReadMode
@@ -54,13 +52,15 @@ import System.Posix.Files.ByteString
   , setFileMode
   , unionFileModes
   )
+import AFP.AbstractFilePath.Posix
+import qualified AFP.AbstractFilePath.Posix as AFP
 
-baseTmpDir :: IORef (Maybe ByteString)
+baseTmpDir :: IORef (Maybe PosixFilePath)
 {-# NOINLINE baseTmpDir #-}
 baseTmpDir = unsafePerformIO (newIORef Nothing)
 
 
-tmpDir :: IORef (Maybe ByteString)
+tmpDir :: IORef (Maybe PosixFilePath)
 {-# NOINLINE tmpDir #-}
 tmpDir = unsafePerformIO (newIORef Nothing)
 
@@ -71,11 +71,11 @@ tmpDir = unsafePerformIO (newIORef Nothing)
     -----------------
 
 
-setTmpDir :: ByteString -> IO ()
+setTmpDir :: PosixFilePath -> IO ()
 {-# NOINLINE setTmpDir #-}
 setTmpDir bs = do
   tmp <- fromJust <$> readIORef baseTmpDir
-  writeIORef tmpDir (Just (tmp `BS.append` bs))
+  writeIORef tmpDir (Just (tmp AFP.</> bs))
 
 
 createTmpDir :: IO ()
@@ -101,29 +101,29 @@ deleteBaseTmpDir = do
   void $ deleteDir tmp
 
 
-withRawTmpDir :: (ByteString -> IO a) -> IO a
+withRawTmpDir :: (PosixFilePath -> IO a) -> IO a
 {-# NOINLINE withRawTmpDir #-}
 withRawTmpDir f = do
   tmp <- fromJust <$> readIORef tmpDir
   f tmp
 
 
-getRawTmpDir :: IO ByteString
+getRawTmpDir :: IO PosixFilePath
 {-# NOINLINE getRawTmpDir #-}
-getRawTmpDir = withRawTmpDir (return . flip BS.append "/")
+getRawTmpDir = withRawTmpDir (return . packPlatformString . (++ [fromChar '/']) . unpackPlatformString)
 
 
-withTmpDir :: ByteString -> (ByteString -> IO a) -> IO a
+withTmpDir :: PosixFilePath -> (PosixFilePath -> IO a) -> IO a
 {-# NOINLINE withTmpDir #-}
 withTmpDir ip f = do
   tmp <- fromJust <$> readIORef tmpDir
-  let p = tmp </> ip
+  let p = tmp AFP.</> ip
   f p
 
 
-withTmpDir' :: ByteString
-            -> ByteString
-            -> (ByteString -> ByteString -> IO a)
+withTmpDir' :: PosixFilePath
+            -> PosixFilePath
+            -> (PosixFilePath -> PosixFilePath -> IO a)
             -> IO a
 {-# NOINLINE withTmpDir' #-}
 withTmpDir' ip1 ip2 f = do
@@ -133,55 +133,55 @@ withTmpDir' ip1 ip2 f = do
   f p1 p2
 
 
-removeFileIfExists :: ByteString -> IO ()
+removeFileIfExists :: PosixFilePath -> IO ()
 {-# NOINLINE removeFileIfExists #-}
 removeFileIfExists bs =
   withTmpDir bs $ \p -> whenM (doesFileExist p) (deleteFile p)
 
 
-removeDirIfExists :: ByteString -> IO ()
+removeDirIfExists :: PosixFilePath -> IO ()
 {-# NOINLINE removeDirIfExists #-}
 removeDirIfExists bs =
   withTmpDir bs $ \p -> whenM (doesDirectoryExist p) (deleteDirRecursive p)
 
 
-copyFile' :: ByteString -> ByteString -> CopyMode -> IO ()
+copyFile' :: PosixFilePath -> PosixFilePath -> CopyMode -> IO ()
 {-# NOINLINE copyFile' #-}
 copyFile' inputFileP outputFileP cm =
   withTmpDir' inputFileP outputFileP (\p1 p2 -> copyFile p1 p2 cm)
 
 
-copyDirRecursive' :: ByteString -> ByteString
+copyDirRecursive' :: PosixFilePath -> PosixFilePath
                   -> CopyMode -> RecursiveErrorMode -> IO ()
 {-# NOINLINE copyDirRecursive' #-}
 copyDirRecursive' inputDirP outputDirP cm rm =
   withTmpDir' inputDirP outputDirP (\p1 p2 -> copyDirRecursive p1 p2 cm rm)
 
 
-createDir' :: ByteString -> IO ()
+createDir' :: PosixFilePath -> IO ()
 {-# NOINLINE createDir' #-}
 createDir' dest = withTmpDir dest (createDir newDirPerms)
 
-createDirIfMissing' :: ByteString -> IO ()
+createDirIfMissing' :: PosixFilePath -> IO ()
 {-# NOINLINE createDirIfMissing' #-}
 createDirIfMissing' dest = withTmpDir dest (createDirIfMissing newDirPerms)
 
-createDirRecursive' :: ByteString -> IO ()
+createDirRecursive' :: PosixFilePath -> IO ()
 {-# NOINLINE createDirRecursive' #-}
 createDirRecursive' dest = withTmpDir dest (createDirRecursive newDirPerms)
 
-createRegularFile' :: ByteString -> IO ()
+createRegularFile' :: PosixFilePath -> IO ()
 {-# NOINLINE createRegularFile' #-}
 createRegularFile' dest = withTmpDir dest (createRegularFile newFilePerms)
 
 
-createSymlink' :: ByteString -> ByteString -> IO ()
+createSymlink' :: PosixFilePath -> PosixFilePath -> IO ()
 {-# NOINLINE createSymlink' #-}
 createSymlink' dest sympoint = withTmpDir dest
   (\x -> createSymlink x sympoint)
 
 
-renameFile' :: ByteString -> ByteString -> IO ()
+renameFile' :: PosixFilePath -> PosixFilePath -> IO ()
 {-# NOINLINE renameFile' #-}
 renameFile' inputFileP outputFileP =
   withTmpDir' inputFileP outputFileP $ \i o -> do
@@ -189,7 +189,7 @@ renameFile' inputFileP outputFileP =
     renameFile o i
 
 
-moveFile' :: ByteString -> ByteString -> CopyMode -> IO ()
+moveFile' :: PosixFilePath -> PosixFilePath -> CopyMode -> IO ()
 {-# NOINLINE moveFile' #-}
 moveFile' inputFileP outputFileP cm =
   withTmpDir' inputFileP outputFileP $ \i o -> do
@@ -197,13 +197,13 @@ moveFile' inputFileP outputFileP cm =
     moveFile o i Strict
 
 
-recreateSymlink' :: ByteString -> ByteString -> CopyMode -> IO ()
+recreateSymlink' :: PosixFilePath -> PosixFilePath -> CopyMode -> IO ()
 {-# NOINLINE recreateSymlink' #-}
 recreateSymlink' inputFileP outputFileP cm =
   withTmpDir' inputFileP outputFileP (\p1 p2 -> recreateSymlink p1 p2 cm)
 
 
-noWritableDirPerms :: ByteString -> IO ()
+noWritableDirPerms :: PosixFilePath -> IO ()
 {-# NOINLINE noWritableDirPerms #-}
 noWritableDirPerms path = withTmpDir path $ \p ->
   setFileMode p perms
@@ -216,81 +216,81 @@ noWritableDirPerms path = withTmpDir path $ \p ->
       `unionFileModes` otherExecuteMode
 
 
-noPerms :: ByteString -> IO ()
+noPerms :: PosixFilePath -> IO ()
 {-# NOINLINE noPerms #-}
 noPerms path = withTmpDir path $ \p -> setFileMode p nullFileMode
 
 
-normalDirPerms :: ByteString -> IO ()
+normalDirPerms :: PosixFilePath -> IO ()
 {-# NOINLINE normalDirPerms #-}
 normalDirPerms path =
   withTmpDir path $ \p -> setFileMode p newDirPerms
 
 
-normalFilePerms :: ByteString -> IO ()
+normalFilePerms :: PosixFilePath -> IO ()
 {-# NOINLINE normalFilePerms #-}
 normalFilePerms path =
   withTmpDir path $ \p -> setFileMode p newFilePerms
 
 
-getFileType' :: ByteString -> IO FileType
+getFileType' :: PosixFilePath -> IO FileType
 {-# NOINLINE getFileType' #-}
 getFileType' path = withTmpDir path getFileType
 
 
-getDirsFiles' :: ByteString -> IO [ByteString]
+getDirsFiles' :: PosixFilePath -> IO [PosixFilePath]
 {-# NOINLINE getDirsFiles' #-}
 getDirsFiles' path = withTmpDir path getDirsFiles
 
 
-deleteFile' :: ByteString -> IO ()
+deleteFile' :: PosixFilePath -> IO ()
 {-# NOINLINE deleteFile' #-}
 deleteFile' p = withTmpDir p deleteFile
 
 
-deleteDir' :: ByteString -> IO ()
+deleteDir' :: PosixFilePath -> IO ()
 {-# NOINLINE deleteDir' #-}
 deleteDir' p = withTmpDir p deleteDir
 
 
-deleteDirRecursive' :: ByteString -> IO ()
+deleteDirRecursive' :: PosixFilePath -> IO ()
 {-# NOINLINE deleteDirRecursive' #-}
 deleteDirRecursive' p = withTmpDir p deleteDirRecursive
 
 
-canonicalizePath' :: ByteString -> IO ByteString
+canonicalizePath' :: PosixFilePath -> IO PosixFilePath
 {-# NOINLINE canonicalizePath' #-}
 canonicalizePath' p = withTmpDir p canonicalizePath
 
 
-writeFile' :: ByteString -> ByteString -> IO ()
+writeFile' :: PosixFilePath -> ByteString -> IO ()
 {-# NOINLINE writeFile' #-}
 writeFile' ip bs =
   withTmpDir ip $ \p -> writeFile p Nothing bs
 
-writeFileL' :: ByteString -> BSL.ByteString -> IO ()
+writeFileL' :: PosixFilePath -> BSL.ByteString -> IO ()
 {-# NOINLINE writeFileL' #-}
 writeFileL' ip bs =
   withTmpDir ip $ \p -> writeFileL p Nothing bs
 
 
-appendFile' :: ByteString -> ByteString -> IO ()
+appendFile' :: PosixFilePath -> ByteString -> IO ()
 {-# NOINLINE appendFile' #-}
 appendFile' ip bs =
   withTmpDir ip $ \p -> appendFile p bs
 
 
-allDirectoryContents' :: ByteString -> IO [ByteString]
+allDirectoryContents' :: PosixFilePath -> IO [PosixFilePath]
 {-# NOINLINE allDirectoryContents' #-}
 allDirectoryContents' ip =
   withTmpDir ip $ \p -> DT.allDirectoryContents' p
 
 
-readFile' :: ByteString -> IO ByteString
+readFile' :: PosixFilePath -> IO ByteString
 {-# NOINLINE readFile' #-}
 readFile' p = withTmpDir p readFileStrict
 
 
-readFileL :: ByteString -> IO BSL.ByteString
+readFileL :: PosixFilePath -> IO BSL.ByteString
 {-# NOINLINE readFileL #-}
 readFileL p = withTmpDir p readFile

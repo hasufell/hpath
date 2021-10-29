@@ -3,6 +3,10 @@ packages: ./hpath
           ./hpath-io
           ./hpath-posix
 
+source-repository-package
+    type: git
+    location: https://github.com/hasufell/streamly-posix.git
+    tag: e14e5e877c584f7d7bf2fb10cb80bc331126fd5d
 
 source-repository-package
     type: git
