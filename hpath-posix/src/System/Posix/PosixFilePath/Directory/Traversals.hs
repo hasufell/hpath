@@ -1,5 +1,5 @@
 -- |
--- Module      :  System.Posix.RawFilePath.Directory.Traversals
+-- Module      :  System.Posix.PosixFilePath.Directory.Traversals
 -- Copyright   :  © 2016 Julian Ospald
 -- License     :  BSD3
 --
@@ -20,7 +20,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
 
-module System.Posix.RawFilePath.Directory.Traversals (
+module System.Posix.PosixFilePath.Directory.Traversals (
 
   getDirectoryContents
 , getDirectoryContents'

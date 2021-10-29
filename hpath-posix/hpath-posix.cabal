@@ -1,7 +1,7 @@
 cabal-version:       >=1.10
 
 name:                hpath-posix
-version:             0.13.3
+version:             0.14.3
 synopsis:            Some low-level POSIX glue code, that is not in 'unix'
 homepage:            https://github.com/hasufell/hpath
 bug-reports:         https://github.com/hasufell/hpath/issues
@@ -25,7 +25,7 @@ library
   if os(windows)
     build-depends: unbuildable<0
     buildable: False
-  exposed-modules:     System.Posix.RawFilePath.Directory.Traversals
+  exposed-modules:     System.Posix.PosixFilePath.Directory.Traversals
                        System.Posix.Foreign
                        System.Posix.FD
   -- other-modules:

@@ -1,5 +1,5 @@
 name:                hpath
-version:             0.12.1
+version:             0.13.1
 synopsis:            Support for well-typed paths
 description:         Support for well-typed paths, utilizing ByteString under the hood.
 license:             BSD3
