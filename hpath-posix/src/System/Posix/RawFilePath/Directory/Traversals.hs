@@ -43,16 +43,15 @@ module System.Posix.RawFilePath.Directory.Traversals (
 import Control.Applicative ((<$>))
 #endif
 import Control.Monad
-import System.Posix.FilePath ((</>))
+import AFP.AbstractFilePath.Posix ((</>), fromPlatformString)
 import System.Posix.Foreign
 
 import qualified System.Posix as Posix
 import System.IO.Error
 import Control.Exception
-import qualified Data.ByteString.Char8 as BS
-import System.Posix.ByteString.FilePath
-import System.Posix.Directory.ByteString as PosixBS
-import System.Posix.Files.ByteString
+import System.Posix.PosixFilePath.FilePath
+import System.Posix.Directory.PosixFilePath as PosixBS
+import System.Posix.Files.PosixString
 
 import System.IO.Unsafe
 import "unix" System.Posix.IO.ByteString (closeFd)
@@ -63,6 +62,12 @@ import Foreign.C.Types
 import Foreign.Marshal.Alloc (alloca,allocaBytes)
 import Foreign.Ptr
 import Foreign.Storable
+
+import AFP.AbstractFilePath.Types
+import qualified AFP.OsString.Internal.Types as T
+
+import qualified Data.ByteString.Short as SBS
+
 
 
 
@@ -76,7 +81,7 @@ import Foreign.Storable
 -- be accessed on demand.
 --
 -- Follows symbolic links for the input dir.
-allDirectoryContents :: RawFilePath -> IO [RawFilePath]
+allDirectoryContents :: PosixFilePath -> IO [PosixFilePath]
 allDirectoryContents topdir = do
     namesAndTypes <- getDirectoryContents topdir
     let properNames = filter ((`notElem` [".", ".."]) . snd) namesAndTypes
@@ -95,7 +100,7 @@ allDirectoryContents topdir = do
 -- | Get all files from a directory and its subdirectories strictly.
 --
 -- Follows symbolic links for the input dir.
-allDirectoryContents' :: RawFilePath -> IO [RawFilePath]
+allDirectoryContents' :: PosixFilePath -> IO [PosixFilePath]
 allDirectoryContents' = fmap reverse . traverseDirectory (\acc fp -> return (fp:acc)) []
 -- this uses traverseDirectory because it's more efficient than forcing the
 -- lazy version.
@@ -106,7 +111,7 @@ allDirectoryContents' = fmap reverse . traverseDirectory (\acc fp -> return (fp:
 -- This function allows for memory-efficient traversals.
 --
 -- Follows symbolic links for the input dir.
-traverseDirectory :: (s -> RawFilePath -> IO s) -> s -> RawFilePath -> IO s
+traverseDirectory :: (s -> PosixFilePath -> IO s) -> s -> PosixFilePath -> IO s
 traverseDirectory act s0 topdir = toploop
   where
     toploop = do
@@ -123,12 +128,13 @@ traverseDirectory act s0 topdir = toploop
           then act acc path >>= \acc' -> actOnDirContents path acc' loop
           else act acc path
 
-actOnDirContents :: RawFilePath
+actOnDirContents :: PosixFilePath
                  -> b
-                 -> (DirType -> RawFilePath -> b -> IO b)
+                 -> (DirType -> PosixFilePath -> b -> IO b)
                  -> IO b
-actOnDirContents pathRelToTop b f =
-  modifyIOError ((`ioeSetFileName` (BS.unpack pathRelToTop)) .
+actOnDirContents pathRelToTop b f = do
+  locstr <- fromPlatformString pathRelToTop
+  modifyIOError ((`ioeSetFileName` locstr) .
                  (`ioeSetLocation` "findBSTypRel")) $
     bracket
       (openDirStream pathRelToTop)
@@ -188,7 +194,7 @@ foreign import capi unsafe "dirent.h fdopendir"
 -- less dodgy but still lower-level
 
 
-readDirEnt :: DirStream -> IO (DirType, RawFilePath)
+readDirEnt :: DirStream -> IO (DirType, PosixFilePath)
 readDirEnt (unpackDirStream -> dirp) =
   alloca $ \ptr_dEnt  -> loop ptr_dEnt
  where
@@ -199,7 +205,7 @@ readDirEnt (unpackDirStream -> dirp) =
        then do
          dEnt <- peek ptr_dEnt
          if (dEnt == nullPtr)
-            then return (dtUnknown,BS.empty)
+            then return (dtUnknown, mempty)
             else do
                  dName <- c_name dEnt >>= peekFilePath
                  dType <- c_type dEnt
@@ -212,14 +218,15 @@ readDirEnt (unpackDirStream -> dirp) =
             else do
                  let (Errno eo) = errno
                  if (eo == 0)
-                    then return (dtUnknown,BS.empty)
+                    then return (dtUnknown, mempty)
                     else throwErrno "readDirEnt"
 
 
 -- |Gets all directory contents (not recursively).
-getDirectoryContents :: RawFilePath -> IO [(DirType, RawFilePath)]
-getDirectoryContents path =
-  modifyIOError ((`ioeSetFileName` (BS.unpack path)) .
+getDirectoryContents :: PosixFilePath -> IO [(DirType, PosixFilePath)]
+getDirectoryContents path = do
+  locstr <- fromPlatformString path
+  modifyIOError ((`ioeSetFileName` locstr) .
                  (`ioeSetLocation` "System.Posix.RawFilePath.Directory.Traversals.getDirectoryContents")) $
     bracket
       (PosixBS.openDirStream path)
@@ -240,7 +247,7 @@ fdOpendir fd =
 -- only happens on successful `fdOpendir` and after the directory
 -- stream is closed. Also see the manpage of @fdopendir(3)@ for
 -- more details.
-getDirectoryContents' :: Posix.Fd -> IO [(DirType, RawFilePath)]
+getDirectoryContents' :: Posix.Fd -> IO [(DirType, PosixFilePath)]
 getDirectoryContents' fd = do
   dirstream <- fdOpendir fd `catchIOError` \e -> do
     closeFd fd
@@ -249,11 +256,11 @@ getDirectoryContents' fd = do
   finally (_dirloop dirstream) (PosixBS.closeDirStream dirstream)
 
 
-_dirloop :: DirStream -> IO [(DirType, RawFilePath)]
+_dirloop :: DirStream -> IO [(DirType, PosixFilePath)]
 {-# INLINE _dirloop #-}
 _dirloop dirp = do
-   t@(_typ,e) <- readDirEnt dirp
-   if BS.null e then return [] else do
+   t@(_typ, e) <- readDirEnt dirp
+   if e == mempty then return [] else do
      es <- _dirloop dirp
      return (t:es)
 
@@ -261,8 +268,8 @@ _dirloop dirp = do
 -- | return the canonicalized absolute pathname
 --
 -- like canonicalizePath, but uses @realpath(3)@
-realpath :: RawFilePath -> IO RawFilePath
-realpath inp =
+realpath :: PosixFilePath -> IO PosixFilePath
+realpath (T.PS inp) = fmap T.PS $
     allocaBytes pathMax $ \tmp -> do
-        void $ BS.useAsCString inp $ \cstr -> throwErrnoIfNull "realpath" $ c_realpath cstr tmp
-        BS.packCString tmp
+        void $ SBS.useAsCString inp $ \cstr -> throwErrnoIfNull "realpath" $ c_realpath cstr tmp
+        SBS.packCString tmp

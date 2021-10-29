@@ -31,10 +31,13 @@ library
   -- other-modules:
   -- other-extensions:
   c-sources:           cbits/dirutils.c
-  build-depends:         base                >= 4.8  && <5
-                       , bytestring          >= 0.10
-                       , hpath-filepath      >= 0.10.4
-                       , unix                >= 2.5
+  build-depends:         abstract-filepath-unix >= 2.5
+                       , abstract-filepath
+                       , abstract-filepath-types
+                       , base                   >= 4.8  && <5
+                       , bytestring             >= 0.10
+                       , hpath-filepath         >= 0.10.4
+                       , unix                   >= 2.5
   if impl(ghc < 8.0)
     build-depends:
         fail >= 4.9
