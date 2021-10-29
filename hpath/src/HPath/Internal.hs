@@ -1,4 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Internal types and functions.
 
@@ -6,9 +10,12 @@ module HPath.Internal
   (Path(..))
   where
 
+import AFP.AbstractFilePath
 import Control.DeepSeq (NFData (..))
-import Data.ByteString (ByteString)
 import Data.Data
+import GHC.Generics (Generic)
+import           Language.Haskell.TH.Syntax (Lift(..), lift)
+import qualified Language.Haskell.TH.Syntax as TH
 
 -- | The main Path type.
 --
@@ -31,8 +38,8 @@ import Data.Data
 --
 -- The constructor is not exposed. Instead, use the smart constructors
 -- 'HPath.parseAbs', 'HPath.parseRel' and 'HPath.parseAny'.
-data Path b = MkPath ByteString
-  deriving (Typeable)
+data Path b = MkPath AbstractFilePath
+  deriving (Typeable, Generic, NFData)
 
 -- | ByteString equality.
 --
@@ -58,6 +65,12 @@ instance Ord (Path b) where
 instance Show (Path b) where
   show (MkPath x) = show x
 
-instance NFData (Path b) where
-  rnf (MkPath x) = rnf x
+instance Typeable a => Lift (Path a) where
+  lift (MkPath bs) = [| MkPath bs :: Path $(pure a) |]
+    where
+      a = TH.ConT $ TH.Name occ flav
+        where
+        tc   = typeRepTyCon (typeRep (Proxy :: Proxy a))
+        occ  = TH.OccName (tyConName tc)
+        flav = TH.NameG TH.TcClsName (TH.PkgName (tyConPackage tc)) (TH.ModName (tyConModule tc))
 

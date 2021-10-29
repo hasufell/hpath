@@ -4,6 +4,15 @@ packages: ./hpath
           ./hpath-io
           ./hpath-posix
 
+source-repository-package
+    type: git
+    location: https://github.com/hasufell/abstract-filepath.git
+    tag: 7fafc70f37cdde9244cf3e3dab22228fa4e490b7
+    subdir: abstract-filepath
+            abstract-filepath-types
+            abstract-filepath-unix
+            abstract-filepath-Win32
+
 package hpath-io
     ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
 

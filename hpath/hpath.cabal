@@ -31,8 +31,9 @@ library
     ghc-options:       -Wall
   exposed-modules:   HPath
   other-modules:     HPath.Internal
-  build-depends:     base >= 4.8 && <5
-                   , bytestring >= 0.10.0.0
+  build-depends:     abstract-filepath
+                   , base >= 4.8 && <5
+                   , bytestring >= 0.10.0.0 
                    , deepseq
                    , exceptions
                    , hpath-filepath >= 0.10 && < 0.11
