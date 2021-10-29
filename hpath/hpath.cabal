@@ -30,7 +30,7 @@ library
   else
     ghc-options:       -Wall
   exposed-modules:   HPath
-  other-modules:     HPath.Internal
+                     HPath.Internal
   build-depends:     abstract-filepath
                    , base >= 4.8 && <5
                    , bytestring >= 0.10.0.0 
