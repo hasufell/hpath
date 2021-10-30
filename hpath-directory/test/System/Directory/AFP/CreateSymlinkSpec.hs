@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.CreateRegularFileSpec where
+module System.Directory.AFP.CreateSymlinkSpec where
 
 
 import Test.Hspec
@@ -15,11 +15,11 @@ import GHC.IO.Exception
 import Utils
 
 
-
 upTmpDir :: IO ()
 upTmpDir = do
-  setTmpDir "CreateRegularFileSpec"
+  setTmpDir "CreateSymlinkSpec"
   createTmpDir
+
 
 setupFiles :: IO ()
 setupFiles = do
@@ -28,6 +28,7 @@ setupFiles = do
   createDir' "noWritePerms"
   noPerms "noPerms"
   noWritableDirPerms "noWritePerms"
+
 
 cleanupFiles :: IO ()
 cleanupFiles = do
@@ -40,31 +41,31 @@ cleanupFiles = do
 
 spec :: Spec
 spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
-  describe "System.Posix.PosixFilePath.Directory.createRegularFile" $ do
+  describe "System.Posix.PosixFilePath.Directory.createSymlink" $ do
 
     -- successes --
-    it "createRegularFile, all fine" $ do
-      createRegularFile' "newDir"
-      removeFileIfExists "newDir"
+    it "createSymlink, all fine" $ do
+      createSymlink' "newSymL" "alreadyExists/"
+      removeFileIfExists "newSymL"
 
     -- posix failures --
-    it "createRegularFile, parent directories do not exist" $
-      createRegularFile' "some/thing/dada"
+    it "createSymlink, parent directories do not exist" $
+      createSymlink' "some/thing/dada" "lala"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "createRegularFile, can't write to destination directory" $
-      createRegularFile' "noWritePerms/newDir"
+    it "createSymlink, can't write to destination directory" $
+      createSymlink' "noWritePerms/newDir" "lala"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "createRegularFile, can't write to destination directory" $
-      createRegularFile' "noPerms/newDir"
+    it "createSymlink, can't write to destination directory" $
+      createSymlink' "noPerms/newDir" "lala"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "createRegularFile, destination file already exists" $
-      createRegularFile' "alreadyExists"
+    it "createSymlink, destination file already exists" $
+      createSymlink' "alreadyExists" "lala"
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 

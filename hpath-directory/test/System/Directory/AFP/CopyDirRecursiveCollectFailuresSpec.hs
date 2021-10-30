@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module System.Posix.PosixFilePath.Directory.CopyDirRecursiveCollectFailuresSpec where
+module System.Directory.AFP.CopyDirRecursiveCollectFailuresSpec where
 
 
 import Test.Hspec
 import Data.List (sort)
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import System.Posix.PosixFilePath.Directory.Errors
+import "hpath-directory" System.Directory.AFP
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -19,7 +19,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import AFP.AbstractFilePath.Posix
+import AFP.AbstractFilePath
 
 
 
@@ -120,7 +120,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
     -- successes --
     it "copyDirRecursive (Strict, CollectFailures), all fine and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromPlatformStringIO tmpDir'
+      tmpDirS <- fromAbstractFilePathIO tmpDir'
       copyDirRecursive' "inputDir"
                         "outputDir"
                         Strict
@@ -195,7 +195,9 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        isRecursiveFailure
+        (\e -> case e of
+                RecursiveFailure{} -> True
+                _                  -> False)
 
     it "copyDirRecursive (Strict, CollectFailures), destination dir already exists" $
       copyDirRecursive' "inputDir"
@@ -211,7 +213,9 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        isRecursiveFailure
+        (\e -> case e of
+                RecursiveFailure{} -> True
+                _                  -> False)
 
     it "copyDirRecursive (Strict, CollectFailures), wrong input (regular file)" $
       copyDirRecursive' "wrongInput"
@@ -235,7 +239,9 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        isDestinationInSource
+        (\e -> case e of
+                DestinationInSource{} -> True
+                _                     -> False)
 
     it "copyDirRecursive (Strict, CollectFailures), destination and source same directory" $
       copyDirRecursive' "inputDir"
@@ -243,6 +249,8 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         CollectFailures
         `shouldThrow`
-        isSameFile
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)
 
 

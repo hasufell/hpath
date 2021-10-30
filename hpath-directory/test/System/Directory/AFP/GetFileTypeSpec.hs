@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.GetFileTypeSpec where
+module System.Directory.AFP.GetFileTypeSpec where
 
 
-import "hpath-directory" System.Posix.PosixFilePath.Directory
+import "hpath-directory" System.Directory.AFP
 import Test.Hspec
 import System.IO.Error
   (

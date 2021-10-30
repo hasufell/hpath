@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.CanonicalizePathSpec where
+module System.Directory.AFP.CanonicalizePathSpec where
 
 
 import Test.Hspec

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.CreateSymlinkSpec where
+module System.Directory.AFP.CreateDirIfMissingSpec where
 
 
 import Test.Hspec
@@ -15,57 +15,55 @@ import GHC.IO.Exception
 import Utils
 
 
+
 upTmpDir :: IO ()
 upTmpDir = do
-  setTmpDir "CreateSymlinkSpec"
+  setTmpDir "CreateDirIfMissingSpec"
   createTmpDir
-
 
 setupFiles :: IO ()
 setupFiles = do
-  createRegularFile' "alreadyExists"
+  createDir' "alreadyExists"
   createDir' "noPerms"
   createDir' "noWritePerms"
   noPerms "noPerms"
   noWritableDirPerms "noWritePerms"
 
 
+
 cleanupFiles :: IO ()
 cleanupFiles = do
   normalDirPerms "noPerms"
   normalDirPerms "noWritePerms"
-  deleteFile' "alreadyExists"
+  deleteDir' "alreadyExists"
   deleteDir' "noPerms"
   deleteDir' "noWritePerms"
 
 
 spec :: Spec
 spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
-  describe "System.Posix.PosixFilePath.Directory.createSymlink" $ do
+  describe "System.Posix.PosixFilePath.Directory.CreateDirIfMissing" $ do
 
     -- successes --
-    it "createSymlink, all fine" $ do
-      createSymlink' "newSymL" "alreadyExists/"
-      removeFileIfExists "newSymL"
+    it "createDirIfMissing, all fine" $ do
+      createDirIfMissing' "newDir"
+      removeDirIfExists "newDir"
+
+    it "createDirIfMissing, destination directory already exists" $
+      createDirIfMissing' "alreadyExists"
 
     -- posix failures --
-    it "createSymlink, parent directories do not exist" $
-      createSymlink' "some/thing/dada" "lala"
+    it "createDirIfMissing, parent directories do not exist" $
+      createDirIfMissing' "some/thing/dada"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "createSymlink, can't write to destination directory" $
-      createSymlink' "noWritePerms/newDir" "lala"
+    it "createDirIfMissing, can't write to output directory" $
+      createDirIfMissing' "noWritePerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "createSymlink, can't write to destination directory" $
-      createSymlink' "noPerms/newDir" "lala"
+    it "createDirIfMissing, can't open output directory" $
+      createDirIfMissing' "noPerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
-
-    it "createSymlink, destination file already exists" $
-      createSymlink' "alreadyExists" "lala"
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == AlreadyExists)
-

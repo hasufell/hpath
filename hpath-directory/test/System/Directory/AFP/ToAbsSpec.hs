@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module System.Posix.PosixFilePath.Directory.ToAbsSpec where
+module System.Directory.AFP.ToAbsSpec where
 
 
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
+import "hpath-directory" System.Directory.AFP
 
 
 

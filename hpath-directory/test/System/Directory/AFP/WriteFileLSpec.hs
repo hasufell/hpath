@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module System.Posix.PosixFilePath.Directory.AppendFileSpec where
+module System.Directory.AFP.WriteFileLSpec where
 
 
 import Test.Hspec
@@ -19,7 +19,7 @@ import Utils
 
 upTmpDir :: IO ()
 upTmpDir = do
-  setTmpDir "AppendFileSpec"
+  setTmpDir "WriteFileLSpec"
   createTmpDir
 
 setupFiles :: IO ()
@@ -51,58 +51,58 @@ cleanupFiles = do
 
 spec :: Spec
 spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
-  describe "System.Posix.PosixFilePath.Directory.appendFile" $ do
+  describe "System.Posix.PosixFilePath.Directory.WriteFileL" $ do
 
     -- successes --
-    it "appendFile file with content, everything clear" $ do
-      appendFile' "fileWithContent" "blahfaselllll"
+    it "WriteFileL file with content, everything clear" $ do
+      writeFileL' "fileWithContent" "blahfaselllll"
       out <- readFile' "fileWithContent"
-      out `shouldBe` "BLKASLblahfaselllll"
+      out `shouldBe` "blahfaselllll"
 
-    it "appendFile file with content, everything clear" $ do
-      appendFile' "fileWithContent" "gagagaga"
+    it "WriteFileL file with content, everything clear" $ do
+      writeFileL' "fileWithContent" "gagagaga"
       out <- readFile' "fileWithContent"
-      out `shouldBe` "BLKASLblahfaselllllgagagaga"
+      out `shouldBe` "gagagaga"
 
-    it "appendFile file with content, everything clear" $ do
-      appendFile' "fileWithContent" ""
+    it "WriteFileL file with content, everything clear" $ do
+      writeFileL' "fileWithContent" ""
       out <- readFile' "fileWithContent"
-      out `shouldBe` "BLKASLblahfaselllllgagagaga"
+      out `shouldBe` ""
 
-    it "appendFile file without content, everything clear" $ do
-      appendFile' "fileWithoutContent" "blahfaselllll"
+    it "WriteFileL file without content, everything clear" $ do
+      writeFileL' "fileWithoutContent" "blahfaselllll"
       out <- readFile' "fileWithoutContent"
       out `shouldBe` "blahfaselllll"
 
-    it "appendFile, everything clear" $ do
-      appendFile' "fileWithoutContent" "gagagaga"
+    it "WriteFileL, everything clear" $ do
+      writeFileL' "fileWithoutContent" "gagagaga"
       out <- readFile' "fileWithoutContent"
-      out `shouldBe` "blahfaselllllgagagaga"
+      out `shouldBe` "gagagaga"
 
-    it "appendFile symlink, everything clear" $ do
-      appendFile' "inputFileSymL" "blahfaselllll"
+    it "WriteFileL symlink, everything clear" $ do
+      writeFileL' "inputFileSymL" "blahfaselllll"
       out <- readFile' "inputFileSymL"
-      out `shouldBe` "BLKASLblahfaselllllgagagagablahfaselllll"
+      out `shouldBe` "blahfaselllll"
 
-    it "appendFile symlink, everything clear" $ do
-      appendFile' "inputFileSymL" "gagagaga"
+    it "WriteFileL symlink, everything clear" $ do
+      writeFileL' "inputFileSymL" "gagagaga"
       out <- readFile' "inputFileSymL"
-      out `shouldBe` "BLKASLblahfaselllllgagagagablahfaselllllgagagaga"
+      out `shouldBe` "gagagaga"
 
 
     -- posix failures --
-    it "appendFile to dir, inappropriate type" $ do
-      appendFile' "alreadyExistsD" ""
+    it "WriteFileL to dir, inappropriate type" $ do
+      writeFileL' "alreadyExistsD" ""
         `shouldThrow` (\e -> ioeGetErrorType e == InappropriateType)
 
-    it "appendFile, no permissions to file" $ do
-      appendFile' "noPerms" ""
+    it "WriteFileL, no permissions to file" $ do
+      writeFileL' "noPerms" ""
         `shouldThrow` (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "appendFile, no permissions to file" $ do
-      appendFile' "noPermsD/inputFile" ""
+    it "WriteFileL, no permissions to file" $ do
+      writeFileL' "noPermsD/inputFile" ""
         `shouldThrow` (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "appendFile, file does not exist" $ do
-      appendFile' "gaga" ""
+    it "WriteFileL, file does not exist" $ do
+      writeFileL' "gaga" ""
         `shouldThrow` (\e -> ioeGetErrorType e == NoSuchThing)

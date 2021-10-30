@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.DeleteFileSpec where
+module System.Directory.AFP.DeleteFileSpec where
 
 
 import Test.Hspec
@@ -8,10 +8,6 @@ import "hpath-directory" System.Posix.PosixFilePath.Directory
 import System.IO.Error
   (
     ioeGetErrorType
-  )
-import System.Posix.Files.ByteString
-  (
-    getSymbolicLinkStatus
   )
 import GHC.IO.Exception
   (
@@ -53,18 +49,14 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
     it "deleteFile, regular file, all fine" $ do
       createRegularFile' "testFile"
       deleteFile' "testFile"
-      getSymbolicLinkStatus "testFile"
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == NoSuchThing)
+      dirExists "testFile" >>= (`shouldBe` False)
 
     it "deleteFile, symlink, all fine" $ do
       recreateSymlink' "syml"
                        "testFile"
                        Strict
       deleteFile' "testFile"
-      getSymbolicLinkStatus "testFile"
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == NoSuchThing)
+      dirExists "testFile" >>= (`shouldBe` False)
 
     -- posix failures --
     it "deleteFile, wrong file type (directory)" $

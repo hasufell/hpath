@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module System.Posix.PosixFilePath.Directory.CopyFileSpec where
+module System.Directory.AFP.CopyFileSpec where
 
 
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import System.Posix.PosixFilePath.Directory.Errors
+import "hpath-directory" System.Directory.AFP
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -18,7 +18,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import AFP.AbstractFilePath.Posix
+import AFP.AbstractFilePath
 
 
 
@@ -69,7 +69,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyFile (Strict), and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromPlatformStringIO tmpDir'
+      tmpDirS <- fromAbstractFilePathIO tmpDir'
       copyFile' "inputFile"
                 "outputFile"
                 Strict
@@ -141,4 +141,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                 "inputFile"
                 Strict
         `shouldThrow`
-        isSameFile
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)
+

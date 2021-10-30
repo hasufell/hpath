@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.CreateDirRecursiveSpec where
+module System.Directory.AFP.CreateDirRecursiveSpec where
 
 
 import Test.Hspec

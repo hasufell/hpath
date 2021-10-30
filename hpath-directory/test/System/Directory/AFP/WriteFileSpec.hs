@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module System.Posix.PosixFilePath.Directory.WriteFileSpec where
+module System.Directory.AFP.WriteFileSpec where
 
 
 import Test.Hspec

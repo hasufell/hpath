@@ -1,13 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.RecreateSymlinkSpec where
+module System.Directory.AFP.RecreateSymlinkOverwriteSpec where
 
 
+-- TODO: exception if destination exists but is not a file + `OverWrite` CopyMode
 
 
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import System.Posix.PosixFilePath.Directory.Errors
+import "hpath-directory" System.Directory.AFP
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -19,10 +20,9 @@ import GHC.IO.Exception
 import Utils
 
 
-
 upTmpDir :: IO ()
 upTmpDir = do
-  setTmpDir "RecreateSymlinkSpec"
+  setTmpDir "RecreateSymlinkOverwriteSpec"
   createTmpDir
 
 
@@ -35,6 +35,8 @@ setupFiles = do
   createDir' "dir"
   createDir' "noPerms"
   createDir' "noWritePerm"
+  createDir' "alreadyExistsD2"
+  createRegularFile' "alreadyExistsD2/lala"
   noPerms "noPerms"
   noWritableDirPerms "noWritePerm"
   writeFile' "myFile" "Blahfaselgagaga"
@@ -47,7 +49,9 @@ cleanupFiles = do
   deleteFile' "myFile"
   deleteFile' "myFileL"
   deleteFile' "alreadyExists"
+  deleteFile' "alreadyExistsD2/lala"
   deleteDir' "alreadyExistsD"
+  deleteDir' "alreadyExistsD2"
   deleteDir' "dir"
   deleteDir' "noPerms"
   deleteDir' "noWritePerm"
@@ -58,73 +62,80 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
   describe "System.Posix.PosixFilePath.Directory.recreateSymlink" $ do
 
     -- successes --
-    it "recreateSymLink (Strict), all fine" $ do
+    it "recreateSymLink (Overwrite), all fine" $ do
       recreateSymlink' "myFileL"
                        "movedFile"
-                       Strict
+                       Overwrite
       removeFileIfExists "movedFile"
 
-    it "recreateSymLink (Strict), all fine" $ do
+    it "recreateSymLink (Overwrite), all fine" $ do
       recreateSymlink' "myFileL"
                        "dir/movedFile"
-                       Strict
+                       Overwrite
       removeFileIfExists "dir/movedFile"
 
-    -- posix failures --
-    it "recreateSymLink (Strict), wrong input type (file)" $
-      recreateSymlink' "myFile"
-                       "movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == InvalidArgument)
-
-    it "recreateSymLink (Strict), wrong input type (directory)" $
-      recreateSymlink' "dir"
-                       "movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == InvalidArgument)
-
-    it "recreateSymLink (Strict), can't write to destination directory" $
-      recreateSymlink' "myFileL"
-                       "noWritePerm/movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == PermissionDenied)
-
-    it "recreateSymLink (Strict), can't open destination directory" $
-      recreateSymlink' "myFileL"
-                       "noPerms/movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == PermissionDenied)
-
-    it "recreateSymLink (Strict), can't open source directory" $
-      recreateSymlink' "noPerms/myFileL"
-                       "movedFile"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == PermissionDenied)
-
-    it "recreateSymLink (Strict), destination file already exists" $
+    it "recreateSymLink (Overwrite), destination file already exists" $
       recreateSymlink' "myFileL"
                        "alreadyExists"
-                       Strict
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == AlreadyExists)
+                       Overwrite
 
-    it "recreateSymLink (Strict), destination already exists and is a dir" $
+    it "recreateSymLink (Overwrite), destination already exists and is an empty dir" $ do
       recreateSymlink' "myFileL"
                        "alreadyExistsD"
-                       Strict
+                       Overwrite
+      deleteFile' "alreadyExistsD"
+      createDir' "alreadyExistsD"
+
+    -- posix failures --
+    it "recreateSymLink (Overwrite), destination already exists and is a non-empty dir" $
+      recreateSymlink' "myFileL"
+                       "alreadyExistsD2"
+                       Overwrite
         `shouldThrow`
-        (\e -> ioeGetErrorType e == AlreadyExists)
+        (\e -> ioeGetErrorType e == UnsatisfiedConstraints)
+
+    it "recreateSymLink (Overwrite), wrong input type (file)" $
+      recreateSymlink' "myFile"
+                       "movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == InvalidArgument)
+
+    it "recreateSymLink (Overwrite), wrong input type (directory)" $
+      recreateSymlink' "dir"
+                       "movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == InvalidArgument)
+
+    it "recreateSymLink (Overwrite), can't write to destination directory" $
+      recreateSymlink' "myFileL"
+                       "noWritePerm/movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
+
+    it "recreateSymLink (Overwrite), can't open destination directory" $
+      recreateSymlink' "myFileL"
+                       "noPerms/movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
+
+    it "recreateSymLink (Overwrite), can't open source directory" $
+      recreateSymlink' "noPerms/myFileL"
+                       "movedFile"
+                       Overwrite
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
 
     -- custom failures --
-    it "recreateSymLink (Strict), source and destination are the same file" $
+    it "recreateSymLink (Overwrite), source and destination are the same file" $
       recreateSymlink' "myFileL"
                        "myFileL"
-                       Strict
+                       Overwrite
         `shouldThrow`
-        isSameFile
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)
 

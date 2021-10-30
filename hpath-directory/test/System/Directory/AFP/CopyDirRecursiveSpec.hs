@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module System.Posix.PosixFilePath.Directory.CopyDirRecursiveSpec where
+module System.Directory.AFP.CopyDirRecursiveSpec where
 
 
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import System.Posix.PosixFilePath.Directory.Errors
+import "hpath-directory" System.Directory.AFP
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -18,7 +18,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import AFP.AbstractFilePath.Posix
+import AFP.AbstractFilePath
 
 
 
@@ -85,7 +85,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyDirRecursive (Strict, FailEarly), all fine and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromPlatformStringIO tmpDir'
+      tmpDirS <- fromAbstractFilePathIO tmpDir'
       copyDirRecursive' "inputDir"
                         "outputDir"
                         Strict
@@ -169,7 +169,12 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         FailEarly
         `shouldThrow`
-        isDestinationInSource
+        (\e -> case e of
+                DestinationInSource{} -> True
+                _                     -> False)
+
+
+
 
     it "copyDirRecursive (Strict, FailEarly), destination and source same directory" $
       copyDirRecursive' "inputDir"
@@ -177,6 +182,9 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Strict
                         FailEarly
         `shouldThrow`
-        isSameFile
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)
+
 
 

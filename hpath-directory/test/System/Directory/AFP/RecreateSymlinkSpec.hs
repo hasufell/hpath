@@ -1,14 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.RecreateSymlinkOverwriteSpec where
+module System.Directory.AFP.RecreateSymlinkSpec where
 
 
--- TODO: exception if destination exists but is not a file + `OverWrite` CopyMode
 
 
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import System.Posix.PosixFilePath.Directory.Errors
+import "hpath-directory" System.Directory.AFP
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -20,9 +19,10 @@ import GHC.IO.Exception
 import Utils
 
 
+
 upTmpDir :: IO ()
 upTmpDir = do
-  setTmpDir "RecreateSymlinkOverwriteSpec"
+  setTmpDir "RecreateSymlinkSpec"
   createTmpDir
 
 
@@ -35,8 +35,6 @@ setupFiles = do
   createDir' "dir"
   createDir' "noPerms"
   createDir' "noWritePerm"
-  createDir' "alreadyExistsD2"
-  createRegularFile' "alreadyExistsD2/lala"
   noPerms "noPerms"
   noWritableDirPerms "noWritePerm"
   writeFile' "myFile" "Blahfaselgagaga"
@@ -49,9 +47,7 @@ cleanupFiles = do
   deleteFile' "myFile"
   deleteFile' "myFileL"
   deleteFile' "alreadyExists"
-  deleteFile' "alreadyExistsD2/lala"
   deleteDir' "alreadyExistsD"
-  deleteDir' "alreadyExistsD2"
   deleteDir' "dir"
   deleteDir' "noPerms"
   deleteDir' "noWritePerm"
@@ -62,78 +58,75 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
   describe "System.Posix.PosixFilePath.Directory.recreateSymlink" $ do
 
     -- successes --
-    it "recreateSymLink (Overwrite), all fine" $ do
+    it "recreateSymLink (Strict), all fine" $ do
       recreateSymlink' "myFileL"
                        "movedFile"
-                       Overwrite
+                       Strict
       removeFileIfExists "movedFile"
 
-    it "recreateSymLink (Overwrite), all fine" $ do
+    it "recreateSymLink (Strict), all fine" $ do
       recreateSymlink' "myFileL"
                        "dir/movedFile"
-                       Overwrite
+                       Strict
       removeFileIfExists "dir/movedFile"
 
-    it "recreateSymLink (Overwrite), destination file already exists" $
-      recreateSymlink' "myFileL"
-                       "alreadyExists"
-                       Overwrite
-
-    it "recreateSymLink (Overwrite), destination already exists and is an empty dir" $ do
-      recreateSymlink' "myFileL"
-                       "alreadyExistsD"
-                       Overwrite
-      deleteFile' "alreadyExistsD"
-      createDir' "alreadyExistsD"
-
     -- posix failures --
-    it "recreateSymLink (Overwrite), destination already exists and is a non-empty dir" $
-      recreateSymlink' "myFileL"
-                       "alreadyExistsD2"
-                       Overwrite
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == UnsatisfiedConstraints)
-
-    it "recreateSymLink (Overwrite), wrong input type (file)" $
+    it "recreateSymLink (Strict), wrong input type (file)" $
       recreateSymlink' "myFile"
                        "movedFile"
-                       Overwrite
+                       Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
-    it "recreateSymLink (Overwrite), wrong input type (directory)" $
+    it "recreateSymLink (Strict), wrong input type (directory)" $
       recreateSymlink' "dir"
                        "movedFile"
-                       Overwrite
+                       Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == InvalidArgument)
 
-    it "recreateSymLink (Overwrite), can't write to destination directory" $
+    it "recreateSymLink (Strict), can't write to destination directory" $
       recreateSymlink' "myFileL"
                        "noWritePerm/movedFile"
-                       Overwrite
+                       Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "recreateSymLink (Overwrite), can't open destination directory" $
+    it "recreateSymLink (Strict), can't open destination directory" $
       recreateSymlink' "myFileL"
                        "noPerms/movedFile"
-                       Overwrite
+                       Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "recreateSymLink (Overwrite), can't open source directory" $
+    it "recreateSymLink (Strict), can't open source directory" $
       recreateSymlink' "noPerms/myFileL"
                        "movedFile"
-                       Overwrite
+                       Strict
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
+    it "recreateSymLink (Strict), destination file already exists" $
+      recreateSymlink' "myFileL"
+                       "alreadyExists"
+                       Strict
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == AlreadyExists)
+
+    it "recreateSymLink (Strict), destination already exists and is a dir" $
+      recreateSymlink' "myFileL"
+                       "alreadyExistsD"
+                       Strict
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == AlreadyExists)
+
     -- custom failures --
-    it "recreateSymLink (Overwrite), source and destination are the same file" $
+    it "recreateSymLink (Strict), source and destination are the same file" $
       recreateSymlink' "myFileL"
                        "myFileL"
-                       Overwrite
+                       Strict
         `shouldThrow`
-        isSameFile
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)
 

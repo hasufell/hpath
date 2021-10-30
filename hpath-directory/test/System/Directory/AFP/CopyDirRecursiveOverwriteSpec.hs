@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module System.Posix.PosixFilePath.Directory.CopyDirRecursiveOverwriteSpec where
+module System.Directory.AFP.CopyDirRecursiveOverwriteSpec where
 
 
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import System.Posix.PosixFilePath.Directory.Errors
+import "hpath-directory" System.Directory.AFP
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -18,7 +18,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import AFP.AbstractFilePath.Posix
+import AFP.AbstractFilePath
 
 
 
@@ -100,7 +100,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyDirRecursive (Overwrite, FailEarly), all fine and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromPlatformStringIO tmpDir'
+      tmpDirS <- fromAbstractFilePathIO tmpDir'
       copyDirRecursive' "inputDir"
                         "outputDir"
                         Overwrite
@@ -114,7 +114,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyDirRecursive (Overwrite, FailEarly), destination dir already exists" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromPlatformStringIO tmpDir'
+      tmpDirS <- fromAbstractFilePathIO tmpDir'
       (system $ "diff -r "
                           ++ tmpDirS ++ "inputDir" ++ " "
                           ++ tmpDirS ++ "alreadyExistsD"
@@ -196,7 +196,9 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Overwrite
                         FailEarly
         `shouldThrow`
-        isDestinationInSource
+        (\e -> case e of
+                DestinationInSource{} -> True
+                _                     -> False)
 
     it "copyDirRecursive (Overwrite, FailEarly), destination and source same directory" $
       copyDirRecursive' "inputDir"
@@ -204,4 +206,6 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
                         Overwrite
                         FailEarly
         `shouldThrow`
-        isSameFile
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)

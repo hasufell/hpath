@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.RenameFileSpec where
+module System.Directory.AFP.RenameFileSpec where
 
 
 import Test.Hspec
-import System.Posix.PosixFilePath.Directory.Errors
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -113,5 +113,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       renameFile' "myFile"
                   "myFile"
         `shouldThrow`
-        isSameFile
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)
 

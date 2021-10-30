@@ -1,16 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.DeleteDirRecursiveSpec where
+module System.Directory.AFP.DeleteDirRecursiveSpec where
 
 
 import Test.Hspec
 import System.IO.Error
   (
     ioeGetErrorType
-  )
-import System.Posix.Files.ByteString
-  (
-    getSymbolicLinkStatus
   )
 import GHC.IO.Exception
   (
@@ -58,9 +54,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
     it "deleteDirRecursive, empty directory, all fine" $ do
       createDir' "testDir"
       deleteDirRecursive' "testDir"
-      getSymbolicLinkStatus "testDir"
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == NoSuchThing)
+      dirExists "testDir" >>= (`shouldBe` False)
 
     it "deleteDirRecursive, empty directory with null permissions, all fine" $ do
       createDir' "noPerms/testDir"
@@ -75,9 +69,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       createRegularFile' "nonEmpty/file1"
       createRegularFile' "nonEmpty/dir1/file2"
       deleteDirRecursive' "nonEmpty"
-      getSymbolicLinkStatus "nonEmpty"
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == NoSuchThing)
+      dirExists "nonEmpty" >>= (`shouldBe` False)
 
     -- posix failures --
     it "deleteDirRecursive, can't open parent directory" $ do

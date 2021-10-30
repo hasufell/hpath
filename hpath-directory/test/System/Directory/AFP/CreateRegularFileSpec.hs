@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.CreateDirIfMissingSpec where
+module System.Directory.AFP.CreateRegularFileSpec where
 
 
 import Test.Hspec
@@ -18,52 +18,53 @@ import Utils
 
 upTmpDir :: IO ()
 upTmpDir = do
-  setTmpDir "CreateDirIfMissingSpec"
+  setTmpDir "CreateRegularFileSpec"
   createTmpDir
 
 setupFiles :: IO ()
 setupFiles = do
-  createDir' "alreadyExists"
+  createRegularFile' "alreadyExists"
   createDir' "noPerms"
   createDir' "noWritePerms"
   noPerms "noPerms"
   noWritableDirPerms "noWritePerms"
 
-
-
 cleanupFiles :: IO ()
 cleanupFiles = do
   normalDirPerms "noPerms"
   normalDirPerms "noWritePerms"
-  deleteDir' "alreadyExists"
+  deleteFile' "alreadyExists"
   deleteDir' "noPerms"
   deleteDir' "noWritePerms"
 
 
 spec :: Spec
 spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
-  describe "System.Posix.PosixFilePath.Directory.CreateDirIfMissing" $ do
+  describe "System.Posix.PosixFilePath.Directory.createRegularFile" $ do
 
     -- successes --
-    it "createDirIfMissing, all fine" $ do
-      createDirIfMissing' "newDir"
-      removeDirIfExists "newDir"
-
-    it "createDirIfMissing, destination directory already exists" $
-      createDirIfMissing' "alreadyExists"
+    it "createRegularFile, all fine" $ do
+      createRegularFile' "newDir"
+      removeFileIfExists "newDir"
 
     -- posix failures --
-    it "createDirIfMissing, parent directories do not exist" $
-      createDirIfMissing' "some/thing/dada"
+    it "createRegularFile, parent directories do not exist" $
+      createRegularFile' "some/thing/dada"
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
-    it "createDirIfMissing, can't write to output directory" $
-      createDirIfMissing' "noWritePerms/newDir"
+    it "createRegularFile, can't write to destination directory" $
+      createRegularFile' "noWritePerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
-    it "createDirIfMissing, can't open output directory" $
-      createDirIfMissing' "noPerms/newDir"
+    it "createRegularFile, can't write to destination directory" $
+      createRegularFile' "noPerms/newDir"
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
+
+    it "createRegularFile, destination file already exists" $
+      createRegularFile' "alreadyExists"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == AlreadyExists)
+

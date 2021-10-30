@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 
 import Data.IORef
 import Test.Hspec
@@ -6,10 +7,14 @@ import Test.Hspec.Runner
 import Test.Hspec.Formatters
 import qualified Spec
 import Utils
+#ifdef WINDOWS
+#else
 import System.Posix.Temp.PosixString (mkdtemp)
 import System.Posix.Env.PosixString (getEnvDefault)
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import AFP.AbstractFilePath.Posix
+#endif
+import "hpath-directory" System.Directory.AFP
+import AFP.AbstractFilePath
+import AFP.OsString.Internal.Types
 
 
 -- TODO: chardev, blockdev, namedpipe, socket
@@ -17,8 +22,11 @@ import AFP.AbstractFilePath.Posix
 
 main :: IO ()
 main = do
-  tmpdir <- getEnvDefault "TMPDIR" "/tmp" >>= canonicalizePath
-  tmpBase <- mkdtemp (tmpdir </> "hpath-directory")
+#ifdef WINDOWS
+#else
+  (OsString tmpdir) <- fmap (</> "hpath-directory") (getEnvDefault "TMPDIR" "/tmp" >>= canonicalizePath . OsString)
+  tmpBase <- OsString <$> mkdtemp tmpdir
+#endif
   writeIORef baseTmpDir (Just (tmpBase <> "/"))
   putStrLn $ ("Temporary test directory at: " ++ show tmpBase)
   hspecWith

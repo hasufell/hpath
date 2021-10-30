@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.CopyFileOverwriteSpec where
+module System.Directory.AFP.CopyFileOverwriteSpec where
 
 
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
-import System.Posix.PosixFilePath.Directory.Errors
+import "hpath-directory" System.Directory.AFP
+import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -17,7 +17,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import AFP.AbstractFilePath.Posix
+import AFP.AbstractFilePath
 
 
 
@@ -70,7 +70,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyFile (Overwrite), output file already exists, all clear" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromPlatformStringIO tmpDir'
+      tmpDirS <- fromAbstractFilePathIO tmpDir'
       copyFile' "alreadyExists" "alreadyExists.bak" Strict
       copyFile' "inputFile" "alreadyExists" Overwrite
       (system $ "cmp -s " ++ tmpDirS ++ "inputFile" ++ " "
@@ -82,7 +82,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyFile (Overwrite), and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromPlatformStringIO tmpDir'
+      tmpDirS <- fromAbstractFilePathIO tmpDir'
       copyFile' "inputFile"
                 "outputFile"
                 Overwrite
@@ -147,4 +147,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       copyFile' "inputFile"
                 "inputFile"
                 Overwrite
-        `shouldThrow` isSameFile
+        `shouldThrow`
+        (\e -> case e of
+                SameFile{} -> True
+                _          -> False)

@@ -1,16 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.DeleteDirSpec where
+module System.Directory.AFP.DeleteDirSpec where
 
 
 import Test.Hspec
 import System.IO.Error
   (
     ioeGetErrorType
-  )
-import System.Posix.Files.ByteString
-  (
-    getSymbolicLinkStatus
   )
 import GHC.IO.Exception
   (
@@ -59,17 +55,13 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
     it "deleteDir, empty directory, all fine" $ do
       createDir' "testDir"
       deleteDir' "testDir"
-      getSymbolicLinkStatus "testDir"
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == NoSuchThing)
+      dirExists "testDir" >>= (`shouldBe` False)
 
     it "deleteDir, directory with null permissions, all fine" $ do
       createDir' "noPerms/testDir"
       noPerms "noPerms/testDir"
       deleteDir' "noPerms/testDir"
-      getSymbolicLinkStatus "testDir"
-        `shouldThrow`
-        (\e -> ioeGetErrorType e == NoSuchThing)
+      dirExists "testDir" >>= (`shouldBe` False)
 
     -- posix failures --
     it "deleteDir, wrong file type (symlink to directory)" $

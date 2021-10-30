@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Posix.PosixFilePath.Directory.GetDirsFilesSpec where
+module System.Directory.AFP.GetDirsFilesSpec where
 
 
 import Data.List
   (
     sort
   )
-import "hpath-directory" System.Posix.PosixFilePath.Directory hiding (getDirsFiles')
+import "hpath-directory" System.Directory.AFP hiding (getDirsFiles')
 import Test.Hspec
 import System.IO.Error
   (
@@ -18,7 +18,7 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import AFP.AbstractFilePath.Posix
+import AFP.AbstractFilePath
 
 
 upTmpDir :: IO ()
