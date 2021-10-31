@@ -32,7 +32,7 @@ setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "alreadyExists"
   createRegularFile' "wrongInput"
-  createSymlink' "wrongInputSymL" "inputDir/"
+  createSymlink' "wrongInputSymL" "inputDir/" True
   createDir' "noPerms"
   createDir' "noWritePerm"
 

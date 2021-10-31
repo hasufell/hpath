@@ -3,8 +3,8 @@
 module System.Directory.AFP.DeleteFileSpec where
 
 
+import System.Directory.AFP
 import Test.Hspec
-import "hpath-directory" System.Posix.PosixFilePath.Directory
 import System.IO.Error
   (
     ioeGetErrorType
@@ -25,7 +25,7 @@ upTmpDir = do
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "foo"
-  createSymlink' "syml" "foo"
+  createSymlink' "syml" "foo" False
   createDir' "dir"
   createDir' "noPerms"
   noPerms "noPerms"

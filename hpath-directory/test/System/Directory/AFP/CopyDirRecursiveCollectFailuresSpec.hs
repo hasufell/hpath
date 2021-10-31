@@ -7,6 +7,7 @@ module System.Directory.AFP.CopyDirRecursiveCollectFailuresSpec where
 import Test.Hspec
 import Data.List (sort)
 import "hpath-directory" System.Directory.AFP
+import System.Directory.Errors
 import System.Directory.Types
 import System.IO.Error
   (
@@ -32,7 +33,7 @@ setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "alreadyExists"
   createRegularFile' "wrongInput"
-  createSymlink' "wrongInputSymL" "inputDir/"
+  createSymlink' "wrongInputSymL" "inputDir/" True
   createDir' "alreadyExistsD"
   createDir' "noPerms"
   createDir' "noWritePerm"
@@ -167,8 +168,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
       c <- allDirectoryContents' "outputDir1"
       tmpDir' <- getRawTmpDir
       let shouldC = (fmap (\x -> tmpDir' </> x)
-                          ["outputDir1"
-                          ,"outputDir1/foo2"
+                          ["outputDir1/foo2"
                           ,"outputDir1/foo2/inputFile1"
                           ,"outputDir1/foo2/inputFile2"
                           ,"outputDir1/foo2/inputFile3"

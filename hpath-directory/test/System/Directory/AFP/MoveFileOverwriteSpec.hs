@@ -27,7 +27,7 @@ upTmpDir = do
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "myFile"
-  createSymlink' "myFileL" "myFile"
+  createSymlink' "myFileL" "myFile" False
   createDir' "alreadyExistsD"
   createDir' "dir"
   createDir' "noPerms"

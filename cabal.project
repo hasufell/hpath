@@ -11,7 +11,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/hasufell/abstract-filepath.git
-    tag: 535133eb0eda91c55e96832bcede4b65f74e3fb9
+    tag: 595973d0e2027315f5c7ac865e70b43fbb2356e4
     subdir: abstract-filepath
             abstract-filepath-types
             abstract-filepath-unix

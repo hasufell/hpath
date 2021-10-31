@@ -27,7 +27,7 @@ setupFiles = do
   createRegularFile' "file"
   createDir' "dir"
   createRegularFile' "dir/.keep"
-  createSymlink' "dirSym" "dir/"
+  createSymlink' "dirSym" "dir/" True
   createDir' "noPerms"
   createRegularFile' "noPerms/.keep"
   createDir' "noWritable"

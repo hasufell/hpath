@@ -31,7 +31,7 @@ setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "inputFile"
   createRegularFile' "alreadyExists"
-  createSymlink' "inputFileSymL" "inputFile"
+  createSymlink' "inputFileSymL" "inputFile" False
   createDir' "alreadyExistsD"
   createDir' "noPerms"
   createRegularFile' "noPerms/inputFile"

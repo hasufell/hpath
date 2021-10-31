@@ -1,10 +1,13 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Directory.AFP.GetFileTypeSpec where
+module System.Directory.Posix.PosixFilePath.Directory.GetFileTypeSpec where
 
-
-import "hpath-directory" System.Directory.AFP
 import Test.Hspec
+
+#ifndef WINDOWS
+
+import "hpath-directory" System.Posix.PosixFilePath.Directory
 import System.IO.Error
   (
     ioeGetErrorType
@@ -26,10 +29,10 @@ upTmpDir = do
 setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "regularfile"
-  createSymlink' "symlink" "regularfile"
-  createSymlink' "brokenSymlink" "broken"
+  createSymlink' "symlink" "regularfile" False
+  createSymlink' "brokenSymlink" "broken" False
   createDir' "directory"
-  createSymlink' "symlinkD" "directory"
+  createSymlink' "symlinkD" "directory" True
   createDir' "noPerms"
   noPerms "noPerms"
 
@@ -86,3 +89,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
+#else
+spec :: Spec
+spec = pure ()
+#endif

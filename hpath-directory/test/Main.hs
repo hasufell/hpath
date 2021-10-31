@@ -8,6 +8,7 @@ import Test.Hspec.Formatters
 import qualified Spec
 import Utils
 #ifdef WINDOWS
+import System.Win32.WindowsString.Info
 #else
 import System.Posix.Temp.PosixString (mkdtemp)
 import System.Posix.Env.PosixString (getEnvDefault)
@@ -23,6 +24,8 @@ import AFP.OsString.Internal.Types
 main :: IO ()
 main = do
 #ifdef WINDOWS
+  tmpBase <- fmap ((</> "hpath-directory") . OsString) getTemporaryDirectory
+  createDirRecursive tmpBase
 #else
   (OsString tmpdir) <- fmap (</> "hpath-directory") (getEnvDefault "TMPDIR" "/tmp" >>= canonicalizePath . OsString)
   tmpBase <- OsString <$> mkdtemp tmpdir

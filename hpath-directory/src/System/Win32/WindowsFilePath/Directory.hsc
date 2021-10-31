@@ -1,5 +1,5 @@
 -- |
--- Module      :  System.Posix.PosixFilePath.Directory
+-- Module      :  System.Win32.WindowsFilePath.Directory
 -- Copyright   :  © 2020 Julian Ospald
 -- License     :  BSD3
 --
@@ -25,13 +25,14 @@
 -- unreliable/unsafe. Check the documentation of those functions for details.
 --
 -- Import as:
--- > import System.Posix.PosixFilePath.Directory
+-- > import System.Win32.WindowsFilePath.Directory
 
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE QuasiQuotes      #-}
+{-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE FlexibleContexts #-} -- streamly
 
-module System.Posix.PosixFilePath.Directory
+module System.Win32.WindowsFilePath.Directory
   (
   -- * Types
     FileType(..)
@@ -47,9 +48,6 @@ module System.Posix.PosixFilePath.Directory
   , deleteDir
   , deleteDirRecursive
   , easyDelete
-  -- * File opening (posix specific)
-  , openFile
-  , executeFile
   -- * File creation
   , createRegularFile
   , createDir
@@ -69,8 +67,9 @@ module System.Posix.PosixFilePath.Directory
   , writeFileL
   , appendFile
   -- * File permissions
+  , setWriteMode
+  , setFilePermissions
   , newFilePerms
-  , newDirPerms
   -- * File checks
   , doesExist
   , doesFileExist
@@ -83,6 +82,8 @@ module System.Posix.PosixFilePath.Directory
   , getModificationTime
   , setModificationTime
   , setModificationTimeHiRes
+  , windowsToPosixTime
+  , posixToWindowsTime
   -- * Directory reading
   , getDirsFiles
   , getDirsFilesRec
@@ -101,24 +102,38 @@ module System.Posix.PosixFilePath.Directory
   )
 where
 
+#include <HsDirectoryConfig.h>
+#if defined(mingw32_HOST_OS)
+##if defined(i386_HOST_ARCH)
+## define WINAPI stdcall
+##elif defined(x86_64_HOST_ARCH)
+## define WINAPI ccall
+##else
+## error unknown architecture
+##endif
+#include <shlobj.h>
+#include <windows.h>
+#include <System/Win32/WindowsFilePath/utility.h>
+#include <System/Win32/WindowsFilePath/windows_ext.h>
 
 import           Control.Exception.Safe         ( IOException
                                                 , MonadCatch
                                                 , MonadMask
                                                 , bracket
                                                 , bracketOnError
-                                                , onException
                                                 , throwIO
                                                 , finally
+                                                , handleIO
                                                 )
 #if MIN_VERSION_base(4,9,0)
 import qualified Control.Monad.Fail             as Fail
 #else
 import qualified Control.Monad                  as Fail
 #endif
-import           Control.Monad                  ( unless
-                                                , void
-                                                , when
+import           Control.Monad                  ( when
+                                                )
+import           Control.Monad.IO.Class         ( liftIO
+                                                , MonadIO
                                                 )
 import           Control.Monad.IfElse           ( unlessM )
 import qualified Data.ByteString               as BS
@@ -126,24 +141,17 @@ import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Lazy          as L
 import           Data.Foldable                  ( for_ )
 import           Data.String
+import           Data.List.Split
 import           Data.IORef                     ( IORef
                                                 , modifyIORef
                                                 , newIORef
-                                                , readIORef
                                                 )
 import           Data.Time.Clock
-import           Data.Time.Clock.POSIX          ( getPOSIXTime
-                                                , posixSecondsToUTCTime
+import           Data.Time.Clock.POSIX          ( posixSecondsToUTCTime
                                                 , utcTimeToPOSIXSeconds
                                                 , POSIXTime
                                                 )
 import           Data.Word                      ( Word8 )
-import           Foreign.C.Error                ( eEXIST
-                                                , eNOENT
-                                                , eNOTEMPTY
-                                                , eXDEV
-                                                , getErrno
-                                                )
 import           GHC.IO.Exception               ( IOErrorType(..) )
 import           Prelude                 hiding ( appendFile
                                                 , readFile
@@ -151,98 +159,79 @@ import           Prelude                 hiding ( appendFile
                                                 )
 import           Streamly.Prelude               ( SerialT, MonadAsync )
 import           Streamly.Data.Array.Foreign
-import           Streamly.External.ByteString
+import qualified Streamly.External.ByteString as SB
 import qualified Streamly.External.ByteString.Lazy
                                                as SL
-import qualified Streamly.External.Posix.DirStream
-                                               as SD
 import qualified Streamly.FileSystem.Handle    as FH
 import qualified Streamly.Internal.Data.Unfold as SU
-import qualified Streamly.Internal.FileSystem.Handle
-                                               as IFH
-#if MIN_VERSION_streamly(0,8,0)
 import qualified Streamly.Internal.Data.Array.Stream.Foreign
                                                as AS
-#else
-import qualified Streamly.Internal.Memory.ArrayStream
-                                               as AS
-#endif
+import qualified Streamly.Internal.Data.Stream.StreamD.Type
+                                               as D
+import           Streamly.Internal.Data.Unfold.Type
 import qualified Streamly.Internal.Data.Stream.IsStream.Expand as SE
 import Streamly.Internal.Data.Fold.Type (Fold)
+import Streamly.Internal.Data.Array.Stream.Foreign (arraysOf)
+import Streamly.Internal.Data.Array.Foreign.Mut.Type (defaultChunkSize)
 import qualified Streamly.Prelude              as S
-import           Control.Monad.IO.Class         ( liftIO
-                                                )
 import qualified System.IO                     as SIO
-import           System.IO.Error                ( catchIOError
-                                                , ioeGetErrorType
-                                                )
-import           System.Posix.ByteString        ( exclusive )
-import           System.Posix.PosixFilePath.Directory.Errors
-import           System.Posix.Directory.PosixFilePath
-                                                ( createDirectory
-                                                , closeDirStream
-                                                , getWorkingDirectory
-                                                , openDirStream
-                                                , removeDirectory
-                                                , changeWorkingDirectory
-                                                )
-import           System.Posix.Files.PosixString  ( createSymbolicLink
-                                                , fileAccess
-                                                , fileMode
-                                                , getFdStatus
-                                                , groupExecuteMode
-                                                , groupReadMode
-                                                , groupWriteMode
-                                                , otherExecuteMode
-                                                , otherReadMode
-                                                , otherWriteMode
-                                                , ownerModes
-                                                , ownerReadMode
-                                                , ownerWriteMode
-                                                , removeLink
-                                                , rename
-                                                , setFileMode
-                                                , unionFileModes
-                                                )
-import qualified System.Posix.Files.PosixString as PF
-import qualified System.Posix.IO.PosixString
-                                               as SPI
-import qualified "unix-bytestring" System.Posix.IO.ByteString
-                                               as SPB
-import           System.Posix.FD                ( openFd )
-import qualified System.Posix.PosixFilePath.Directory.Traversals
-                                               as SPDT
-import qualified System.Posix.Foreign          as SPDF
-import qualified System.Posix.Process.PosixString
-                                               as SPP
-import           System.Posix.Types             ( FileMode
-                                                , ProcessID
-                                                )
-import           System.Posix.Time
 
-import AFP.AbstractFilePath.Posix
+import AFP.AbstractFilePath.Windows
 import AFP.OsString.Internal.Types
 import System.Directory.Types
 import System.Directory.Errors
+import Data.Bits
+import qualified System.Win32 as Win32
+import qualified System.Win32.WindowsString.File as WS
+import qualified System.Win32.WindowsString.Info as WS
+import qualified System.Win32.WindowsString.SymbolicLink as WS
+import Data.Maybe
+import System.Environment
+import Data.Char
+import Foreign.Ptr
+import Foreign.Marshal.Alloc
+import Foreign.Marshal.Utils
+import Foreign.Storable
+import Foreign.C.Types
+import Data.ByteString.Short.Word16 (packCWStringLen, ShortByteString)
+import qualified Data.ByteString.Short.Word16 as W16
+import System.IO.Error
+import Data.Void
 
 
 
 
-    ----------------------------
-    --[ Posix specific types ]--
-    ----------------------------
+    ------------------------------
+    --[ Windows specific types ]--
+    ------------------------------
 
 
 data FileType = Directory
-              | RegularFile
+              | DirectoryLink
               | SymbolicLink
-              | BlockDevice
-              | CharacterDevice
-              | NamedPipe
-              | Socket
+              | File
   deriving (Eq, Show)
 
 
+
+maxShareMode :: Win32.ShareMode
+maxShareMode =
+  Win32.fILE_SHARE_DELETE .|.
+  Win32.fILE_SHARE_READ   .|.
+  Win32.fILE_SHARE_WRITE
+
+writeShareMode :: Win32.ShareMode
+writeShareMode =
+  Win32.fILE_SHARE_DELETE .|.
+  Win32.fILE_SHARE_READ
+
+
+data Win32_REPARSE_DATA_BUFFER
+  = Win32_MOUNT_POINT_REPARSE_DATA_BUFFER ShortByteString ShortByteString
+    -- ^ substituteName printName
+  | Win32_SYMLINK_REPARSE_DATA_BUFFER ShortByteString ShortByteString Bool
+    -- ^ substituteName printName isRelative
+  | Win32_GENERIC_REPARSE_DATA_BUFFER
 
 
     --------------------
@@ -300,8 +289,8 @@ data FileType = Directory
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyDirRecursive :: PosixFilePath  -- ^ source dir
-                 -> PosixFilePath  -- ^ destination (parent dirs
+copyDirRecursive :: WindowsFilePath  -- ^ source dir
+                 -> WindowsFilePath  -- ^ destination (parent dirs
                                  --   are not automatically created)
                  -> CopyMode
                  -> RecursiveErrorMode
@@ -309,25 +298,26 @@ copyDirRecursive :: PosixFilePath  -- ^ source dir
 copyDirRecursive fromp destdirp cm rm = do
   ce <- newIORef []
   -- for performance, sanity checks are only done for the top dir
-  throwSameFile fromp destdirp
-  throwDestinationInSource fromp destdirp
+  -- TODO
+  -- throwSameFile fromp destdirp
+  -- throwDestinationInSource fromp destdirp
   go ce fromp destdirp
-  collectedExceptions <- readIORef ce
-  unless (null collectedExceptions)
-         (throwIO . RecursiveFailure $ collectedExceptions)
+  -- collectedExceptions <- readIORef ce
+  -- unless (null collectedExceptions)
+  --       (throwIO . RecursiveFailure $ collectedExceptions)
  where
 #if MIN_VERSION_base(4,9,0)
-  basename :: Fail.MonadFail m => PosixFilePath -> m PosixFilePath
+  basename :: Fail.MonadFail m => WindowsFilePath -> m WindowsFilePath
 #else
-  basename :: Fail.Monad m => PosixFilePath -> m PosixFilePath
+  basename :: Fail.Monad m => WindowsFilePath -> m WindowsFilePath
 #endif
   basename x =
-    let b = takeBaseName x
+    let b = takeFileName x
     in  if b == mempty then Fail.fail ("No base name" :: String) else pure b
 
   go :: IORef [(RecursiveFailureHint, IOException)]
-     -> PosixFilePath
-     -> PosixFilePath
+     -> WindowsFilePath
+     -> WindowsFilePath
      -> IO ()
   go ce from destdir = do
 
@@ -341,13 +331,14 @@ copyDirRecursive fromp destdirp cm rm = do
       -- create the destination dir and
       -- only return contents if we succeed
       handleIOE (CreateDirFailed (OsString from) (OsString destdir)) ce [] $ do
-        fmode' <- PF.fileMode <$> PF.getSymbolicLinkStatus from
+        fmode' <- WS.getFileAttributes from
         case cm of
-          Strict    -> createDirectory destdir fmode'
-          Overwrite -> catchIOError (createDirectory destdir fmode') $ \e ->
+          Strict    -> createDir destdir
+          Overwrite -> catchIOError (createDir destdir) $ \e ->
             case ioeGetErrorType e of
-              AlreadyExists -> setFileMode destdir fmode'
+              AlreadyExists -> pure ()
               _             -> ioError e
+        WS.setFileAttributes destdir fmode'
         return contents
 
     -- NOTE: we can't use `easyCopy` here, because we want to call `go`
@@ -362,10 +353,12 @@ copyDirRecursive fromp destdirp cm rm = do
         SymbolicLink ->
           handleIOE (RecreateSymlinkFailed (OsString f) (OsString newdest)) ce ()
             $ recreateSymlink f newdest cm
+        DirectoryLink ->
+          handleIOE (RecreateSymlinkFailed (OsString f) (OsString newdest)) ce ()
+            $ recreateSymlink f newdest cm
         Directory -> go ce f newdest
-        RegularFile ->
+        File ->
           handleIOE (CopyFileFailed (OsString f) (OsString newdest)) ce () $ copyFile f newdest cm
-        _ -> return ()
 
   -- helper to handle errors for both RecursiveErrorModes and return a
   -- default value
@@ -404,16 +397,12 @@ copyDirRecursive fromp destdirp cm rm = do
 -- Throws in `Overwrite` mode only:
 --
 --    - `UnsatisfiedConstraints` if destination file is non-empty directory
---
--- Notes:
---
---    - calls `symlink`
-recreateSymlink :: PosixFilePath   -- ^ the old symlink file
-                -> PosixFilePath   -- ^ destination file
+recreateSymlink :: WindowsFilePath   -- ^ the old symlink file
+                -> WindowsFilePath   -- ^ destination file
                 -> CopyMode
                 -> IO ()
 recreateSymlink symsource newsym cm = do
-  throwSameFile symsource newsym
+  isdirSource  <- doesDirectoryExist symsource
   sympoint <- readSymbolicLink symsource
   case cm of
     Strict    -> return ()
@@ -425,7 +414,7 @@ recreateSymlink symsource newsym cm = do
       isdir  <- doesDirectoryExist newsym
       when (writable && isfile) (deleteFile newsym)
       when (writable && isdir)  (deleteDir newsym)
-  createSymbolicLink sympoint newsym
+  createSymlink newsym sympoint isdirSource
 
 
 -- |Copies the given regular file to the given destination.
@@ -462,50 +451,12 @@ recreateSymlink symsource newsym cm = do
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyFile :: PosixFilePath   -- ^ source file
-         -> PosixFilePath   -- ^ destination file
+copyFile :: WindowsFilePath   -- ^ source file
+         -> WindowsFilePath   -- ^ destination file
          -> CopyMode
          -> IO ()
-copyFile from to cm = do
-  throwSameFile from to
-  bracket
-      (do
-        fd     <- openFd from SPI.ReadOnly [SPDF.oNofollow] Nothing
-        handle <- SPI.fdToHandle fd
-        pure (fd, handle)
-      )
-      (\(_, handle) -> SIO.hClose handle)
-    $ \(fromFd, fH) -> do
-        sourceFileMode <- System.Posix.Files.PosixString.fileMode
-          <$> getFdStatus fromFd
-        let dflags =
-              [ SPDF.oNofollow
-              , case cm of
-                Strict    -> SPDF.oExcl
-                Overwrite -> SPDF.oTrunc
-              ]
-        bracketeer
-            (do
-              fd     <- openFd to SPI.WriteOnly dflags $ Just sourceFileMode
-              handle <- SPI.fdToHandle fd
-              pure (fd, handle)
-            )
-            (\(_, handle) -> SIO.hClose handle)
-            (\(_, handle) -> do
-              SIO.hClose handle
-              case cm of
-                   -- if we created the file and copying failed, it's
-                   -- safe to clean up
-                Strict    -> deleteFile to
-                Overwrite -> pure ()
-            )
-          $ \(_, tH) -> do
-              SIO.hSetBinaryMode fH True
-              SIO.hSetBinaryMode tH True
-              streamlyCopy (fH, tH)
- where
-  streamlyCopy (fH, tH) =
-    S.fold (FH.writeChunks tH) $ IFH.toChunksWithBufferOf (256 * 1024) fH
+copyFile from to cm = WS.copyFile from to (cm == Strict)
+
 
 -- |Copies a regular file, directory or symbolic link. In case of a
 -- symbolic link it is just recreated, even if it points to a directory.
@@ -515,18 +466,18 @@ copyFile from to cm = do
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
-easyCopy :: PosixFilePath
-         -> PosixFilePath
+easyCopy :: WindowsFilePath
+         -> WindowsFilePath
          -> CopyMode
          -> RecursiveErrorMode
          -> IO ()
 easyCopy from to cm rm = do
   ftype <- getFileType from
   case ftype of
-    SymbolicLink -> recreateSymlink from to cm
-    RegularFile  -> copyFile from to cm
-    Directory    -> copyDirRecursive from to cm rm
-    _            -> return ()
+    SymbolicLink  -> recreateSymlink from to cm
+    Directory     -> copyDirRecursive from to cm rm
+    DirectoryLink -> recreateSymlink from to cm
+    File          -> copyFile from to cm
 
 
 
@@ -547,8 +498,8 @@ easyCopy from to cm rm = do
 --    - `PermissionDenied` if the directory cannot be read
 --
 -- Notes: calls `unlink`
-deleteFile :: PosixFilePath -> IO ()
-deleteFile = removeLink
+deleteFile :: WindowsFilePath -> IO ()
+deleteFile = WS.deleteFile
 
 
 -- |Deletes the given directory, which must be empty, never symlinks.
@@ -560,19 +511,13 @@ deleteFile = removeLink
 --    - `NoSuchThing` if directory does not exist
 --    - `UnsatisfiedConstraints` if directory is not empty
 --    - `PermissionDenied` if we can't open or write to parent directory
---
--- Notes: calls `rmdir`
-deleteDir :: PosixFilePath -> IO ()
-deleteDir = removeDirectory
+deleteDir :: WindowsFilePath -> IO ()
+deleteDir = WS.removeDirectory
 
 
 -- |Deletes the given directory recursively. Does not follow symbolic
 -- links. Tries `deleteDir` first before attemtping a recursive
 -- deletion.
---
--- On directory contents this behaves like `easyDelete`
--- and thus will ignore any file type that is not `RegularFile`,
--- `SymbolicLink` or `Directory`.
 --
 -- Safety/reliability concerns:
 --
@@ -585,59 +530,45 @@ deleteDir = removeDirectory
 --    - `InappropriateType` for wrong file type (regular file)
 --    - `NoSuchThing` if directory does not exist
 --    - `PermissionDenied` if we can't open or write to parent directory
-deleteDirRecursive :: PosixFilePath -> IO ()
-deleteDirRecursive p = catchErrno [eNOTEMPTY, eEXIST] (deleteDir p) $ do
-  files <- getDirsFiles p
-  for_ files $ \file -> do
-    ftype <- getFileType file
-    case ftype of
-      SymbolicLink -> deleteFile file
-      Directory    -> deleteDirRecursive file
-      RegularFile  -> deleteFile file
-      _            -> return ()
-  removeDirectory p
-
+deleteDirRecursive :: WindowsFilePath -> IO ()
+deleteDirRecursive p = catchIOError (deleteDir p) $ \e ->
+  case ioeGetErrorType e of
+    NoSuchThing -> rmRecursive p
+    UnsatisfiedConstraints -> rmRecursive p
+    _ -> throwIO e
+ where
+  rmRecursive fp = do
+    files <- getDirsFiles fp
+    for_ files $ \file -> do
+      ftype <- getFileType file
+      case ftype of
+        SymbolicLink  -> deleteFile file
+        Directory     -> deleteDirRecursive file
+        DirectoryLink -> deleteDirRecursive file
+        File          -> deleteFile file
+    deleteDir fp
+    
 
 -- |Deletes a file, directory or symlink.
 -- In case of directory, performs recursive deletion. In case of
 -- a symlink, the symlink file is deleted.
--- Any other file type is ignored.
 --
 -- Safety/reliability concerns:
 --
 --    * examines filetypes explicitly
 --    * calls `deleteDirRecursive` for directories
-easyDelete :: PosixFilePath -> IO ()
+easyDelete :: WindowsFilePath -> IO ()
 easyDelete p = do
   ftype <- getFileType p
   case ftype of
-    SymbolicLink -> deleteFile p
-    Directory    -> deleteDirRecursive p
-    RegularFile  -> deleteFile p
-    _            -> return ()
+    SymbolicLink  -> deleteFile p
+    Directory     -> deleteDirRecursive p
+    DirectoryLink -> deleteDirRecursive p
+    File          -> deleteFile p
 
 
 
 
-    --------------------
-    --[ File Opening ]--
-    --------------------
-
-
--- |Opens a file appropriately by invoking xdg-open. The file type
--- is not checked. This forks a process.
-openFile :: PosixFilePath -> IO ProcessID
-openFile fp =
-  SPP.forkProcess
-    $ SPP.executeFile [pstr|xdg-open|] True [fp] Nothing
-
-
--- |Executes a program with the given arguments. This forks a process.
-executeFile :: PosixFilePath     -- ^ program
-            -> [PosixString]    -- ^ arguments
-            -> IO ProcessID
-executeFile fp args =
-  SPP.forkProcess $ SPP.executeFile fp True args Nothing
 
 
 
@@ -656,15 +587,18 @@ executeFile fp args =
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createRegularFile :: FileMode -> PosixFilePath -> IO ()
-createRegularFile fm destBS = bracket
-  (SPI.openFd destBS
-              SPI.WriteOnly
-              (Just fm)
-              (SPI.defaultFileFlags { exclusive = True })
-  )
-  SPI.closeFd
-  (\_ -> return ())
+createRegularFile :: Win32.AccessMode -> WindowsFilePath -> IO ()
+createRegularFile mode fp = bracket open close (\_ -> return ())
+ where
+   open = WS.createFile
+            fp
+            mode
+            maxShareMode
+            Nothing
+            Win32.cREATE_NEW
+            Win32.fILE_ATTRIBUTE_NORMAL
+            Nothing
+   close = Win32.closeHandle
 
 
 -- |Create an empty directory at the given directory with the given filename.
@@ -675,8 +609,9 @@ createRegularFile fm destBS = bracket
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDir :: FileMode -> PosixFilePath -> IO ()
-createDir fm destBS = createDirectory destBS fm
+createDir :: WindowsFilePath -> IO ()
+createDir = flip WS.createDirectory Nothing
+
 
 -- |Create an empty directory at the given directory with the given filename.
 --
@@ -685,9 +620,9 @@ createDir fm destBS = createDirectory destBS fm
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDirIfMissing :: FileMode -> PosixFilePath -> IO ()
-createDirIfMissing fm destBS =
-  hideError AlreadyExists $ createDirectory destBS fm
+createDirIfMissing :: WindowsFilePath -> IO ()
+createDirIfMissing = hideError AlreadyExists . createDir
+
 
 
 -- |Create an empty directory at the given directory with the given filename.
@@ -708,25 +643,24 @@ createDirIfMissing fm destBS =
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
-createDirRecursive :: FileMode -> PosixFilePath -> IO ()
-createDirRecursive fm p = go p
+createDirRecursive :: WindowsFilePath -> IO ()
+createDirRecursive p = go p
  where
-  go :: PosixFilePath -> IO ()
+  go :: WindowsFilePath -> IO ()
   go dest = do
-    catchIOError (createDirectory dest fm) $ \e -> do
-      errno <- getErrno
-      case errno of
+    catchIOError (createDir dest) $ \e -> do
+      case ioeGetErrorType e of
         en
-          | en == eEXIST
+          | en == alreadyExistsErrorType
           -> unlessM (doesDirectoryExist dest) (ioError e)
-          | en == eNOENT
+          | en == doesNotExistErrorType
           -> go (takeDirectory $ dropTrailingPathSeparator dest)
-            >> createDir fm dest
+            >> createDir dest
           | otherwise
           -> ioError e
 
 
--- |Create a symlink.
+-- |Create a symlink. And tries to do so in unprivileged mode (needs developer mode activated).
 --
 -- Throws:
 --
@@ -734,12 +668,12 @@ createDirRecursive fm p = go p
 --    - `AlreadyExists` if destination file already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
---
--- Note: calls `symlink`
-createSymlink :: PosixFilePath     -- ^ destination file
-              -> PosixFilePath     -- ^ path the symlink points to
+createSymlink :: WindowsFilePath     -- ^ destination file
+              -> WindowsFilePath     -- ^ path the symlink points to
+              -> Bool                -- ^ whether this is a directory
               -> IO ()
-createSymlink destBS sympoint = createSymbolicLink sympoint destBS
+createSymlink destBS sympoint dir =
+  WS.createSymbolicLink' destBS sympoint ((if dir then Win32.sYMBOLIC_LINK_FLAG_DIRECTORY else Win32.sYMBOLIC_LINK_FLAG_FILE) .|. Win32.sYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE)
 
 
 
@@ -749,13 +683,7 @@ createSymlink destBS sympoint = createSymbolicLink sympoint destBS
 
 
 -- |Rename a given file with the provided filename. Destination and source
--- must be on the same device, otherwise `eXDEV` will be raised.
---
--- Does not follow symbolic links, but renames the symbolic link file.
---
--- Safety/reliability concerns:
---
---    * has a separate set of exception handling, apart from the syscall
+-- must be on the same device.
 --
 -- Throws:
 --
@@ -765,78 +693,38 @@ createSymlink destBS sympoint = createSymbolicLink sympoint destBS
 --     - `UnsupportedOperation` if source and destination are on different
 --       devices
 --     - `AlreadyExists` if destination already exists
---     - `SameFile` if destination and source are the same file
---       (`HPathIOException`)
---
--- Note: calls `rename` (but does not allow to rename over existing files)
-renameFile :: PosixFilePath -> PosixFilePath -> IO ()
-renameFile fromf tof = do
-  throwSameFile fromf tof
-  throwFileDoesExist tof
-  throwDirDoesExist tof
-  rename fromf tof
+renameFile :: WindowsFilePath -> WindowsFilePath -> IO ()
+renameFile from to =
+  WS.moveFileEx from (Just to) 0
 
 
 -- |Move a file. This also works across devices by copy-delete fallback.
 -- And also works on directories.
 --
--- Does not follow symbolic links, but renames the symbolic link file.
---
---
 -- Safety/reliability concerns:
 --
 --    * `Overwrite` mode is not atomic
 --    * copy-delete fallback is inherently non-atomic
---    * since this function calls `easyCopy` and `easyDelete` as a fallback
---      to `renameFile`, file types that are not `RegularFile`, `SymbolicLink`
---      or `Directory` may be ignored
---    * for `Overwrite` mode, the destination will be deleted (not recursively)
---      before moving
 --
 -- Throws:
 --
 --     - `NoSuchThing` if source file does not exist
 --     - `PermissionDenied` if output directory cannot be written to
 --     - `PermissionDenied` if source directory cannot be opened
---     - `SameFile` if destination and source are the same file
---       (`HPathIOException`)
+--     - `PermissionDenied` when moving one directory over another (even in Overwrite mode)
 --
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
---
--- Notes:
---
---    - calls `rename` (but does not allow to rename over existing files)
-moveFile :: PosixFilePath   -- ^ file to move
-         -> PosixFilePath   -- ^ destination
+moveFile :: WindowsFilePath   -- ^ file to move
+         -> WindowsFilePath   -- ^ destination
          -> CopyMode
          -> IO ()
 moveFile from to cm = do
-  throwSameFile from to
-  case cm of
-    Strict -> catchErrno [eXDEV] (renameFile from to) $ do
-      easyCopy from to Strict FailEarly
-      easyDelete from
-    Overwrite -> do
-      ft       <- getFileType from
-      writable <- do
-        e <- doesFileExist to
-        if e then isWritable to else pure False
-
-      case ft of
-        RegularFile -> do
-          exists <- doesFileExist to
-          when (exists && writable) (deleteFile to)
-        SymbolicLink -> do
-          exists <- doesFileExist to
-          when (exists && writable) (deleteFile to)
-        Directory -> do
-          exists <- doesDirectoryExist to
-          when (exists && writable) (deleteDir to)
-        _ -> return ()
-      moveFile from to Strict
-
+  let flag = case cm of
+        Strict -> Win32.mOVEFILE_COPY_ALLOWED
+        Overwrite -> Win32.mOVEFILE_COPY_ALLOWED .|. Win32.mOVEFILE_REPLACE_EXISTING
+  WS.moveFileEx from (Just to) flag
 
 
 
@@ -856,7 +744,7 @@ moveFile from to cm = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFile :: PosixFilePath -> IO L.ByteString
+readFile :: WindowsFilePath -> IO L.ByteString
 readFile path = do
   stream <- readFileStream path
   SL.fromChunksIO stream
@@ -872,10 +760,10 @@ readFile path = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFileStrict :: PosixFilePath -> IO BS.ByteString
+readFileStrict :: WindowsFilePath -> IO BS.ByteString
 readFileStrict path = do
   stream <- readFileStream path
-  fromArray <$> AS.toArray stream
+  SB.fromArray <$> AS.toArray stream
 
 
 -- | Open the given file as a filestream. Once the filestream
@@ -887,17 +775,151 @@ readFileStrict path = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-readFileStream :: PosixFilePath -> IO (SerialT IO (Array Word8))
+readFileStream :: WindowsFilePath -> IO (SerialT IO (Array Word8))
 readFileStream fp = do
-  fd     <- openFd fp SPI.ReadOnly [] Nothing
-  handle <- SPI.fdToHandle fd
+  handle <- bracketOnError
+    (WS.createFile
+      fp
+      Win32.gENERIC_READ
+      maxShareMode
+      Nothing
+      Win32.oPEN_EXISTING
+      Win32.fILE_ATTRIBUTE_NORMAL
+      Nothing)
+    Win32.closeHandle
+    Win32.hANDLEToHandle
   let stream = S.unfold (SU.finally SIO.hClose FH.readChunks) handle
   pure stream
 
 
+foreign import WINAPI unsafe "windows.h DeviceIoControl"
+  c_DeviceIoControl
+    :: Win32.HANDLE
+    -> Win32.DWORD
+    -> Ptr a
+    -> Win32.DWORD
+    -> Ptr b
+    -> Win32.DWORD
+    -> Ptr Win32.DWORD
+    -> Ptr Void
+    -> IO Win32.BOOL
+
+
 -- | Read the target of a symbolic link.
-readSymbolicLink :: PosixFilePath -> IO PosixString
-readSymbolicLink = PF.readSymbolicLink
+--
+-- This is mostly stolen from 'directory' package.
+readSymbolicLink :: WindowsFilePath -> IO WindowsFilePath
+readSymbolicLink path = WS <$> do
+  let open = WS.createFile path 0 maxShareMode Nothing Win32.oPEN_EXISTING
+                              (Win32.fILE_FLAG_BACKUP_SEMANTICS .|.
+                              win32_fILE_FLAG_OPEN_REPARSE_POINT) Nothing
+  bracket open Win32.closeHandle $ \ h -> do
+    win32_alloca_REPARSE_DATA_BUFFER $ \ ptrAndSize@(ptr, _) -> do
+      result <- deviceIoControl h win32_fSCTL_GET_REPARSE_POINT
+                                (nullPtr, 0) ptrAndSize Nothing
+      case result of
+        Left e | e == (#const ERROR_INVALID_FUNCTION) -> do
+                   let msg = "Incorrect function. The file system " <>
+                             "might not support symbolic links."
+                   throwIO (mkIOError illegalOperationErrorType
+                                      "DeviceIoControl" Nothing Nothing
+                            `ioeSetErrorString` msg)
+               | otherwise -> Win32.failWith "DeviceIoControl" e
+        Right _ -> pure ()
+      rData <- win32_peek_REPARSE_DATA_BUFFER ptr
+      strip <$> case rData of
+        Win32_MOUNT_POINT_REPARSE_DATA_BUFFER sn _ -> pure sn
+        Win32_SYMLINK_REPARSE_DATA_BUFFER sn _ _ -> pure sn
+        _ -> throwIO (mkIOError InappropriateType
+                                "readSymbolicLink" Nothing Nothing)
+ where
+  strip sn = fromMaybe sn (W16.stripPrefix (unWFP $ fromString "\\??\\") sn)
+
+  win32_iO_REPARSE_TAG_MOUNT_POINT, win32_iO_REPARSE_TAG_SYMLINK :: CULong
+  win32_iO_REPARSE_TAG_MOUNT_POINT = (#const IO_REPARSE_TAG_MOUNT_POINT)
+  win32_iO_REPARSE_TAG_SYMLINK = (#const IO_REPARSE_TAG_SYMLINK)
+
+  win32_mAXIMUM_REPARSE_DATA_BUFFER_SIZE :: Win32.DWORD
+  win32_mAXIMUM_REPARSE_DATA_BUFFER_SIZE =
+    (#const MAXIMUM_REPARSE_DATA_BUFFER_SIZE)
+
+  win32_sYMLINK_FLAG_RELATIVE :: CULong
+  win32_sYMLINK_FLAG_RELATIVE = 0x00000001
+
+
+  win32_fILE_FLAG_OPEN_REPARSE_POINT :: Win32.FileAttributeOrFlag
+  win32_fILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+
+  win32_fSCTL_GET_REPARSE_POINT :: Win32.DWORD
+  win32_fSCTL_GET_REPARSE_POINT = 0x900a8
+
+  deviceIoControl
+    :: Win32.HANDLE
+    -> Win32.DWORD
+    -> (Ptr a, Int)
+    -> (Ptr b, Int)
+    -> Maybe Void
+    -> IO (Either Win32.ErrCode Int)
+  deviceIoControl h code (inPtr, inSize) (outPtr, outSize) _ = do
+    with 0 $ \ lenPtr -> do
+      ok <- c_DeviceIoControl h code inPtr (fromIntegral inSize) outPtr
+                              (fromIntegral outSize) lenPtr nullPtr
+      if ok
+        then Right . fromIntegral <$> peek lenPtr
+        else Left <$> Win32.getLastError
+
+  win32_alloca_REPARSE_DATA_BUFFER
+    :: ((Ptr Win32_REPARSE_DATA_BUFFER, Int) -> IO a) -> IO a
+  win32_alloca_REPARSE_DATA_BUFFER action =
+    allocaBytesAligned size align $ \ ptr ->
+      action (ptr, size)
+    where size = fromIntegral win32_mAXIMUM_REPARSE_DATA_BUFFER_SIZE
+          -- workaround (hsc2hs for GHC < 8.0 don't support #{alignment ...})
+          align = #{size char[alignof(HsDirectory_REPARSE_DATA_BUFFER)]}
+
+  win32_peek_REPARSE_DATA_BUFFER
+    :: Ptr Win32_REPARSE_DATA_BUFFER -> IO Win32_REPARSE_DATA_BUFFER
+  win32_peek_REPARSE_DATA_BUFFER p = do
+    tag <- #{peek HsDirectory_REPARSE_DATA_BUFFER, ReparseTag} p
+    case () of
+      _ | tag == win32_iO_REPARSE_TAG_MOUNT_POINT -> do
+            let buf = #{ptr HsDirectory_REPARSE_DATA_BUFFER,
+                            MountPointReparseBuffer.PathBuffer} p
+            sni <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          MountPointReparseBuffer.SubstituteNameOffset} p
+            sns <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          MountPointReparseBuffer.SubstituteNameLength} p
+            sn <- peekName buf sni sns
+            pni <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          MountPointReparseBuffer.PrintNameOffset} p
+            pns <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          MountPointReparseBuffer.PrintNameLength} p
+            pn <- peekName buf pni pns
+            pure (Win32_MOUNT_POINT_REPARSE_DATA_BUFFER sn pn)
+        | tag == win32_iO_REPARSE_TAG_SYMLINK -> do
+            let buf = #{ptr HsDirectory_REPARSE_DATA_BUFFER,
+                            SymbolicLinkReparseBuffer.PathBuffer} p
+            sni <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          SymbolicLinkReparseBuffer.SubstituteNameOffset} p
+            sns <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          SymbolicLinkReparseBuffer.SubstituteNameLength} p
+            sn <- peekName buf sni sns
+            pni <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          SymbolicLinkReparseBuffer.PrintNameOffset} p
+            pns <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                          SymbolicLinkReparseBuffer.PrintNameLength} p
+            pn <- peekName buf pni pns
+            flags <- #{peek HsDirectory_REPARSE_DATA_BUFFER,
+                            SymbolicLinkReparseBuffer.Flags} p
+            pure (Win32_SYMLINK_REPARSE_DATA_BUFFER sn pn
+                  (flags .&. win32_sYMLINK_FLAG_RELATIVE /= 0))
+        | otherwise -> pure Win32_GENERIC_REPARSE_DATA_BUFFER
+    where
+      peekName :: Ptr CWchar -> CUShort -> CUShort -> IO ShortByteString
+      peekName buf offset size =
+        packCWStringLen ( buf `plusPtr` fromIntegral offset
+                        , fromIntegral size `div` sizeOf (0 :: CWchar) )
+
 
 
 
@@ -915,13 +937,17 @@ readSymbolicLink = PF.readSymbolicLink
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-writeFile :: PosixFilePath
-          -> Maybe FileMode  -- ^ if Nothing, file must exist
+writeFile :: WindowsFilePath
+          -> Bool             -- ^ True if file must exist
           -> ByteString
           -> IO ()
 writeFile fp fmode bs =
-  bracket (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd)
-    $ \fd -> void $ SPB.fdWrite fd bs
+  writeFileStream
+    fp
+    Win32.gENERIC_WRITE
+    (if fmode then Win32.tRUNCATE_EXISTING else Win32.cREATE_ALWAYS)
+    FH.writeChunks
+    (arraysOf defaultChunkSize $ S.unfold SB.read bs)
 
 
 -- |Write a given lazy ByteString to a file, truncating the file beforehand.
@@ -935,22 +961,37 @@ writeFile fp fmode bs =
 --     - `NoSuchThing` if the file does not exist
 --
 -- Note: uses streamly under the hood
-writeFileL :: PosixFilePath
-           -> Maybe FileMode  -- ^ if Nothing, file must exist
+writeFileL :: WindowsFilePath
+           -> Bool             -- ^ True if file must exist
            -> L.ByteString
            -> IO ()
-writeFileL fp fmode lbs = writeFileStream fp fmode FH.writeChunks (SL.toChunks lbs)
+writeFileL fp fmode lbs =
+  writeFileStream
+    fp
+    Win32.gENERIC_WRITE
+    (if fmode then Win32.tRUNCATE_EXISTING else Win32.cREATE_ALWAYS)
+    FH.writeChunks
+    (SL.toChunks lbs)
 
 
-writeFileStream :: PosixFilePath
-                -> Maybe FileMode  -- ^ if Nothing, file must exist
+writeFileStream :: WindowsFilePath
+                -> Win32.AccessMode
+                -> Win32.CreateMode
                 -> (SIO.Handle -> Fold IO a ())   -- ^ writer
                 -> SerialT IO a                   -- ^ stream
                 -> IO ()
-writeFileStream fp fmode writer stream = do
-  handle <-
-    bracketOnError (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd)
-      $ SPI.fdToHandle
+writeFileStream fp am cm writer stream = do
+  handle <- bracketOnError
+    (WS.createFile
+      fp
+      am
+      writeShareMode
+      Nothing
+      cm
+      Win32.fILE_ATTRIBUTE_NORMAL
+      Nothing)
+    Win32.closeHandle
+    Win32.hANDLEToHandle
   finally (streamlyCopy handle) (SIO.hClose handle)
   where streamlyCopy tH = S.fold (writer tH) stream
 
@@ -964,11 +1005,9 @@ writeFileStream fp fmode writer stream = do
 --     - `PermissionDenied` if we cannot read the file or the directory
 --        containting it
 --     - `NoSuchThing` if the file does not exist
-appendFile :: PosixFilePath -> ByteString -> IO ()
-appendFile fp bs =
-  bracket (openFd fp SPI.WriteOnly [SPDF.oAppend] Nothing) (SPI.closeFd)
-    $ \fd -> void $ SPB.fdWrite fd bs
-
+appendFile :: WindowsFilePath -> ByteString -> IO ()
+appendFile fp bs = writeFileStream fp Win32.fILE_APPEND_DATA Win32.oPEN_ALWAYS FH.writeChunks
+  (arraysOf defaultChunkSize $ S.unfold SB.read bs)
 
 
 
@@ -977,25 +1016,23 @@ appendFile fp bs =
     -----------------------
 
 
+setWriteMode :: Bool -> Win32.FileAttributeOrFlag -> Win32.FileAttributeOrFlag
+setWriteMode False m = m .|. Win32.fILE_ATTRIBUTE_READONLY
+setWriteMode True  m = m .&. complement Win32.fILE_ATTRIBUTE_READONLY
+
+
+-- | A restricted form of 'setFileMode' that only sets the permission bits.
+-- For Windows, this means only the "read-only" attribute is affected.
+setFilePermissions :: WindowsFilePath -> Win32.FileAttributeOrFlag -> IO ()
+setFilePermissions path m = do
+  m' <- Win32.bhfiFileAttributes <$> getFileMetadata path
+  WS.setFileAttributes path ((m' .&. complement Win32.fILE_ATTRIBUTE_READONLY) .|.
+                             (m  .&. Win32.fILE_ATTRIBUTE_READONLY))
+
+
 -- |Default permissions for a new file.
-newFilePerms :: FileMode
-newFilePerms =
-                     ownerWriteMode
-    `unionFileModes` ownerReadMode
-    `unionFileModes` groupWriteMode
-    `unionFileModes` groupReadMode
-    `unionFileModes` otherWriteMode
-    `unionFileModes` otherReadMode
-
-
--- |Default permissions for a new directory.
-newDirPerms :: FileMode
-newDirPerms =
-                     ownerModes
-    `unionFileModes` groupExecuteMode
-    `unionFileModes` groupReadMode
-    `unionFileModes` otherExecuteMode
-    `unionFileModes` otherReadMode
+newFilePerms :: Win32.AccessMode
+newFilePerms = Win32.gENERIC_READ .|. Win32.gENERIC_WRITE
 
 
 
@@ -1006,89 +1043,88 @@ newDirPerms =
 
 
 -- |Checks if the given file exists.
--- Does not follow symlinks.
 --
--- Only eNOENT is catched (and returns False).
-doesExist :: PosixFilePath -> IO Bool
+-- Only NoSuchThing is catched (and returns False).
+doesExist :: WindowsFilePath -> IO Bool
 doesExist bs =
-  catchErrno
-      [eNOENT]
-      (do
-        _ <- PF.getSymbolicLinkStatus bs
-        return $ True
-      )
-    $ return False
+  handleIO (\e -> if NoSuchThing == ioeGetErrorType e then pure False else ioError e) $
+    (const True) <$> getFileType bs
 
 
 -- |Checks if the given file exists and is not a directory.
--- Does not follow symlinks.
+-- Does follow symlinks.
 --
--- Only eNOENT is catched (and returns False).
-doesFileExist :: PosixFilePath -> IO Bool
+-- Only NoSuchThing is catched (and returns False).
+doesFileExist :: WindowsFilePath -> IO Bool
 doesFileExist bs =
-  catchErrno
-      [eNOENT]
-      (do
-        fs <- PF.getSymbolicLinkStatus bs
-        return $ not . PF.isDirectory $ fs
-      )
-    $ return False
+  handleIO (\e -> if NoSuchThing == ioeGetErrorType e then pure False else ioError e) $
+    (\ft -> ft == File || ft == SymbolicLink) <$> getFileType bs
+
 
 
 -- |Checks if the given file exists and is a directory.
--- Does not follow symlinks.
+-- Does follow reparse points.
 --
--- Only eNOENT is catched (and returns False).
-doesDirectoryExist :: PosixFilePath -> IO Bool
-doesDirectoryExist bs =
-  catchErrno
-      [eNOENT]
-      (do
-        fs <- PF.getSymbolicLinkStatus bs
-        return $ PF.isDirectory fs
-      )
-    $ return False
+-- Only NoSuchThing is catched (and returns False).
+doesDirectoryExist :: WindowsFilePath -> IO Bool
+doesDirectoryExist bs = 
+  handleIO (\e -> if NoSuchThing == ioeGetErrorType e then pure False else ioError e) $
+    (\ft -> ft == Directory || ft == DirectoryLink) <$> getFileType bs
+
 
 
 -- |Checks whether a file or folder is readable.
 --
--- Only eACCES, eROFS, eTXTBSY, ePERM are catched (and return False).
---
 -- Throws:
 --
---     - `NoSuchThing` if the file does not exist
-isReadable :: PosixFilePath -> IO Bool
-isReadable bs = fileAccess bs True False False
+--     - `NoSuchThing` if the file or folder does not exist
+isReadable :: WindowsFilePath -> IO Bool
+isReadable bs = (const True) <$> getFileType bs
 
 -- |Checks whether a file or folder is writable.
 --
--- Only eACCES, eROFS, eTXTBSY, ePERM are catched (and return False).
+-- Throws:
+--
+--     - `NoSuchThing` if the file or folder does not exist
+isWritable :: WindowsFilePath -> IO Bool
+isWritable bs = do
+  fi <- getFileMetadata bs
+  pure (hasWriteMode (Win32.bhfiFileAttributes fi))
+ where
+  hasWriteMode m = m .&. Win32.fILE_ATTRIBUTE_READONLY == 0
+
+
+-- |Checks whether a file is executable. Returns 'False' on directories.
+--
+-- This looks up PATHEXT and compares the files extension with the list.
 --
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isWritable :: PosixFilePath -> IO Bool
-isWritable bs = fileAccess bs False True False
-
-
--- |Checks whether a file or folder is executable.
---
--- Only eACCES, eROFS, eTXTBSY, ePERM are catched (and return False).
---
--- Throws:
---
---     - `NoSuchThing` if the file does not exist
-isExecutable :: PosixFilePath -> IO Bool
-isExecutable bs = fileAccess bs False False True
-
+isExecutable :: WindowsFilePath -> IO Bool
+isExecutable bs = do
+  getFileType bs >>= \case
+    Directory -> pure False
+    DirectoryLink -> pure False
+    _ -> do
+      let ext = takeExtension bs
+      exeExts <- fmap toPlatformString
+        . (fmap . fmap) toLower
+        . (wordsBy (==';'))
+        . fromMaybe ""
+       <$> lookupEnv "PATHEXT"
+      pure $ ext `elem` exeExts
 
 
 -- |Checks whether the directory at the given path exists and can be
--- opened. This invokes `openDirStream` which follows symlinks.
-canOpenDirectory :: PosixFilePath -> IO Bool
+-- opened. Returns 'False' on non-directories.
+canOpenDirectory :: WindowsFilePath -> IO Bool
 canOpenDirectory bs = handleIOError (\_ -> return False) $ do
-  bracket (openDirStream bs) closeDirStream (\_ -> return ())
-  return True
+  let query = bs </> fromString "*"
+  bracket
+    (WS.findFirstFile query)
+    (\(h, _) -> Win32.findClose h)
+    (\_ -> return True)
 
 
 
@@ -1098,22 +1134,30 @@ canOpenDirectory bs = handleIOError (\_ -> return False) $ do
     ------------------
 
 
-getModificationTime :: PosixFilePath -> IO UTCTime
+getModificationTime :: WindowsFilePath -> IO UTCTime
 getModificationTime bs = do
-  fs <- PF.getFileStatus bs
-  pure $ posixSecondsToUTCTime $ PF.modificationTimeHiRes fs
+  m <- getFileMetadata bs
+  pure $ posixSecondsToUTCTime $ windowsToPosixTime $ Win32.bhfiLastWriteTime m
 
-setModificationTime :: PosixFilePath -> UTCTime -> IO ()
-setModificationTime bs t = do
-  -- TODO: setFileTimes doesn't allow to pass NULL to utime
-  ctime <- epochTime
-  PF.setFileTimes bs ctime (fromInteger . floor . utcTimeToPOSIXSeconds $ t)
+setModificationTime :: WindowsFilePath -> UTCTime -> IO ()
+setModificationTime fp t =
+  bracket (WS.createFile fp Win32.fILE_WRITE_ATTRIBUTES maxShareMode Nothing Win32.oPEN_EXISTING Win32.fILE_FLAG_BACKUP_SEMANTICS Nothing) Win32.closeHandle $ \h -> do
+    Win32.setFileTime h Nothing Nothing (Just . posixToWindowsTime . utcTimeToPOSIXSeconds $ t)
 
-setModificationTimeHiRes :: PosixFilePath -> POSIXTime -> IO ()
-setModificationTimeHiRes bs t = do
-  -- TODO: setFileTimesHiRes doesn't allow to pass NULL to utimes
-  ctime <- getPOSIXTime
-  PF.setFileTimesHiRes bs ctime t
+
+setModificationTimeHiRes :: WindowsFilePath -> Win32.FILETIME -> IO ()
+setModificationTimeHiRes fp t =
+  bracket (WS.createFile fp Win32.fILE_WRITE_ATTRIBUTES maxShareMode Nothing Win32.oPEN_EXISTING Win32.fILE_FLAG_BACKUP_SEMANTICS Nothing) Win32.closeHandle $ \h -> do
+    Win32.setFileTime h Nothing Nothing (Just t)
+
+-- https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-filetime
+windowsToPosixTime :: Win32.FILETIME -> POSIXTime
+windowsToPosixTime (Win32.FILETIME t) =
+  (fromIntegral t - 116444736000000000) / 10000000
+
+posixToWindowsTime :: POSIXTime -> Win32.FILETIME
+posixToWindowsTime t = Win32.FILETIME $
+  truncate (t * 10000000 + 116444736000000000)
 
 
 
@@ -1122,8 +1166,7 @@ setModificationTimeHiRes bs t = do
     -------------------------
 
 
--- |Gets all filenames of the given directory. This excludes "." and "..".
--- This version does not follow symbolic links.
+-- |Gets all filenames of the given directory.
 --
 -- The contents are not sorted and there is no guarantee on the ordering.
 --
@@ -1134,15 +1177,15 @@ setModificationTimeHiRes bs t = do
 --     - `InappropriateType` if file type is wrong (symlink to file)
 --     - `InappropriateType` if file type is wrong (symlink to dir)
 --     - `PermissionDenied` if directory cannot be opened
-getDirsFiles :: PosixFilePath        -- ^ dir to read
-             -> IO [PosixFilePath]
+getDirsFiles :: WindowsFilePath        -- ^ dir to read
+             -> IO [WindowsFilePath]
 getDirsFiles p = do
   contents <- getDirsFiles' p
   pure $ fmap (p </>) contents
 
 
-getDirsFilesRec :: PosixFilePath        -- ^ dir to read
-                -> IO [PosixFilePath]
+getDirsFilesRec :: WindowsFilePath        -- ^ dir to read
+                -> IO [WindowsFilePath]
 getDirsFilesRec p = do
   contents <- getDirsFilesRec' p
   pure $ fmap (p </>) contents
@@ -1150,19 +1193,19 @@ getDirsFilesRec p = do
 
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
-getDirsFiles' :: PosixFilePath        -- ^ dir to read
-              -> IO [PosixFilePath]
+getDirsFiles' :: WindowsFilePath        -- ^ dir to read
+              -> IO [WindowsFilePath]
 getDirsFiles' fp = getDirsFilesStream fp >>= S.toList
 
 
-getDirsFilesRec' :: PosixFilePath        -- ^ dir to read
-                       -> IO [PosixFilePath]
+getDirsFilesRec' :: WindowsFilePath        -- ^ dir to read
+                       -> IO [WindowsFilePath]
 getDirsFilesRec' fp = getDirsFilesStreamRec fp >>= S.toList
 
 
 getDirsFilesStreamRec :: (MonadCatch m, MonadAsync m, MonadMask m)
-                      => PosixFilePath
-                      -> IO (SerialT m PosixFilePath)
+                      => WindowsFilePath
+                      -> IO (SerialT m WindowsFilePath)
 getDirsFilesStreamRec fp = do
   stream <- getDirsFilesStream fp
   pure $ S.concatMapM inner stream
@@ -1179,30 +1222,45 @@ getDirsFilesStreamRec fp = do
 
 -- | Like 'getDirsFiles'', except returning a Stream.
 getDirsFilesStream :: (MonadCatch m, MonadAsync m, MonadMask m)
-                   => PosixFilePath
-                   -> IO (SerialT m PosixFilePath)
+                   => WindowsFilePath
+                   -> IO (SerialT m WindowsFilePath)
 getDirsFilesStream fp = do
-  fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
-  ds <- SPDT.fdOpendir fd `onException` SPI.closeFd fd
-  pure $ fmap snd $ SD.dirContentsStream ds
+  let query = fp </> fromString "*"
+  t <- WS.findFirstFile query
+  let stream = S.unfold (SU.finally (liftIO . Win32.findClose . fst) unfoldDirContents) $ (fmap Just t)
+  pure stream
+ where
+  unfoldDirContents :: MonadIO m => Unfold m (Win32.HANDLE, Maybe Win32.FindData) WindowsFilePath
+  unfoldDirContents = Unfold step return
+   where
+    {-# INLINE [0] step #-}
+    step (_, Nothing) = pure D.Stop
+    step (handle, Just fd) = do
+      filename <- liftIO $ WS.getFindDataFileName fd
+      more <- liftIO $ Win32.findNextFile handle fd
+      pure $ case () of
+                 _
+                  | [fromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
+                  | [fromChar '.', fromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
+                  | otherwise -> D.Yield filename (handle, if more then Just fd else Nothing)
+
 
 
     -----------
     --[ CWD ]--
     -----------
 
-getCurrentDirectory :: IO PosixFilePath
-getCurrentDirectory = getWorkingDirectory
+getCurrentDirectory :: IO WindowsFilePath
+getCurrentDirectory = WS.getCurrentDirectory
 
-setCurrentDirectory :: PosixFilePath -> IO ()
-setCurrentDirectory = changeWorkingDirectory
+setCurrentDirectory :: WindowsFilePath -> IO ()
+setCurrentDirectory = WS.setCurrentDirectory
 
 
 
     ---------------------------
     --[ FileType operations ]--
     ---------------------------
-
 
 -- |Get the file type of the file located at the given path. Does
 -- not follow symbolic links.
@@ -1211,19 +1269,24 @@ setCurrentDirectory = changeWorkingDirectory
 --
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if any part of the path is not accessible
-getFileType :: PosixFilePath -> IO FileType
+getFileType :: WindowsFilePath -> IO FileType
 getFileType fp = do
-  fs <- PF.getSymbolicLinkStatus fp
-  decide fs
+      fi <- getFileMetadata fp
+      pure $ decide fi
  where
-  decide fs | PF.isDirectory fs       = return Directory
-            | PF.isRegularFile fs     = return RegularFile
-            | PF.isSymbolicLink fs    = return SymbolicLink
-            | PF.isBlockDevice fs     = return BlockDevice
-            | PF.isCharacterDevice fs = return CharacterDevice
-            | PF.isNamedPipe fs       = return NamedPipe
-            | PF.isSocket fs          = return Socket
-            | otherwise               = ioError $ userError "No filetype?!"
+  attrs  fi = Win32.bhfiFileAttributes fi
+  isLink fi = attrs fi .&. Win32.fILE_ATTRIBUTE_REPARSE_POINT /= 0
+  isDir  fi = attrs fi .&. Win32.fILE_ATTRIBUTE_DIRECTORY /= 0
+  decide fi | isLink fi && isDir fi  = DirectoryLink
+            | isLink fi              = SymbolicLink
+            | isDir fi               = Directory
+            | otherwise              = File
+
+
+getFileMetadata :: WindowsFilePath -> IO Win32.BY_HANDLE_FILE_INFORMATION
+getFileMetadata fp = do
+    bracket (WS.createFile fp 0 maxShareMode Nothing Win32.oPEN_EXISTING Win32.fILE_FLAG_BACKUP_SEMANTICS Nothing)
+      Win32.closeHandle $ \h -> Win32.getFileInformationByHandle h
 
 
 
@@ -1233,14 +1296,14 @@ getFileType fp = do
 
 
 
--- |Applies `realpath` on the given path.
+-- |Applies `GetFullPathName` on the given path.
 --
 -- Throws:
 --
 --    - `NoSuchThing` if the file at the given path does not exist
 --    - `NoSuchThing` if the symlink is broken
-canonicalizePath :: PosixFilePath -> IO PosixFilePath
-canonicalizePath = SPDT.realpath
+canonicalizePath :: WindowsFilePath -> IO WindowsFilePath
+canonicalizePath = WS.getFullPathName
 
 
 -- |Converts any path to an absolute path.
@@ -1248,10 +1311,14 @@ canonicalizePath = SPDT.realpath
 --
 --    - if the path is already an absolute one, just return it
 --    - if it's a relative path, prepend the current directory to it
-toAbs :: PosixFilePath -> IO PosixFilePath
+toAbs :: WindowsFilePath -> IO WindowsFilePath
 toAbs bs = do
   case isAbsolute bs of
     True  -> return bs
     False -> do
-      cwd <- getWorkingDirectory
+      cwd <- getCurrentDirectory
       return $ cwd </> bs
+
+
+
+#endif

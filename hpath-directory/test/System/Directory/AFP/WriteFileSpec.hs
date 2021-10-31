@@ -26,7 +26,7 @@ setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "fileWithContent"
   createRegularFile' "fileWithoutContent"
-  createSymlink' "inputFileSymL" "fileWithContent"
+  createSymlink' "inputFileSymL" "fileWithContent" False
   createDir' "alreadyExistsD"
   createRegularFile' "noPerms"
   noPerms "noPerms"

@@ -41,10 +41,12 @@ import System.IO.Unsafe
 #ifdef WINDOWS
 #else
 import qualified System.Posix.PosixFilePath.Directory.Traversals as DT
-import System.Posix.Files.ByteString
+import System.Posix.PosixFilePath.Directory
   (
-    getSymbolicLinkStatus
+    getFileType
+  , FileType
   )
+import AFP.AbstractFilePath.Posix (PosixFilePath)
 #endif
 import Data.ByteString
   (
@@ -180,10 +182,10 @@ createRegularFile' :: AbstractFilePath -> IO ()
 createRegularFile' dest = withTmpDir dest createRegularFile
 
 
-createSymlink' :: AbstractFilePath -> AbstractFilePath -> IO ()
+createSymlink' :: AbstractFilePath -> AbstractFilePath -> Bool -> IO ()
 {-# NOINLINE createSymlink' #-}
-createSymlink' dest sympoint = withTmpDir dest
-  (\x -> createSymlink x sympoint)
+createSymlink' dest sympoint b = withTmpDir dest
+  (\x -> createSymlink x sympoint b)
 
 
 renameFile' :: AbstractFilePath -> AbstractFilePath -> IO ()
@@ -233,10 +235,11 @@ normalFilePerms path =
   withTmpDir path $ \p ->
     setPermissions p newFilePerms
 
-
-getFileType' :: AbstractFilePath -> IO FileType
+#ifndef WINDOWS
+getFileType' :: PosixFilePath -> IO FileType
 {-# NOINLINE getFileType' #-}
-getFileType' path = withTmpDir path getFileType
+getFileType' path = withTmpDir (OsString path) $ \(OsString p) -> getFileType p
+#endif
 
 
 getDirsFiles' :: AbstractFilePath -> IO [AbstractFilePath]
@@ -281,15 +284,10 @@ appendFile' ip bs =
   withTmpDir ip $ \p -> appendFile p bs
 
 
-allDirectoryContents' :: AbstractFilePath -> IO [AbstractFilePath]
 {-# NOINLINE allDirectoryContents' #-}
+allDirectoryContents' :: AbstractFilePath -> IO [AbstractFilePath]
 allDirectoryContents' ip =
-#ifdef WINDOWS
-  -- TODO
-  undefined
-#else
-  withTmpDir ip $ \(OsString p) -> fmap OsString <$> DT.allDirectoryContents' p
-#endif
+  withTmpDir ip $ \p -> getDirsFilesRec p
 
 
 readFile' :: AbstractFilePath -> IO ByteString
@@ -303,12 +301,5 @@ readFileL p = withTmpDir p readFile
 
 dirExists :: AbstractFilePath -> IO Bool
 {-# NOINLINE dirExists #-}
-#ifdef WINDOWS
-dirExists fp =
-  -- TODO
-  undefined
-#else
-dirExists (OsString (PS fp)) =
-  fmap isRight $ try @SomeException $ getSymbolicLinkStatus (SBS.fromShort fp)
-#endif
+dirExists fp = doesDirectoryExist fp
 

@@ -7,38 +7,6 @@ import AFP.AbstractFilePath.Types
 
 
 
-toConstr :: HPathIOException -> String
-toConstr SameFile {}            = "SameFile"
-toConstr DestinationInSource {} = "DestinationInSource"
-toConstr RecursiveFailure {}    = "RecursiveFailure"
-
-
-
-
-
-    -----------------------------
-    --[ Exception identifiers ]--
-    -----------------------------
-
-
-isSameFile, isDestinationInSource, isRecursiveFailure :: HPathIOException -> Bool
-isSameFile ex = toConstr (ex :: HPathIOException) == toConstr (SameFile mempty mempty)
-isDestinationInSource ex = toConstr (ex :: HPathIOException) == (toConstr $ DestinationInSource mempty mempty)
-isRecursiveFailure ex = toConstr (ex :: HPathIOException) == (toConstr $ RecursiveFailure mempty)
-
-
-isReadContentsFailed, isCreateDirFailed, isCopyFileFailed, isRecreateSymlinkFailed ::RecursiveFailureHint -> Bool
-isReadContentsFailed ReadContentsFailed{} = True
-isReadContentsFailed _ = False
-isCreateDirFailed CreateDirFailed{} = True
-isCreateDirFailed _ = False
-isCopyFileFailed CopyFileFailed{} = True
-isCopyFileFailed _ = False
-isRecreateSymlinkFailed RecreateSymlinkFailed{} = True
-isRecreateSymlinkFailed _ = False
-
-
-
 
     -------------
     --[ Types ]--
@@ -68,15 +36,6 @@ data RecursiveFailureHint = ReadContentsFailed    AbstractFilePath AbstractFileP
 
 instance Exception HPathIOException
 
-data FileType = Directory
-              | RegularFile
-              | SymbolicLink
-              | BlockDevice
-              | CharacterDevice
-              | NamedPipe
-              | Socket
-  deriving (Eq, Show)
-
 
 
 -- |The error mode for recursive operations.
@@ -92,6 +51,7 @@ data FileType = Directory
 -- of the collected exceptions.
 data RecursiveErrorMode = FailEarly
                         | CollectFailures
+  deriving (Eq, Show)
 
 
 -- |The mode for copy and file moves.
@@ -99,4 +59,5 @@ data RecursiveErrorMode = FailEarly
 -- shortcut.
 data CopyMode = Strict    -- ^ fail if any target exists
               | Overwrite -- ^ overwrite targets
+  deriving (Eq, Show)
 

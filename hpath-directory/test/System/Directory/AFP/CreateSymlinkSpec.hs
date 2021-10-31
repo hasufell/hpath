@@ -45,27 +45,27 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     -- successes --
     it "createSymlink, all fine" $ do
-      createSymlink' "newSymL" "alreadyExists/"
+      createSymlink' "newSymL" "alreadyExists/" False
       removeFileIfExists "newSymL"
 
     -- posix failures --
     it "createSymlink, parent directories do not exist" $
-      createSymlink' "some/thing/dada" "lala"
+      createSymlink' "some/thing/dada" "lala" False
         `shouldThrow`
         (\e -> ioeGetErrorType e == NoSuchThing)
 
     it "createSymlink, can't write to destination directory" $
-      createSymlink' "noWritePerms/newDir" "lala"
+      createSymlink' "noWritePerms/newDir" "lala" True
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "createSymlink, can't write to destination directory" $
-      createSymlink' "noPerms/newDir" "lala"
+      createSymlink' "noPerms/newDir" "lala" True
         `shouldThrow`
         (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "createSymlink, destination file already exists" $
-      createSymlink' "alreadyExists" "lala"
+      createSymlink' "alreadyExists" "lala" False
         `shouldThrow`
         (\e -> ioeGetErrorType e == AlreadyExists)
 

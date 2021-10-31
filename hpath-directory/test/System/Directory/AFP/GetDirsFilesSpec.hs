@@ -32,9 +32,9 @@ setupFiles = do
   createRegularFile' "file"
   createRegularFile' "Lala"
   createRegularFile' ".hidden"
-  createSymlink' "syml" "Lala"
+  createSymlink' "syml" "Lala" False
   createDir' "dir"
-  createSymlink' "dirsym" "dir"
+  createSymlink' "dirsym" "dir" True
   createDir' "noPerms"
   noPerms "noPerms"
 

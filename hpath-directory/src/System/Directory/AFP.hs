@@ -29,6 +29,7 @@ module System.Directory.AFP
   , readFile
   , readFileStrict
   , readFileStream
+  , readSymbolicLink
   -- * File writing
   , writeFile
   , writeFileL
@@ -47,13 +48,14 @@ module System.Directory.AFP
   , setModificationTimeHiRes
   -- * Directory reading
   , getDirsFiles
+  , getDirsFilesRec
   , getDirsFiles'
+  , getDirsFilesRec'
   , getDirsFilesStream
+  , getDirsFilesStreamRec
   -- * CWD
   , getCurrentDirectory
   , setCurrentDirectory
-  -- * Filetype operations
-  , getFileType
   -- * Permissions
   , getPermissions
   , setPermissions
@@ -98,10 +100,10 @@ import           Control.Exception.Safe         ( MonadCatch
                                                 , MonadMask
                                                 )
 
+    ----------------------
+    --[ Abstract types ]--
+    ----------------------
 
-    ------------------------
-    --[ File Permissions ]--
-    ------------------------
 
 
 
@@ -112,6 +114,13 @@ data Permissions
   , executable :: Bool
   , searchable :: Bool
   } deriving (Eq, Ord, Read, Show)
+
+
+
+
+    ------------------------
+    --[ File Permissions ]--
+    ------------------------
 
 
 emptyPermissions :: Permissions
@@ -171,8 +180,17 @@ newDirPerms = Permissions {
 -- * 'isDoesNotExistError' if the file or directory does not exist.
 getPermissions :: AbstractFilePath -> IO Permissions
 #ifdef WINDOWS
-getPermissions _ =
-  undefined
+getPermissions (OsString path) = do
+  t <- Dir.getFileType path
+  let isDir = t == Dir.Directory || t == Dir.DirectoryLink
+  w <- Dir.isWritable path
+  x <- Dir.isExecutable path
+  pure Permissions
+       { readable   = True
+       , writable   = w
+       , executable = x && not isDir
+       , searchable = isDir
+       }
 #else
 getPermissions (OsString (PS path')) = do
   let path = SBS.fromShort path'
@@ -191,7 +209,8 @@ getPermissions (OsString (PS path')) = do
 
 setPermissions :: AbstractFilePath -> Permissions -> IO ()
 #ifdef WINDOWS
-setPermissions = undefined
+setPermissions (OsString path) Permissions{writable = w} = do
+  Dir.setFilePermissions path (Dir.setWriteMode w 0)
 #else
 setPermissions (OsString (PS path')) (Permissions r w e s) = do
   let path = SBS.fromShort path'
@@ -393,7 +412,6 @@ easyDelete (OsString p) = Dir.easyDelete p
 
 
 
-
     ---------------------
     --[ File Creation ]--
     ---------------------
@@ -421,7 +439,12 @@ createRegularFile (OsString destBS) = Dir.createRegularFile Dir.newFilePerms des
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
 createDir :: AbstractFilePath -> IO ()
-createDir (OsString destBS) = Dir.createDir Dir.newDirPerms destBS
+createDir (OsString destBS) =
+#if WINDOWS
+  Dir.createDir destBS
+#else
+  Dir.createDir Dir.newDirPerms destBS
+#endif
 
 -- |Create an empty directory at the given directory with the given filename.
 --
@@ -431,7 +454,12 @@ createDir (OsString destBS) = Dir.createDir Dir.newDirPerms destBS
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
 createDirIfMissing :: AbstractFilePath -> IO ()
-createDirIfMissing (OsString destBS) = Dir.createDirIfMissing Dir.newDirPerms destBS
+createDirIfMissing (OsString destBS) =
+#if WINDOWS
+  Dir.createDirIfMissing destBS
+#else
+  Dir.createDirIfMissing Dir.newDirPerms destBS
+#endif
 
 
 -- |Create an empty directory at the given directory with the given filename.
@@ -453,7 +481,12 @@ createDirIfMissing (OsString destBS) = Dir.createDirIfMissing Dir.newDirPerms de
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
 createDirRecursive :: AbstractFilePath -> IO ()
-createDirRecursive (OsString p) = Dir.createDirRecursive Dir.newDirPerms p
+createDirRecursive (OsString p) =
+#if WINDOWS
+  Dir.createDirRecursive p
+#else
+  Dir.createDirRecursive Dir.newDirPerms p
+#endif
 
 
 -- |Create a symlink.
@@ -468,8 +501,15 @@ createDirRecursive (OsString p) = Dir.createDirRecursive Dir.newDirPerms p
 -- Note: calls `symlink`
 createSymlink :: AbstractFilePath     -- ^ destination file
               -> AbstractFilePath     -- ^ path the symlink points to
+              -> Bool                 -- ^ whether this is a dir (irrelevant on posix)
               -> IO ()
-createSymlink (OsString destBS) (OsString sympoint) = Dir.createSymlink destBS sympoint
+#if WINDOWS
+createSymlink (OsString destBS) (OsString sympoint) dir =
+  Dir.createSymlink destBS sympoint dir
+#else
+createSymlink (OsString destBS) (OsString sympoint) _ =
+  Dir.createSymlink destBS sympoint
+#endif
 
 
 
@@ -590,6 +630,9 @@ readFileStream :: AbstractFilePath -> IO (SerialT IO (Array Word8))
 readFileStream (OsString fp) = Dir.readFileStream fp
 
 
+-- | Read the target of a symbolic link.
+readSymbolicLink :: AbstractFilePath -> IO AbstractFilePath
+readSymbolicLink (OsString fp) = OsString <$> Dir.readSymbolicLink fp
 
 
     --------------------
@@ -610,7 +653,12 @@ writeFile :: AbstractFilePath
           -> Bool             -- ^ True if file must exist
           -> BS.ByteString
           -> IO ()
-writeFile (OsString fp) nocreat bs = Dir.writeFile fp (if nocreat then Nothing else Just Dir.newFilePerms) bs
+writeFile (OsString fp) nocreat bs =
+#if WINDOWS
+  Dir.writeFile fp nocreat bs
+#else
+  Dir.writeFile fp (if nocreat then Nothing else Just Dir.newFilePerms) bs
+#endif
 
 
 -- |Write a given lazy ByteString to a file, truncating the file beforehand.
@@ -628,7 +676,12 @@ writeFileL :: AbstractFilePath
            -> Bool             -- ^ True if file must exist
            -> L.ByteString
            -> IO ()
-writeFileL (OsString fp) nocreat lbs = Dir.writeFileL fp (if nocreat then Nothing else Just Dir.newFilePerms) lbs
+writeFileL (OsString fp) nocreat lbs =
+#if WINDOWS
+  Dir.writeFileL fp nocreat lbs
+#else
+  Dir.writeFileL fp (if nocreat then Nothing else Just Dir.newFilePerms) lbs
+#endif
 
 
 -- |Append a given ByteString to a file.
@@ -727,7 +780,12 @@ setModificationTime :: AbstractFilePath -> UTCTime -> IO ()
 setModificationTime (OsString bs) t = Dir.setModificationTime bs t
 
 setModificationTimeHiRes :: AbstractFilePath -> POSIXTime -> IO ()
-setModificationTimeHiRes (OsString bs) t = Dir.setModificationTimeHiRes bs t
+setModificationTimeHiRes (OsString bs) t =
+#ifdef WINDOWS
+  Dir.setModificationTimeHiRes bs (Dir.posixToWindowsTime t)
+#else
+  Dir.setModificationTimeHiRes bs t
+#endif
 
 
 
@@ -753,11 +811,27 @@ getDirsFiles :: AbstractFilePath        -- ^ dir to read
 getDirsFiles (OsString p) = fmap OsString <$> Dir.getDirsFiles p
 
 
+getDirsFilesRec :: AbstractFilePath        -- ^ dir to read
+                -> IO [AbstractFilePath]
+getDirsFilesRec (OsString p) = fmap OsString <$> Dir.getDirsFilesRec p
+
+
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
 getDirsFiles' :: AbstractFilePath        -- ^ dir to read
               -> IO [AbstractFilePath]
 getDirsFiles' (OsString fp) = fmap OsString <$> Dir.getDirsFiles' fp
+
+
+getDirsFilesRec' :: AbstractFilePath        -- ^ dir to read
+                 -> IO [AbstractFilePath]
+getDirsFilesRec' (OsString p) = fmap OsString <$> Dir.getDirsFilesRec' p
+
+
+getDirsFilesStreamRec :: (MonadCatch m, MonadAsync m, MonadMask m)
+                      => AbstractFilePath
+                      -> IO (SerialT m AbstractFilePath)
+getDirsFilesStreamRec (OsString fp) = fmap OsString <$> Dir.getDirsFilesStreamRec fp
 
 
 -- | Like 'getDirsFiles'', except returning a Stream.
@@ -777,22 +851,6 @@ getCurrentDirectory = OsString <$> Dir.getCurrentDirectory
 setCurrentDirectory :: AbstractFilePath -> IO ()
 setCurrentDirectory (OsString fp) = Dir.setCurrentDirectory fp
 
-
-
-    ---------------------------
-    --[ FileType operations ]--
-    ---------------------------
-
-
--- |Get the file type of the file located at the given path. Does
--- not follow symbolic links.
---
--- Throws:
---
---    - `NoSuchThing` if the file does not exist
---    - `PermissionDenied` if any part of the path is not accessible
-getFileType :: AbstractFilePath -> IO FileType
-getFileType (OsString fp) = Dir.getFileType fp
 
 
 

@@ -18,15 +18,6 @@ module System.Posix.PosixFilePath.Directory.Errors
     HPathIOException(..)
   , RecursiveFailureHint(..)
 
-  -- * Exception identifiers
-  , isSameFile
-  , isDestinationInSource
-  , isRecursiveFailure
-  , isReadContentsFailed
-  , isCreateDirFailed
-  , isCopyFileFailed
-  , isRecreateSymlinkFailed
-
   -- * Path based functions
   , throwFileDoesExist
   , throwDirDoesExist
@@ -37,10 +28,6 @@ module System.Posix.PosixFilePath.Directory.Errors
   -- * Error handling functions
   , catchErrno
   , rethrowErrnoAs
-  , handleIOError
-  , hideError
-  , bracketeer
-  , reactOnError
   )
   where
 
@@ -49,7 +36,7 @@ import Control.Applicative
   (
     (<$>)
   )
-import Control.Exception.Safe hiding (handleIOError)
+import Control.Exception.Safe
 import Control.Monad
   (
     forM
@@ -210,56 +197,4 @@ rethrowErrnoAs :: Exception e
                -> IO a          -- ^ action to try
                -> IO a
 rethrowErrnoAs en fmex action = catchErrno en action (throwIO fmex)
-
-
-
--- |Like `catchIOError`, with arguments swapped.
-handleIOError :: (IOError -> IO a) -> IO a -> IO a
-handleIOError = flip catchIOError
-
-
-hideError :: IOErrorType -> IO () -> IO ()
-hideError err = handleIO (\e -> if err == ioeGetErrorType e then pure () else ioError e)
-
-
--- |Like `bracket`, but allows to have different clean-up
--- actions depending on whether the in-between computation
--- has raised an exception or not.
-bracketeer :: IO a        -- ^ computation to run first
-           -> (a -> IO b) -- ^ computation to run last, when
-                          --   no exception was raised
-           -> (a -> IO b) -- ^ computation to run last,
-                          --   when an exception was raised
-           -> (a -> IO c) -- ^ computation to run in-between
-           -> IO c
-bracketeer before after afterEx thing =
-  mask $ \restore -> do
-    a <- before
-    r <- restore (thing a) `onException` afterEx a
-    _ <- after a
-    return r
-
-
-reactOnError :: IO a
-             -> [(IOErrorType, IO a)]      -- ^ reaction on IO errors
-             -> [(HPathIOException, IO a)] -- ^ reaction on HPathIOException
-             -> IO a
-reactOnError a ios fmios =
-  a `catches` [iohandler, fmiohandler]
-  where
-    iohandler = Handler $
-      \(ex :: IOException) ->
-         foldr (\(t, a') y -> if ioeGetErrorType ex == t
-                                then a'
-                                else y)
-               (throwIO ex)
-               ios
-    fmiohandler = Handler $
-      \(ex :: HPathIOException) ->
-         foldr (\(t, a') y -> if toConstr ex == toConstr t
-                                then a'
-                                else y)
-               (throwIO ex)
-               fmios
-
 

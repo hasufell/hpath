@@ -26,9 +26,9 @@ setupFiles :: IO ()
 setupFiles = do
   createRegularFile' "file"
   createDir' "dir"
-  createSymlink' "dirSym" "dir/"
-  createSymlink' "brokenSym" "nothing"
-  createSymlink' "fileSym" "file"
+  createSymlink' "dirSym" "dir/" True
+  createSymlink' "brokenSym" "nothing" False
+  createSymlink' "fileSym" "file" False
 
 cleanupFiles :: IO ()
 cleanupFiles = do
