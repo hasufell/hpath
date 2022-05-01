@@ -15,6 +15,11 @@ source-repository-package
     location: https://github.com/hasufell/Win32.git
     tag: a2ab9bc501614c48c62f9508488e87f0c2924b7b
 
+source-repository-package
+    type: git
+    location: https://github.com/hasufell/file-io.git
+    tag: 1e01f6aaf1d725999cd20088db8bc8b6f642bd03
+
 package hpath-io
     ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
 
@@ -22,4 +27,4 @@ package hpath-io
 package streamly
     ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
 
-allow-newer: filepath
+allow-newer: filepath, Win32

@@ -57,15 +57,22 @@ module System.Win32.WindowsFilePath.Directory
   -- * File renaming/moving
   , renameFile
   , moveFile
-  -- * File reading
-  , readFile
-  , readFileStrict
-  , readFileStream
-  , readSymbolicLink
+  -- * File opening
+  , openFile
+  , openBinaryFile
+  , withFile
+  , withBinaryFile
+  , withFile'
+  , withBinaryFile'
   -- * File writing
   , writeFile
-  , writeFileL
+  , writeFile'
   , appendFile
+  , appendFile'
+  -- * File reading
+  , readFile
+  , readFile'
+  , readSymbolicLink
   -- * File permissions
   , setWriteMode
   , setFilePermissions
@@ -116,13 +123,12 @@ where
 #include <System/Win32/WindowsFilePath/utility.h>
 #include <System/Win32/WindowsFilePath/windows_ext.h>
 
+import           System.File.PlatformFilePath
 import           Control.Exception.Safe         ( IOException
                                                 , MonadCatch
                                                 , MonadMask
                                                 , bracket
-                                                , bracketOnError
                                                 , throwIO
-                                                , finally
                                                 , handleIO
                                                 )
 #if MIN_VERSION_base(4,9,0)
@@ -136,9 +142,6 @@ import           Control.Monad.IO.Class         ( liftIO
                                                 , MonadIO
                                                 )
 import           Control.Monad.IfElse           ( unlessM )
-import qualified Data.ByteString               as BS
-import           Data.ByteString                ( ByteString )
-import qualified Data.ByteString.Lazy          as L
 import           Data.Foldable                  ( for_ )
 import           Data.String
 import           Data.List.Split
@@ -151,33 +154,24 @@ import           Data.Time.Clock.POSIX          ( posixSecondsToUTCTime
                                                 , utcTimeToPOSIXSeconds
                                                 , POSIXTime
                                                 )
-import           Data.Word                      ( Word8 )
 import           GHC.IO.Exception               ( IOErrorType(..) )
 import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
-import           Streamly.Prelude               ( SerialT, MonadAsync )
-import           Streamly.Data.Array.Foreign
-import qualified Streamly.External.ByteString as SB
-import qualified Streamly.External.ByteString.Lazy
-                                               as SL
-import qualified Streamly.FileSystem.Handle    as FH
+                
+import           Streamly (MonadAsync, SerialT)                                
+
 import qualified Streamly.Internal.Data.Unfold as SU
-import qualified Streamly.Internal.Data.Array.Stream.Foreign
-                                               as AS
+
 import qualified Streamly.Internal.Data.Stream.StreamD.Type
                                                as D
 import           Streamly.Internal.Data.Unfold.Type
 import qualified Streamly.Internal.Data.Stream.IsStream.Expand as SE
-import Streamly.Internal.Data.Fold.Type (Fold)
-import Streamly.Internal.Data.Array.Stream.Foreign (arraysOf)
-import Streamly.Internal.Data.Array.Foreign.Mut.Type (defaultChunkSize)
 import qualified Streamly.Prelude              as S
-import qualified System.IO                     as SIO
 
-import AFP.AbstractFilePath.Windows
-import AFP.OsString.Internal.Types
+import System.AbstractFilePath.Windows
+import System.OsString.Internal.Types
 import System.Directory.Types
 import System.Directory.Errors
 import Data.Bits
@@ -193,10 +187,11 @@ import Foreign.Marshal.Alloc
 import Foreign.Marshal.Utils
 import Foreign.Storable
 import Foreign.C.Types
-import Data.ByteString.Short.Word16 (packCWStringLen, ShortByteString)
-import qualified Data.ByteString.Short.Word16 as W16
+import System.AbstractFilePath.Data.ByteString.Short.Word16 (packCWStringLen, ShortByteString)
+import qualified System.AbstractFilePath.Data.ByteString.Short.Word16 as W16
 import System.IO.Error
 import Data.Void
+
 
 
 
@@ -220,10 +215,6 @@ maxShareMode =
   Win32.fILE_SHARE_READ   .|.
   Win32.fILE_SHARE_WRITE
 
-writeShareMode :: Win32.ShareMode
-writeShareMode =
-  Win32.fILE_SHARE_DELETE .|.
-  Win32.fILE_SHARE_READ
 
 
 data Win32_REPARSE_DATA_BUFFER
@@ -734,64 +725,6 @@ moveFile from to cm = do
     --------------------
 
 
--- |Read the given file lazily.
---
--- Symbolic links are followed. File must exist.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFile :: WindowsFilePath -> IO L.ByteString
-readFile path = do
-  stream <- readFileStream path
-  SL.fromChunksIO stream
-
-
--- |Read the given file strictly into memory.
---
--- Symbolic links are followed. File must exist.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFileStrict :: WindowsFilePath -> IO BS.ByteString
-readFileStrict path = do
-  stream <- readFileStream path
-  SB.fromArray <$> AS.toArray stream
-
-
--- | Open the given file as a filestream. Once the filestream
--- exits, the filehandle is cleaned up.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFileStream :: WindowsFilePath -> IO (SerialT IO (Array Word8))
-readFileStream fp = do
-  handle <- bracketOnError
-    (WS.createFile
-      fp
-      Win32.gENERIC_READ
-      maxShareMode
-      Nothing
-      Win32.oPEN_EXISTING
-      Win32.fILE_ATTRIBUTE_NORMAL
-      Nothing)
-    Win32.closeHandle
-    Win32.hANDLEToHandle
-  let stream = S.unfold (SU.finally SIO.hClose FH.readChunks) handle
-  pure stream
-
-
 foreign import WINAPI unsafe "windows.h DeviceIoControl"
   c_DeviceIoControl
     :: Win32.HANDLE
@@ -921,93 +854,6 @@ readSymbolicLink path = WS <$> do
                         , fromIntegral size `div` sizeOf (0 :: CWchar) )
 
 
-
-
-    --------------------
-    --[ File Writing ]--
-    --------------------
-
-
--- |Write a given ByteString to a file, truncating the file beforehand.
--- Follows symlinks.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-writeFile :: WindowsFilePath
-          -> Bool             -- ^ True if file must exist
-          -> ByteString
-          -> IO ()
-writeFile fp fmode bs =
-  writeFileStream
-    fp
-    Win32.gENERIC_WRITE
-    (if fmode then Win32.tRUNCATE_EXISTING else Win32.cREATE_ALWAYS)
-    FH.writeChunks
-    (arraysOf defaultChunkSize $ S.unfold SB.read bs)
-
-
--- |Write a given lazy ByteString to a file, truncating the file beforehand.
--- Follows symlinks.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
---
--- Note: uses streamly under the hood
-writeFileL :: WindowsFilePath
-           -> Bool             -- ^ True if file must exist
-           -> L.ByteString
-           -> IO ()
-writeFileL fp fmode lbs =
-  writeFileStream
-    fp
-    Win32.gENERIC_WRITE
-    (if fmode then Win32.tRUNCATE_EXISTING else Win32.cREATE_ALWAYS)
-    FH.writeChunks
-    (SL.toChunks lbs)
-
-
-writeFileStream :: WindowsFilePath
-                -> Win32.AccessMode
-                -> Win32.CreateMode
-                -> (SIO.Handle -> Fold IO a ())   -- ^ writer
-                -> SerialT IO a                   -- ^ stream
-                -> IO ()
-writeFileStream fp am cm writer stream = do
-  handle <- bracketOnError
-    (WS.createFile
-      fp
-      am
-      writeShareMode
-      Nothing
-      cm
-      Win32.fILE_ATTRIBUTE_NORMAL
-      Nothing)
-    Win32.closeHandle
-    Win32.hANDLEToHandle
-  finally (streamlyCopy handle) (SIO.hClose handle)
-  where streamlyCopy tH = S.fold (writer tH) stream
-
-
--- |Append a given ByteString to a file.
--- The file must exist. Follows symlinks.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-appendFile :: WindowsFilePath -> ByteString -> IO ()
-appendFile fp bs = writeFileStream fp Win32.fILE_APPEND_DATA Win32.oPEN_ALWAYS FH.writeChunks
-  (arraysOf defaultChunkSize $ S.unfold SB.read bs)
 
 
 
@@ -1240,8 +1086,8 @@ getDirsFilesStream fp = do
       more <- liftIO $ Win32.findNextFile handle fd
       pure $ case () of
                  _
-                  | [fromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
-                  | [fromChar '.', fromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
+                  | [unsafeFromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
+                  | [unsafeFromChar '.', unsafeFromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
                   | otherwise -> D.Yield filename (handle, if more then Just fd else Nothing)
 
 
