@@ -1,0 +1,4 @@
+dist/
+dist-newstyle/
+.ghci
+cabal.project.local
