@@ -69,6 +69,8 @@ module System.Directory.AFP
   -- * Others
   , canonicalizePath
   , toAbs
+  , getFileType
+  , Dir.FileType
   )
   where
 
@@ -86,8 +88,8 @@ import qualified System.Posix as Posix (FileMode)
 import qualified System.Posix.Files.ByteString as Posix
 import qualified Data.ByteString.Short as SBS
 #endif
-import AFP.AbstractFilePath.Types
-import AFP.OsString.Internal.Types
+import System.AbstractFilePath.Types
+import System.OsString.Internal.Types
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX
 import           Streamly.Prelude               ( SerialT, MonadAsync )
@@ -206,6 +208,9 @@ getPermissions (OsString (PS path')) = do
        , searchable = x && isDir
        }
 #endif
+
+getFileType :: AbstractFilePath -> IO Dir.FileType
+getFileType (OsString path) = Dir.getFileType path
 
 setPermissions :: AbstractFilePath -> Permissions -> IO ()
 #ifdef WINDOWS

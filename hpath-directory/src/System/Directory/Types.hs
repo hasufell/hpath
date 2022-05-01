@@ -2,7 +2,7 @@ module System.Directory.Types where
 
 import Control.Exception (Exception, IOException)
 import Data.Typeable (Typeable)
-import AFP.AbstractFilePath.Types
+import System.AbstractFilePath.Types
 
 
 

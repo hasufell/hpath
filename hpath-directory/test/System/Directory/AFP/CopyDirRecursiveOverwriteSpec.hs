@@ -6,7 +6,6 @@ module System.Directory.AFP.CopyDirRecursiveOverwriteSpec where
 
 import Test.Hspec
 import "hpath-directory" System.Directory.AFP
-import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType
@@ -18,7 +17,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import AFP.AbstractFilePath
+import System.AbstractFilePath
 
 
 

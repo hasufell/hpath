@@ -1,6 +1,6 @@
 module System.Posix.PosixFilePath.Directory where
 
-import AFP.AbstractFilePath.Posix (PosixFilePath)
+import System.AbstractFilePath.Posix (PosixFilePath)
 
 canonicalizePath :: PosixFilePath -> IO PosixFilePath
 

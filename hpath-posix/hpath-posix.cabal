@@ -31,9 +31,7 @@ library
   -- other-modules:
   -- other-extensions:
   c-sources:           cbits/dirutils.c
-  build-depends:         abstract-filepath-unix >= 2.5
-                       , abstract-filepath
-                       , abstract-filepath-types
+  build-depends:         filepath               >= 2.0.0.0
                        , base                   >= 4.8  && <5
                        , bytestring             >= 0.10
                        , hpath-filepath         >= 0.10.4

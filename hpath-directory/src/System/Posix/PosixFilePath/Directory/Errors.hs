@@ -9,8 +9,9 @@
 --
 -- Provides error handling.
 
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiWayIf          #-}
 
 module System.Posix.PosixFilePath.Directory.Errors
   (
@@ -32,10 +33,6 @@ module System.Posix.PosixFilePath.Directory.Errors
   where
 
 
-import Control.Applicative
-  (
-    (<$>)
-  )
 import Control.Exception.Safe
 import Control.Monad
   (
@@ -46,14 +43,14 @@ import Control.Monad.IfElse
   (
     whenM
   )
+import Data.List
+  (
+    mapAccumL
+  )
 import Foreign.C.Error
   (
     getErrno
   , Errno
-  )
-import GHC.IO.Exception
-  (
-    IOErrorType
   )
 import {-# SOURCE #-} System.Posix.PosixFilePath.Directory
   (
@@ -65,7 +62,6 @@ import {-# SOURCE #-} System.Posix.PosixFilePath.Directory
 import System.IO.Error
   (
     alreadyExistsErrorType
-  , ioeGetErrorType
   , mkIOError
   )
 import System.Posix.Files.PosixString
@@ -73,9 +69,12 @@ import System.Posix.Files.PosixString
     getFileStatus
   )
 import qualified System.Posix.Files.PosixString as PF
-import AFP.AbstractFilePath.Posix
+import System.AbstractFilePath.Posix
+import qualified System.AbstractFilePath.Posix.Internal as Raw
+import qualified System.OsString.Internal.Types as Raw
+import qualified System.AbstractFilePath.Data.ByteString.Short as BS
 import System.Directory.Types
-import AFP.OsString.Internal.Types
+import System.OsString.Internal.Types
 
 
 
@@ -164,6 +163,34 @@ throwDestinationInSource sbs dbs = do
   where
     basename x = let b = takeBaseName x
                  in if b == mempty then Nothing else Just b
+
+    takeAllParents :: PosixFilePath -> [PosixFilePath]
+    takeAllParents p =
+      let s = splitDirectories p
+      in fmap Raw.PS
+           . filterEmptyHead
+           . snd
+           . mapAccumL (\a b -> (if | BS.null a                       -> ( b
+                                                                         , a
+                                                                         )
+                                    | BS.length a == 1
+                                    , Raw.isPathSeparator (BS.head a) -> ( BS.singleton (Raw.unPW pathSeparator) <> b
+                                                                         , BS.singleton (Raw.unPW pathSeparator)
+                                                                         )
+                                    | otherwise                       -> (a <> BS.singleton (Raw.unPW pathSeparator) <> b
+                                                                         , a
+                                                                         )
+                                )
+                       ) mempty
+           . fmap Raw.unPFP
+           $ s
+     where
+      filterEmptyHead :: [BS.ShortByteString] -> [BS.ShortByteString]
+      filterEmptyHead [] = []
+      filterEmptyHead (a:as)
+        | BS.null a = as
+        | otherwise = (a:as)
+
 
 
 

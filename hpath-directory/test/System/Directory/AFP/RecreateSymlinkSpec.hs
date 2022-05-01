@@ -7,7 +7,6 @@ module System.Directory.AFP.RecreateSymlinkSpec where
 
 import Test.Hspec
 import "hpath-directory" System.Directory.AFP
-import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType

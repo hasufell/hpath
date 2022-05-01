@@ -102,8 +102,8 @@ import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
-import AFP.AbstractFilePath.Types
-import AFP.OsString.Internal.Types
+import System.AbstractFilePath.Types
+import System.OsString.Internal.Types
 import Control.Exception.Safe ( MonadCatch, MonadMask)
 import Control.Monad.Catch
 import Data.Bits
@@ -419,6 +419,7 @@ createDirRecursive (MkPath p) = Dir.createDirRecursive p
 -- Note: calls `symlink`
 createSymlink :: Path b1     -- ^ destination file
               -> Path b2     -- ^ path the symlink points to
+              -> Bool                 -- ^ whether this is a dir (irrelevant on posix)
               -> IO ()
 createSymlink (MkPath destBS) (MkPath sympoint) = Dir.createSymlink destBS sympoint
 
@@ -736,7 +737,7 @@ getDirsFilesStream (MkPath fp) = do
 --
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if any part of the path is not accessible
-getFileType :: Path b -> IO FileType
+getFileType :: Path b -> IO Dir.FileType
 getFileType (MkPath fp) = Dir.getFileType fp
 
 

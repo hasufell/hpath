@@ -26,7 +26,7 @@ library
     buildable: False
   exposed-modules:   HPath.IO
   build-depends:     base >= 4.8 && <5
-                   , abstract-filepath-types
+                   , filepath >= 2.0.0.0
                    , bytestring >= 0.10.0.0
                    , exceptions
                    , hpath >= 0.13 && < 0.14
@@ -35,7 +35,7 @@ library
                    , safe-exceptions >= 0.1
                    , streamly >= 0.7
                    , time >= 1.8
-                   , unix >= 2.5
+                   , unix >= 2.8
   if !impl(ghc>=7.11)
     build-depends:     transformers
   hs-source-dirs:      src

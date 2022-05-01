@@ -6,12 +6,6 @@
 module Utils where
 
 
-import Control.Applicative
-  (
-    (<$>)
-  )
-import Control.Exception
-import Data.Either
 import Control.Monad
   (
     forM_
@@ -40,24 +34,21 @@ import System.IO.Unsafe
   )
 #ifdef WINDOWS
 #else
-import qualified System.Posix.PosixFilePath.Directory.Traversals as DT
 import System.Posix.PosixFilePath.Directory
   (
     getFileType
-  , FileType
   )
-import AFP.AbstractFilePath.Posix (PosixFilePath)
+import System.AbstractFilePath.Posix (PosixFilePath)
 #endif
 import Data.ByteString
   (
     ByteString
   )
-import AFP.AbstractFilePath
-import AFP.OsString.Internal.Types
-import qualified AFP.AbstractFilePath as AFP
-import qualified Data.ByteString.Short as SBS
+import System.AbstractFilePath
+import System.OsString.Internal.Types
+import qualified System.AbstractFilePath as AFP
 
-import System.Directory.AFP
+import System.Directory.AFP hiding ( getFileType )
 
 
 
@@ -117,7 +108,7 @@ withRawTmpDir f = do
 
 getRawTmpDir :: IO AbstractFilePath
 {-# NOINLINE getRawTmpDir #-}
-getRawTmpDir = withRawTmpDir (return . packAFP . (++ [fromChar '/']) . unpackAFP)
+getRawTmpDir = withRawTmpDir (return . packAFP . (++ [unsafeFromChar '/']) . unpackAFP)
 
 
 withTmpDir :: AbstractFilePath -> (AbstractFilePath -> IO a) -> IO a

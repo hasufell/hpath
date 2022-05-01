@@ -36,34 +36,14 @@ module System.Directory.Errors
   where
 
 
-import Control.Applicative
-  (
-    (<$>)
-  )
 import Control.Exception.Safe hiding (handleIOError)
-import Control.Monad
-  (
-    forM
-  , when
-  )
-import Control.Monad.IfElse
-  (
-    whenM
-  )
-import Foreign.C.Error
-  (
-    getErrno
-  , Errno
-  )
 import GHC.IO.Exception
   (
     IOErrorType
   )
 import System.IO.Error
   (
-    alreadyExistsErrorType
-  , ioeGetErrorType
-  , mkIOError
+    ioeGetErrorType
   )
 import System.Directory.Types
 

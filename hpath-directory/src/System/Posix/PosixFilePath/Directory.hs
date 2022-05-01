@@ -220,8 +220,8 @@ import           System.Posix.Types             ( FileMode
                                                 )
 import           System.Posix.Time
 
-import AFP.AbstractFilePath.Posix
-import AFP.OsString.Internal.Types
+import System.AbstractFilePath.Posix
+import System.OsString.Internal.Types
 import System.Directory.Types
 import System.Directory.Errors
 
@@ -660,8 +660,7 @@ createRegularFile :: FileMode -> PosixFilePath -> IO ()
 createRegularFile fm destBS = bracket
   (SPI.openFd destBS
               SPI.WriteOnly
-              (Just fm)
-              (SPI.defaultFileFlags { exclusive = True })
+              (SPI.defaultFileFlags { exclusive = True, SPI.creat = Just fm })
   )
   SPI.closeFd
   (\_ -> return ())

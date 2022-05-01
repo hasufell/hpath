@@ -43,7 +43,7 @@ module System.Posix.PosixFilePath.Directory.Traversals (
 import Control.Applicative ((<$>))
 #endif
 import Control.Monad
-import AFP.AbstractFilePath.Posix ((</>), fromPlatformString)
+import System.AbstractFilePath.Posix ((</>), fromPlatformString)
 import System.Posix.Foreign
 
 import qualified System.Posix as Posix
@@ -63,8 +63,8 @@ import Foreign.Marshal.Alloc (alloca,allocaBytes)
 import Foreign.Ptr
 import Foreign.Storable
 
-import AFP.AbstractFilePath.Types
-import qualified AFP.OsString.Internal.Types as T
+import System.AbstractFilePath.Types
+import qualified System.OsString.Internal.Types as T
 
 import qualified Data.ByteString.Short as SBS
 

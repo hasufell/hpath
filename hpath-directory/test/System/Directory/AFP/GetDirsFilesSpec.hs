@@ -18,7 +18,7 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import AFP.AbstractFilePath
+import System.AbstractFilePath
 
 
 upTmpDir :: IO ()

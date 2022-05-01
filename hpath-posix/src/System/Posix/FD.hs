@@ -29,7 +29,7 @@ import Foreign.C.Types
 import System.Posix.Foreign
 import qualified System.Posix as Posix
 import System.Posix.PosixFilePath.FilePath
-import AFP.AbstractFilePath.Types
+import System.AbstractFilePath.Types
 
 
 foreign import ccall unsafe "open"

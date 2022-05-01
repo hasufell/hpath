@@ -68,8 +68,8 @@ module HPath
   )
   where
 
-import           AFP.AbstractFilePath      hiding ((</>))
-import qualified AFP.AbstractFilePath as AFP
+import           System.AbstractFilePath      hiding ((</>))
+import qualified System.AbstractFilePath as AFP
 import           Control.Exception (Exception)
 import           Control.Monad.Catch (MonadThrow(..))
 import qualified Data.List as L
@@ -80,6 +80,14 @@ import           Language.Haskell.TH
 import           Language.Haskell.TH.Syntax (Lift(..), lift)
 import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 import           Prelude hiding (abs, any)
+import System.OsString.Internal.Types
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+import qualified System.AbstractFilePath.Windows.Internal as Raw
+import qualified System.AbstractFilePath.Data.ByteString.Short.Word16 as BS
+#else
+import qualified System.AbstractFilePath.Posix.Internal as Raw
+import qualified System.AbstractFilePath.Data.ByteString.Short as BS
+#endif
 
 -- $setup
 -- >>> :set -XQuasiQuotes
@@ -151,6 +159,7 @@ parseAbs filepath = do
      not (hasParentDir filepath)
      then pure . MkPath . dropTrailingPathSeparator . normalise $ filepath
      else throwM (InvalidAbs filepath)
+
 
 parseAbs' :: MonadThrow m
           => String -> m (Path Abs)
@@ -505,7 +514,7 @@ mkRel = either (error . show) lift . parseRel
 -- >>> [abs|/|] :: Path Abs
 -- "/"
 -- >>> [abs|/|] :: Path Abs
--- "/\239\131\144"
+-- "/"
 abs :: QuasiQuoter
 abs = qq mkAbs
 
@@ -516,7 +525,31 @@ abs = qq mkAbs
 -- >>> [rel|bar/baz|] :: Path Rel
 -- "bar/baz"
 -- >>> [rel||] :: Path Rel
--- "\239\131\144"
+-- ""
 rel :: QuasiQuoter
 rel = qq mkRel
 
+
+hasParentDir :: AbstractFilePath -> Bool
+#if defined(mingw32_HOST_OS) || defined(__MINGW32__)
+hasParentDir (OsString (WS fp)) =
+#else
+hasParentDir (OsString (PS fp)) =
+#endif
+  predicate (`BS.cons` pathDoubleDot)
+   BS.isSuffixOf
+ ||
+  predicate (\sep -> BS.singleton sep
+      `BS.append` pathDoubleDot
+      `BS.append` BS.singleton sep)
+   BS.isInfixOf
+ ||
+  predicate (BS.snoc pathDoubleDot)
+    BS.isPrefixOf
+  where
+    pathDoubleDot = BS.pack [0x2e, 0x2e]
+    predicate f p =
+      foldr (\a b -> f a
+              `p` fp || b)
+            False
+            Raw.pathSeparators

@@ -10,7 +10,7 @@ module HPath.Internal
   (Path(..))
   where
 
-import AFP.AbstractFilePath
+import System.AbstractFilePath
 import Control.DeepSeq (NFData (..))
 import Data.Data
 import GHC.Generics (Generic)

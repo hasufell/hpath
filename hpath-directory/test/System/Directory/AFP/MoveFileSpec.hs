@@ -5,7 +5,6 @@ module System.Directory.AFP.MoveFileSpec where
 
 import Test.Hspec
 import "hpath-directory" System.Directory.AFP
-import System.Directory.Types
 import System.IO.Error
   (
     ioeGetErrorType

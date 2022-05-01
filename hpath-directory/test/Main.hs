@@ -14,8 +14,8 @@ import System.Posix.Temp.PosixString (mkdtemp)
 import System.Posix.Env.PosixString (getEnvDefault)
 #endif
 import "hpath-directory" System.Directory.AFP
-import AFP.AbstractFilePath
-import AFP.OsString.Internal.Types
+import System.AbstractFilePath
+import System.OsString.Internal.Types
 
 
 -- TODO: chardev, blockdev, namedpipe, socket

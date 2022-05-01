@@ -40,9 +40,7 @@ library
     cpp-options:     -DWINDOWS
     exposed-modules: System.Win32.WindowsFilePath.Directory
     build-depends:
-        abstract-filepath-Win32
-      , shortbytestring
-      , Win32
+        Win32
 
     include-dirs:    src
 
@@ -52,10 +50,9 @@ library
       System.Posix.PosixFilePath.Directory.Errors
 
     build-depends:
-        abstract-filepath-unix
-      , hpath-posix             >=0.14.0
+        hpath-posix             >=0.14.0
       , streamly-posix          >=0.1.0.2
-      , unix                    >=2.5
+      , unix                    >=2.8
       , unix-bytestring         >=0.3
 
   exposed-modules:
@@ -66,11 +63,10 @@ library
   -- other-modules:
   -- other-extensions:
   build-depends:
-      abstract-filepath
-    , abstract-filepath-types
-    , base                     >=4.8   && <5
+      base                     >=4.8   && <5
     , bytestring               >=0.10
     , exceptions               >=0.10
+    , filepath                 >=2.0.0.0
     , IfElse
     , safe-exceptions          >=0.1
     , split
@@ -131,19 +127,16 @@ test-suite spec
   if os(windows)
     cpp-options:   -DWINDOWS
     build-depends:
-        abstract-filepath-Win32
-      , Win32
+        Win32                   >=2.13.2.0
 
   else
     build-depends:
-        abstract-filepath-unix
-      , hpath-posix             >=0.13
-      , unix
+        hpath-posix             >=0.13
+      , unix                    >=2.8
       , unix-bytestring
 
   build-depends:
-      abstract-filepath
-    , abstract-filepath-types
+      filepath                 >=2.0.0.0
     , base
     , bytestring               >=0.10.0.0
     , hpath-directory

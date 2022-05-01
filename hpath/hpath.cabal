@@ -31,12 +31,11 @@ library
     ghc-options:       -Wall
   exposed-modules:   HPath
                      HPath.Internal
-  build-depends:     abstract-filepath
+  build-depends:     filepath >= 2.0.0.0
                    , base >= 4.8 && <5
-                   , bytestring >= 0.10.0.0 
+                   , bytestring >= 0.10.0.0
                    , deepseq
                    , exceptions
-                   , hpath-filepath >= 0.10 && < 0.11
                    , template-haskell
                    , utf8-string
                    , word8
