@@ -5,7 +5,7 @@ module System.Directory.AFP.ToAbsSpec where
 
 
 import Test.Hspec
-import "hpath-directory" System.Directory.AFP
+import System.Directory.AbstractFilePath
 
 
 

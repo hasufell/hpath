@@ -27,6 +27,7 @@ module System.Directory.AbstractFilePath
   , moveFile
   -- * File opening
   , openFile
+  , openExistingFile
   , openBinaryFile
   , withFile
   , withBinaryFile
@@ -35,11 +36,17 @@ module System.Directory.AbstractFilePath
   -- * File writing
   , writeFile
   , writeFile'
+  , writeExistingFile
+  , writeExistingFile'
   , appendFile
   , appendFile'
+  , appendExistingFile
+  , appendExistingFile'
   -- * File reading
   , readFile
   , readFile'
+  , readExistingFile
+  , readExistingFile'
   , readSymbolicLink
   -- * File checks
   , doesExist
@@ -96,6 +103,8 @@ import qualified System.Posix as Posix (FileMode)
 import qualified System.Posix.Files.ByteString as Posix
 import qualified Data.ByteString.Short as SBS
 #endif
+import qualified Data.ByteString               as BS
+import qualified Data.ByteString.Lazy          as L
 import System.AbstractFilePath.Types
 import System.OsString.Internal.Types
 import           Data.Time.Clock
@@ -590,18 +599,37 @@ moveFile :: AbstractFilePath   -- ^ file to move
 moveFile (OsString from) (OsString to) cm = Dir.moveFile from to cm
 
 
+    ------------------
+    --[ File Write ]--
+    ------------------
+
+appendExistingFile :: AbstractFilePath -> L.ByteString -> IO ()
+appendExistingFile (OsString fp) = Dir.appendExistingFile fp
+
+appendExistingFile' :: AbstractFilePath -> BS.ByteString -> IO ()
+appendExistingFile' (OsString fp) = Dir.appendExistingFile' fp
 
 
+writeExistingFile :: AbstractFilePath -> L.ByteString -> IO ()
+writeExistingFile (OsString fp) = Dir.writeExistingFile fp
+
+writeExistingFile' :: AbstractFilePath -> BS.ByteString -> IO ()
+writeExistingFile' (OsString fp) = Dir.writeExistingFile' fp
 
     --------------------
     --[ File Reading ]--
     --------------------
 
+readExistingFile :: AbstractFilePath -> IO L.ByteString
+readExistingFile (OsString fp) = Dir.readExistingFile fp
 
+readExistingFile' :: AbstractFilePath -> IO BS.ByteString
+readExistingFile' (OsString fp) = Dir.readExistingFile' fp
 
 -- | Read the target of a symbolic link.
 readSymbolicLink :: AbstractFilePath -> IO AbstractFilePath
 readSymbolicLink (OsString fp) = OsString <$> Dir.readSymbolicLink fp
+
 
 
 

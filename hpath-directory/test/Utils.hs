@@ -48,7 +48,8 @@ import System.AbstractFilePath
 import System.OsString.Internal.Types
 import qualified System.AbstractFilePath as AFP
 
-import System.Directory.AFP hiding ( getFileType )
+import System.Directory.AbstractFilePath hiding ( getFileType )
+import System.File.AbstractFilePath
 
 
 
@@ -261,18 +262,32 @@ canonicalizePath' p = withTmpDir p canonicalizePath
 writeFile' :: AbstractFilePath -> ByteString -> IO ()
 {-# NOINLINE writeFile' #-}
 writeFile' ip bs =
-  withTmpDir ip $ \p -> writeFile p True bs
+  withTmpDir ip $ \p -> System.File.AbstractFilePath.writeFile' p bs
 
 writeFileL' :: AbstractFilePath -> BSL.ByteString -> IO ()
 {-# NOINLINE writeFileL' #-}
 writeFileL' ip bs =
-  withTmpDir ip $ \p -> writeFileL p True bs
+  withTmpDir ip $ \p -> writeFile p bs
 
+writeExistingFile' :: AbstractFilePath -> ByteString -> IO ()
+{-# NOINLINE writeExistingFile' #-}
+writeExistingFile' ip bs =
+  withTmpDir ip $ \p -> System.Directory.AbstractFilePath.writeExistingFile' p bs
+
+writeExistingFileL' :: AbstractFilePath -> BSL.ByteString -> IO ()
+{-# NOINLINE writeExistingFileL' #-}
+writeExistingFileL' ip bs =
+  withTmpDir ip $ \p -> writeExistingFile p bs
 
 appendFile' :: AbstractFilePath -> ByteString -> IO ()
 {-# NOINLINE appendFile' #-}
 appendFile' ip bs =
-  withTmpDir ip $ \p -> appendFile p bs
+  withTmpDir ip $ \p -> System.File.AbstractFilePath.appendFile' p bs
+
+appendExistingFile' :: AbstractFilePath -> ByteString -> IO ()
+{-# NOINLINE appendExistingFile' #-}
+appendExistingFile' ip bs =
+  withTmpDir ip $ \p -> System.Directory.AbstractFilePath.appendExistingFile' p bs
 
 
 {-# NOINLINE allDirectoryContents' #-}
@@ -283,12 +298,19 @@ allDirectoryContents' ip =
 
 readFile' :: AbstractFilePath -> IO ByteString
 {-# NOINLINE readFile' #-}
-readFile' p = withTmpDir p readFileStrict
+readFile' p = withTmpDir p System.File.AbstractFilePath.readFile'
 
+readExistingFile' :: AbstractFilePath -> IO ByteString
+{-# NOINLINE readExistingFile' #-}
+readExistingFile' p = withTmpDir p System.Directory.AbstractFilePath.readExistingFile'
 
 readFileL :: AbstractFilePath -> IO BSL.ByteString
 {-# NOINLINE readFileL #-}
 readFileL p = withTmpDir p readFile
+
+readExistingFileL :: AbstractFilePath -> IO BSL.ByteString
+{-# NOINLINE readExistingFileL #-}
+readExistingFileL p = withTmpDir p System.Directory.AbstractFilePath.readExistingFile
 
 dirExists :: AbstractFilePath -> IO Bool
 {-# NOINLINE dirExists #-}

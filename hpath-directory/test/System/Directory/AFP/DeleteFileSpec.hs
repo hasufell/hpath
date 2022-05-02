@@ -3,7 +3,7 @@
 module System.Directory.AFP.DeleteFileSpec where
 
 
-import System.Directory.AFP
+import System.Directory.AbstractFilePath
 import Test.Hspec
 import System.IO.Error
   (

@@ -81,7 +81,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
         `shouldThrow` (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "readFile file, no such file" $ do
-      readFileL "lalala"
+      readExistingFileL "lalala"
         `shouldThrow` (\e -> ioeGetErrorType e == NoSuchThing)
 
 
@@ -113,6 +113,6 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
         `shouldThrow` (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "readFile (Strict) file, no such file" $ do
-      readFile' "lalala"
+      readExistingFile' "lalala"
         `shouldThrow` (\e -> ioeGetErrorType e == NoSuchThing)
 

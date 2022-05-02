@@ -142,6 +142,7 @@ test-suite spec
     , base
     , bytestring               >=0.10.0.0
     , hpath-directory
+    , file-io
     , hspec                    >=1.3
     , HUnit
     , IfElse

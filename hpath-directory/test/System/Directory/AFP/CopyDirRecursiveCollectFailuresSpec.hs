@@ -6,7 +6,7 @@ module System.Directory.AFP.CopyDirRecursiveCollectFailuresSpec where
 
 import Test.Hspec
 import Data.List (sort)
-import "hpath-directory" System.Directory.AFP
+import System.Directory.AbstractFilePath hiding (writeFile')
 import System.Directory.Errors
 import System.IO.Error
   (

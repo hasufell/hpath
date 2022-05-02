@@ -104,5 +104,5 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
         `shouldThrow` (\e -> ioeGetErrorType e == PermissionDenied)
 
     it "writeFile, file does not exist" $ do
-      writeFile' "gaga" ""
+      writeExistingFile' "gaga" ""
         `shouldThrow` (\e -> ioeGetErrorType e == NoSuchThing)

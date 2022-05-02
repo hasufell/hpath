@@ -4,7 +4,7 @@ module System.Directory.AFP.CopyFileOverwriteSpec where
 
 
 import Test.Hspec
-import "hpath-directory" System.Directory.AFP
+import System.Directory.AbstractFilePath hiding (writeFile')
 import System.IO.Error
   (
     ioeGetErrorType

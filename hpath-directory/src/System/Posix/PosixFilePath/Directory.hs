@@ -47,9 +47,6 @@ module System.Posix.PosixFilePath.Directory
   , deleteDir
   , deleteDirRecursive
   , easyDelete
-  -- * File opening (posix specific)
-  , openFile
-  , executeFile
   -- * File creation
   , createRegularFile
   , createDir
@@ -59,15 +56,28 @@ module System.Posix.PosixFilePath.Directory
   -- * File renaming/moving
   , renameFile
   , moveFile
-  -- * File reading
-  , readFile
-  , readFileStrict
-  , readFileStream
-  , readSymbolicLink
+  -- * File opening
+  , openFile
+  , openBinaryFile
+  , withFile
+  , withBinaryFile
+  , withFile'
+  , withBinaryFile'
   -- * File writing
   , writeFile
-  , writeFileL
+  , writeFile'
+  , writeExistingFile
+  , writeExistingFile'
   , appendFile
+  , appendFile'
+  , appendExistingFile
+  , appendExistingFile'
+  -- * File reading
+  , readFile
+  , readFile'
+  , readExistingFile
+  , readExistingFile'
+  , readSymbolicLink
   -- * File permissions
   , newFilePerms
   , newDirPerms
@@ -102,14 +112,13 @@ module System.Posix.PosixFilePath.Directory
 where
 
 
+import           System.File.PlatformFilePath
 import           Control.Exception.Safe         ( IOException
                                                 , MonadCatch
                                                 , MonadMask
                                                 , bracket
-                                                , bracketOnError
                                                 , onException
                                                 , throwIO
-                                                , finally
                                                 )
 #if MIN_VERSION_base(4,9,0)
 import qualified Control.Monad.Fail             as Fail
@@ -117,12 +126,10 @@ import qualified Control.Monad.Fail             as Fail
 import qualified Control.Monad                  as Fail
 #endif
 import           Control.Monad                  ( unless
-                                                , void
                                                 , when
                                                 )
 import           Control.Monad.IfElse           ( unlessM )
 import qualified Data.ByteString               as BS
-import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString.Lazy          as L
 import           Data.Foldable                  ( for_ )
 import           Data.String
@@ -137,7 +144,6 @@ import           Data.Time.Clock.POSIX          ( getPOSIXTime
                                                 , utcTimeToPOSIXSeconds
                                                 , POSIXTime
                                                 )
-import           Data.Word                      ( Word8 )
 import           Foreign.C.Error                ( eEXIST
                                                 , eNOENT
                                                 , eNOTEMPTY
@@ -150,25 +156,12 @@ import           Prelude                 hiding ( appendFile
                                                 , writeFile
                                                 )
 import           Streamly.Prelude               ( SerialT, MonadAsync )
-import           Streamly.Data.Array.Foreign
-import           Streamly.External.ByteString
-import qualified Streamly.External.ByteString.Lazy
-                                               as SL
 import qualified Streamly.External.Posix.DirStream
                                                as SD
 import qualified Streamly.FileSystem.Handle    as FH
-import qualified Streamly.Internal.Data.Unfold as SU
 import qualified Streamly.Internal.FileSystem.Handle
                                                as IFH
-#if MIN_VERSION_streamly(0,8,0)
-import qualified Streamly.Internal.Data.Array.Stream.Foreign
-                                               as AS
-#else
-import qualified Streamly.Internal.Memory.ArrayStream
-                                               as AS
-#endif
 import qualified Streamly.Internal.Data.Stream.IsStream.Expand as SE
-import Streamly.Internal.Data.Fold.Type (Fold)
 import qualified Streamly.Prelude              as S
 import           Control.Monad.IO.Class         ( liftIO
                                                 )
@@ -207,16 +200,11 @@ import           System.Posix.Files.PosixString  ( createSymbolicLink
 import qualified System.Posix.Files.PosixString as PF
 import qualified System.Posix.IO.PosixString
                                                as SPI
-import qualified "unix-bytestring" System.Posix.IO.ByteString
-                                               as SPB
 import           System.Posix.FD                ( openFd )
 import qualified System.Posix.PosixFilePath.Directory.Traversals
                                                as SPDT
 import qualified System.Posix.Foreign          as SPDF
-import qualified System.Posix.Process.PosixString
-                                               as SPP
 import           System.Posix.Types             ( FileMode
-                                                , ProcessID
                                                 )
 import           System.Posix.Time
 
@@ -617,28 +605,36 @@ easyDelete p = do
     _            -> return ()
 
 
+    ------------------
+    --[ File Write ]--
+    ------------------
 
+appendExistingFile :: PosixFilePath -> L.ByteString -> IO ()
+appendExistingFile fp contents = withExistingFile fp SIO.AppendMode (`L.hPut` contents)
+
+appendExistingFile' :: PosixFilePath -> BS.ByteString -> IO ()
+appendExistingFile' fp contents = withExistingFile fp SIO.AppendMode (`BS.hPut` contents)
+
+
+writeExistingFile :: PosixFilePath -> L.ByteString -> IO ()
+writeExistingFile fp contents = withExistingFile fp SIO.WriteMode (`L.hPut` contents)
+
+writeExistingFile' :: PosixFilePath -> BS.ByteString -> IO ()
+writeExistingFile' fp contents = withExistingFile fp SIO.WriteMode (`BS.hPut` contents)
 
     --------------------
-    --[ File Opening ]--
+    --[ File Reading ]--
     --------------------
 
+readExistingFile :: PosixFilePath -> IO L.ByteString
+readExistingFile fp = withExistingFile' fp SIO.ReadMode L.hGetContents
 
--- |Opens a file appropriately by invoking xdg-open. The file type
--- is not checked. This forks a process.
-openFile :: PosixFilePath -> IO ProcessID
-openFile fp =
-  SPP.forkProcess
-    $ SPP.executeFile [pstr|xdg-open|] True [fp] Nothing
+readExistingFile' :: PosixFilePath -> IO BS.ByteString
+readExistingFile' fp = withExistingFile fp SIO.ReadMode BS.hGetContents
 
-
--- |Executes a program with the given arguments. This forks a process.
-executeFile :: PosixFilePath     -- ^ program
-            -> [PosixString]    -- ^ arguments
-            -> IO ProcessID
-executeFile fp args =
-  SPP.forkProcess $ SPP.executeFile fp True args Nothing
-
+-- | Read the target of a symbolic link.
+readSymbolicLink :: PosixFilePath -> IO PosixString
+readSymbolicLink = PF.readSymbolicLink
 
 
 
@@ -838,135 +834,6 @@ moveFile from to cm = do
 
 
 
-
-
-    --------------------
-    --[ File Reading ]--
-    --------------------
-
-
--- |Read the given file lazily.
---
--- Symbolic links are followed. File must exist.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFile :: PosixFilePath -> IO L.ByteString
-readFile path = do
-  stream <- readFileStream path
-  SL.fromChunksIO stream
-
-
--- |Read the given file strictly into memory.
---
--- Symbolic links are followed. File must exist.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFileStrict :: PosixFilePath -> IO BS.ByteString
-readFileStrict path = do
-  stream <- readFileStream path
-  fromArray <$> AS.toArray stream
-
-
--- | Open the given file as a filestream. Once the filestream
--- exits, the filehandle is cleaned up.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-readFileStream :: PosixFilePath -> IO (SerialT IO (Array Word8))
-readFileStream fp = do
-  fd     <- openFd fp SPI.ReadOnly [] Nothing
-  handle <- SPI.fdToHandle fd
-  let stream = S.unfold (SU.finally SIO.hClose FH.readChunks) handle
-  pure stream
-
-
--- | Read the target of a symbolic link.
-readSymbolicLink :: PosixFilePath -> IO PosixString
-readSymbolicLink = PF.readSymbolicLink
-
-
-
-    --------------------
-    --[ File Writing ]--
-    --------------------
-
-
--- |Write a given ByteString to a file, truncating the file beforehand.
--- Follows symlinks.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-writeFile :: PosixFilePath
-          -> Maybe FileMode  -- ^ if Nothing, file must exist
-          -> ByteString
-          -> IO ()
-writeFile fp fmode bs =
-  bracket (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd)
-    $ \fd -> void $ SPB.fdWrite fd bs
-
-
--- |Write a given lazy ByteString to a file, truncating the file beforehand.
--- Follows symlinks.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
---
--- Note: uses streamly under the hood
-writeFileL :: PosixFilePath
-           -> Maybe FileMode  -- ^ if Nothing, file must exist
-           -> L.ByteString
-           -> IO ()
-writeFileL fp fmode lbs = writeFileStream fp fmode FH.writeChunks (SL.toChunks lbs)
-
-
-writeFileStream :: PosixFilePath
-                -> Maybe FileMode  -- ^ if Nothing, file must exist
-                -> (SIO.Handle -> Fold IO a ())   -- ^ writer
-                -> SerialT IO a                   -- ^ stream
-                -> IO ()
-writeFileStream fp fmode writer stream = do
-  handle <-
-    bracketOnError (openFd fp SPI.WriteOnly [SPDF.oTrunc] fmode) (SPI.closeFd)
-      $ SPI.fdToHandle
-  finally (streamlyCopy handle) (SIO.hClose handle)
-  where streamlyCopy tH = S.fold (writer tH) stream
-
-
--- |Append a given ByteString to a file.
--- The file must exist. Follows symlinks.
---
--- Throws:
---
---     - `InappropriateType` if file is not a regular file or a symlink
---     - `PermissionDenied` if we cannot read the file or the directory
---        containting it
---     - `NoSuchThing` if the file does not exist
-appendFile :: PosixFilePath -> ByteString -> IO ()
-appendFile fp bs =
-  bracket (openFd fp SPI.WriteOnly [SPDF.oAppend] Nothing) (SPI.closeFd)
-    $ \fd -> void $ SPB.fdWrite fd bs
 
 
 
@@ -1254,3 +1121,15 @@ toAbs bs = do
     False -> do
       cwd <- getWorkingDirectory
       return $ cwd </> bs
+
+
+withExistingFile :: PosixFilePath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
+withExistingFile fp iomode = bracket
+  (openExistingFile fp iomode)
+  SIO.hClose
+
+withExistingFile' :: PosixFilePath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
+withExistingFile' fp iomode action = do
+  h <- openExistingFile fp iomode
+  action h
+

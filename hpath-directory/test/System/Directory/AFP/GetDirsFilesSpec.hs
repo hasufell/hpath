@@ -7,7 +7,7 @@ import Data.List
   (
     sort
   )
-import "hpath-directory" System.Directory.AFP hiding (getDirsFiles')
+import System.Directory.AbstractFilePath hiding (getDirsFiles')
 import Test.Hspec
 import System.IO.Error
   (

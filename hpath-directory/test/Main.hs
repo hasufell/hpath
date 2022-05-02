@@ -13,7 +13,7 @@ import System.Win32.WindowsString.Info
 import System.Posix.Temp.PosixString (mkdtemp)
 import System.Posix.Env.PosixString (getEnvDefault)
 #endif
-import "hpath-directory" System.Directory.AFP
+import System.Directory.AbstractFilePath
 import System.AbstractFilePath
 import System.OsString.Internal.Types
 
