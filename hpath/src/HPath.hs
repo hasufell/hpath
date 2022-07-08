@@ -19,6 +19,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module HPath
   (
@@ -39,7 +40,6 @@ module HPath
   ,parseRel'
   ,parseAny
   ,parseAny'
-  ,rootPath
   ,pwdPath
   -- * Path Conversion
   ,fromAbs
@@ -57,7 +57,6 @@ module HPath
   ,stripDir
   -- * Path Examination
   ,isParentOf
-  ,isRootPath
   ,isPwdPath
   -- * Path IO helpers
   ,withAbsPath
@@ -68,8 +67,8 @@ module HPath
   )
   where
 
-import           System.AbstractFilePath      hiding ((</>))
-import qualified System.AbstractFilePath as AFP
+import           System.OsPath      hiding ((</>))
+import qualified System.OsPath as AFP
 import           Control.Exception (Exception)
 import           Control.Monad.Catch (MonadThrow(..))
 import qualified Data.List as L
@@ -82,11 +81,11 @@ import           Language.Haskell.TH.Quote (QuasiQuoter(..))
 import           Prelude hiding (abs, any)
 import System.OsString.Internal.Types
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
-import qualified System.AbstractFilePath.Windows.Internal as Raw
-import qualified System.AbstractFilePath.Data.ByteString.Short.Word16 as BS
+import qualified System.OsPath.Windows.Internal as Raw
+import qualified System.OsPath.Data.ByteString.Short.Word16 as BS
 #else
-import qualified System.AbstractFilePath.Posix.Internal as Raw
-import qualified System.AbstractFilePath.Data.ByteString.Short as BS
+import qualified System.OsPath.Posix.Internal as Raw
+import qualified System.OsPath.Data.ByteString.Short as BS
 #endif
 
 -- $setup
@@ -94,6 +93,9 @@ import qualified System.AbstractFilePath.Data.ByteString.Short as BS
 -- >>> :set -XOverloadedStrings
 -- >>> import Prelude hiding (abs, any)
 -- >>> import HPath
+-- >>> import qualified System.OsPath as AFP
+-- >>> import Data.String
+-- >>> instance IsString OsString where fromString = either (error . show) id . AFP.encodeUtf
 
 
 --------------------------------------------------------------------------------
@@ -102,14 +104,14 @@ import qualified System.AbstractFilePath.Data.ByteString.Short as BS
 -- | An absolute path.
 data Abs deriving (Typeable)
 
--- | A relative path; one without a root.
+-- | A relative path; one without a drive.
 data Rel deriving (Typeable)
 
 -- | Exception when parsing a location.
 data PathParseException
-  = InvalidAbs AbstractFilePath
-  | InvalidRel AbstractFilePath
-  | Couldn'tStripPrefixTPS AbstractFilePath AbstractFilePath
+  = InvalidAbs OsPath
+  | InvalidRel OsPath
+  | Couldn'tStripPrefixTPS OsPath OsPath
   deriving (Show,Typeable)
 instance Exception PathParseException
 
@@ -122,7 +124,7 @@ instance Exception PathException
 -- PatternSynonyms
 
 #if __GLASGOW_HASKELL__ >= 710
-pattern Path :: AbstractFilePath -> Path a
+pattern Path :: OsPath -> Path a
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 pattern Path x <- (MkPath x)
@@ -152,18 +154,20 @@ pattern Path x <- (MkPath x)
 -- >>> parseAbs "/abc/../foo"
 -- *** Exception: InvalidAbs "/abc/../foo"
 parseAbs :: MonadThrow m
-         => AbstractFilePath -> m (Path Abs)
+         => OsPath -> m (Path Abs)
 parseAbs filepath = do
-  if isAbsolute filepath &&
-     isValid filepath &&
-     not (hasParentDir filepath)
-     then pure . MkPath . dropTrailingPathSeparator . normalise $ filepath
-     else throwM (InvalidAbs filepath)
+  if | isAbsolute filepath
+     , hasDrive filepath
+     , isValid filepath
+     , not (hasParentDir filepath) -> pure . MkPath . dropTrailingPathSeparator . normalise $ filepath
+     | otherwise -> throwM (InvalidAbs filepath)
 
 
 parseAbs' :: MonadThrow m
           => String -> m (Path Abs)
-parseAbs' = parseAbs . toAbstractFilePath
+parseAbs' str = do
+  fp <- AFP.encodeUtf str
+  parseAbs fp
 
 
 -- | Get a location for a relative path. Produces a normalised
@@ -197,18 +201,22 @@ parseAbs' = parseAbs . toAbstractFilePath
 -- >>> parseRel ".."
 -- *** Exception: InvalidRel ".."
 parseRel :: MonadThrow m
-         => AbstractFilePath -> m (Path Rel)
+         => OsPath -> m (Path Rel)
 parseRel filepath = do
-  if not (isAbsolute filepath) &&
-     filepath /= [afp|..|] &&
-     not (hasParentDir filepath) &&
-     isValid filepath
-     then return . MkPath . dropTrailingPathSeparator . normalise $ filepath
-     else throwM (InvalidRel filepath)
+  if | not (isAbsolute filepath)
+     , not (hasDrive filepath)
+     , filepath /= [osp|..|]
+     , not (hasParentDir filepath)
+     , isValid filepath
+     -> return . MkPath . dropTrailingPathSeparator . normalise $ filepath
+     | otherwise
+     -> throwM (InvalidRel filepath)
 
 parseRel' :: MonadThrow m
           => String -> m (Path Rel)
-parseRel' = parseRel . toAbstractFilePath
+parseRel' str = do
+  fp <- AFP.encodeUtf str
+  parseRel fp
 
 
 -- | Parses a path, whether it's relative or absolute.
@@ -233,7 +241,7 @@ parseRel' = parseRel . toAbstractFilePath
 -- Right "."
 -- >>> parseAny ".."
 -- *** Exception: InvalidRel ".."
-parseAny :: MonadThrow m => AbstractFilePath -> m (Either (Path Abs) (Path Rel))
+parseAny :: MonadThrow m => OsPath -> m (Either (Path Abs) (Path Rel))
 parseAny filepath = case parseAbs filepath of
   Just p -> pure $ Left p
   Nothing         -> case parseRel filepath of
@@ -242,34 +250,32 @@ parseAny filepath = case parseAbs filepath of
 
 parseAny' :: MonadThrow m
           => String -> m (Either (Path Abs) (Path Rel))
-parseAny' = parseAny . toAbstractFilePath
+parseAny' str = do
+  fp <- AFP.encodeUtf str
+  parseAny fp
 
-
--- | The @"/"@ root path.
-rootPath :: Path Abs
-rootPath = MkPath [afp|/|]
 
 -- | The @"."@ pwd path.
 pwdPath :: Path Rel
-pwdPath = MkPath [afp|.|]
+pwdPath = MkPath [osp|.|]
 
 
 --------------------------------------------------------------------------------
 -- Path Conversion
 
--- | Convert any Path to an AbstractFilePath type.
-toFilePath :: Path b -> AbstractFilePath
+-- | Convert any Path to an OsPath type.
+toFilePath :: Path b -> OsPath
 toFilePath (MkPath l) = l
 
--- | Convert an absolute Path to a AbstractFilePath type.
-fromAbs :: Path Abs -> AbstractFilePath
+-- | Convert an absolute Path to a OsPath type.
+fromAbs :: Path Abs -> OsPath
 fromAbs = toFilePath
 
--- | Convert a relative Path to a AbstractFilePath type.
-fromRel :: Path Rel -> AbstractFilePath
+-- | Convert a relative Path to a OsPath type.
+fromRel :: Path Rel -> OsPath
 fromRel = toFilePath
 
-fromAny :: Either (Path Abs) (Path Rel) -> AbstractFilePath
+fromAny :: Either (Path Abs) (Path Rel) -> OsPath
 fromAny = either toFilePath toFilePath
 
 
@@ -324,9 +330,9 @@ fromAny = either toFilePath toFilePath
 stripDir :: MonadThrow m => Path b -> Path b -> m (Path Rel)
 stripDir (MkPath p) (MkPath l)
   | p == l = return pwdPath
-  | otherwise = case L.stripPrefix (unpackAFP $ addTrailingPathSeparator p) (unpackAFP l) of
+  | otherwise = case L.stripPrefix (AFP.unpack $ addTrailingPathSeparator p) (AFP.unpack l) of
       Nothing -> throwM (Couldn'tStripPrefixTPS p l)
-      Just ok -> return (MkPath $ packAFP ok)
+      Just ok -> return (MkPath $ AFP.pack ok)
 
 
 -- |Get all parents of a path.
@@ -339,7 +345,7 @@ stripDir (MkPath p) (MkPath l)
 -- []
 getAllParents :: Path Abs -> [Path Abs]
 getAllParents (MkPath p)
-  | np == [afp|/|] = []
+  | np == [osp|/|] = []
   | otherwise = dirname (MkPath np) : getAllParents (dirname $ MkPath np)
   where
     np = normalise p
@@ -357,14 +363,14 @@ getAllComponents :: Path Rel -> [Path Rel]
 getAllComponents (MkPath p) = fmap MkPath . splitDirectories $ p
 
 
--- | Gets all path components after the "/" root directory.
+-- | Gets all path components after the drive.
 --
 -- >>> getAllComponentsAfterRoot [abs|/abs/def/dod|]
 -- ["abs","def","dod"]
 -- >>> getAllComponentsAfterRoot [abs|/abs|]
 -- ["abs"]
 getAllComponentsAfterRoot :: Path Abs -> [Path Rel]
-getAllComponentsAfterRoot p = getAllComponents (fromJust $ stripDir rootPath p)
+getAllComponentsAfterRoot (MkPath p) = getAllComponents (MkPath $ dropDrive p)
 
 
 -- | Extract the directory name of a path.
@@ -383,7 +389,7 @@ dirname (MkPath fp) = MkPath (takeDirectory fp)
 --
 -- @basename (p \<\/> a) == basename a@
 --
--- Throws: `PathException` if given the root path "/"
+-- Throws: `PathException` if given a drive (e.g. "/")
 --
 -- >>> basename [abs|/abc/def/dod|]
 -- "dod"
@@ -444,15 +450,6 @@ isParentOf p l = case stripDir p l :: Maybe (Path Rel) of
     | otherwise -> True
 
 
--- | Check whether the given Path is the root "/" path.
---
--- >>> isRootPath [abs|/lal/lad|]
--- False
--- >>> isRootPath [abs|/|]
--- True
-isRootPath :: Path Abs -> Bool
-isRootPath = (== rootPath)
-
 -- | Check whether the given Path is the pwd "." path.
 --
 -- >>> isPwdPath [rel|lal/lad|]
@@ -467,11 +464,11 @@ isPwdPath = (== pwdPath)
 -- Path IO helpers
 
 
-withAbsPath :: Path Abs -> (AbstractFilePath -> IO a) -> IO a
+withAbsPath :: Path Abs -> (OsPath -> IO a) -> IO a
 withAbsPath (MkPath p) action = action p
 
 
-withRelPath :: Path Rel -> (AbstractFilePath -> IO a) -> IO a
+withRelPath :: Path Rel -> (OsPath -> IO a) -> IO a
 withRelPath (MkPath p) action = action p
 
 
@@ -489,10 +486,10 @@ stripPrefix a b = BS.pack `fmap` L.stripPrefix (BS.unpack a) (BS.unpack b)
 ------------------------
 -- QuasiQuoters
 
-qq :: (AbstractFilePath -> Q Exp) -> QuasiQuoter
+qq :: (String -> Q Exp) -> QuasiQuoter
 qq quoteExp' =
   QuasiQuoter
-  { quoteExp  = (\s -> quoteExp' . toAbstractFilePath $ s)
+  { quoteExp  = quoteExp'
   , quotePat  = \_ ->
       fail "illegal QuasiQuote (allowed as expression only, used as a pattern)"
   , quoteType = \_ ->
@@ -501,11 +498,11 @@ qq quoteExp' =
       fail "illegal QuasiQuote (allowed as expression only, used as a declaration)"
   }
 
-mkAbs :: AbstractFilePath -> Q Exp
-mkAbs = either (error . show) lift . parseAbs
+mkAbs :: String -> Q Exp
+mkAbs = either (fail . show) lift . parseAbs'
 
-mkRel :: AbstractFilePath -> Q Exp
-mkRel = either (error . show) lift . parseRel
+mkRel :: String -> Q Exp
+mkRel = either (fail . show) lift . parseRel'
 
 -- | Quasiquote an absolute Path. This accepts Unicode Chars and will encode as UTF-8.
 --
@@ -513,8 +510,8 @@ mkRel = either (error . show) lift . parseRel
 -- "/etc/profile"
 -- >>> [abs|/|] :: Path Abs
 -- "/"
--- >>> [abs|/|] :: Path Abs
--- "/"
+-- >>> (\(MkPath p) -> decodeUtf p) ([abs|/ƛ|] :: Path Abs)
+-- "/\411"
 abs :: QuasiQuoter
 abs = qq mkAbs
 
@@ -524,13 +521,13 @@ abs = qq mkAbs
 -- "etc"
 -- >>> [rel|bar/baz|] :: Path Rel
 -- "bar/baz"
--- >>> [rel||] :: Path Rel
--- ""
+-- >>> (\(MkPath p) -> decodeUtf p) ([rel|ƛ|] :: Path Rel)
+-- "\411"
 rel :: QuasiQuoter
 rel = qq mkRel
 
 
-hasParentDir :: AbstractFilePath -> Bool
+hasParentDir :: OsPath -> Bool
 #if defined(mingw32_HOST_OS) || defined(__MINGW32__)
 hasParentDir (OsString (WS fp)) =
 #else

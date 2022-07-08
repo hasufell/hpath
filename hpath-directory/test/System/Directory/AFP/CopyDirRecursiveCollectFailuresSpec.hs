@@ -6,7 +6,7 @@ module System.Directory.AFP.CopyDirRecursiveCollectFailuresSpec where
 
 import Test.Hspec
 import Data.List (sort)
-import System.Directory.AbstractFilePath hiding (writeFile')
+import System.Directory.OsPath hiding (writeFile')
 import System.Directory.Errors
 import System.IO.Error
   (
@@ -19,7 +19,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import System.AbstractFilePath
+import System.OsPath
 
 
 
@@ -120,7 +120,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
     -- successes --
     it "copyDirRecursive (Strict, CollectFailures), all fine and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromAbstractFilePathIO tmpDir'
+      tmpDirS <- decodeFS tmpDir'
       copyDirRecursive' "inputDir"
                         "outputDir"
                         Strict

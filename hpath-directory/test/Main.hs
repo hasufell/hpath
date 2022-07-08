@@ -13,8 +13,8 @@ import System.Win32.WindowsString.Info
 import System.Posix.Temp.PosixString (mkdtemp)
 import System.Posix.Env.PosixString (getEnvDefault)
 #endif
-import System.Directory.AbstractFilePath
-import System.AbstractFilePath
+import System.Directory.OsPath
+import System.OsPath
 import System.OsString.Internal.Types
 
 

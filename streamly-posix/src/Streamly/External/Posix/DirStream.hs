@@ -47,21 +47,22 @@ import           Streamly.Internal.Data.Unfold.Types
 import qualified Streamly.Internal.Prelude     as S
 #endif
 
-import System.AbstractFilePath.Posix
+import System.OsPath.Posix
 
 
 -- | Create an 'Unfold' of directory contents.
-unfoldDirContents :: MonadIO m => Unfold m DirStream (DirType, PosixFilePath)
+unfoldDirContents :: MonadIO m => Unfold m DirStream (DirType, PosixPath)
 unfoldDirContents = Unfold step return
  where
   {-# INLINE [0] step #-}
   step dirstream = do
     (typ, e) <- liftIO $ readDirEnt dirstream
     return $ if
-      | e == mempty                                            -> D.Stop
-      | [unsafeFromChar '.'] == unpackPlatformString e               -> D.Skip dirstream
-      | [unsafeFromChar '.', unsafeFromChar '.'] == unpackPlatformString e -> D.Skip dirstream
-      | otherwise                                              -> D.Yield (typ, e) dirstream
+      | e == mempty                                    -> D.Stop
+      | [unsafeFromChar '.'] == unpack e               -> D.Skip dirstream
+      | [unsafeFromChar '.', unsafeFromChar '.']
+      == unpack e                                      -> D.Skip dirstream
+      | otherwise                                      -> D.Yield (typ, e) dirstream
 
 
 -- | Read the directory contents as a stream.
@@ -71,7 +72,7 @@ unfoldDirContents = Unfold step return
 -- The stream must not be used after the dirstream is closed.
 dirContentsStream :: (MonadCatch m, MonadAsync m, MonadMask m)
                   => DirStream
-                  -> SerialT m (DirType, PosixFilePath)
+                  -> SerialT m (DirType, PosixPath)
 dirContentsStream ds =
 #if MIN_VERSION_streamly(0,8,0)
   unfold (SIU.finally (liftIO . PosixBS.closeDirStream) unfoldDirContents) $ ds
@@ -89,7 +90,7 @@ dirContentsStream ds =
 -- The DirStream is closed automatically.
 dirContents :: (MonadCatch m, MonadAsync m, MonadMask m)
             => DirStream
-            -> m [(DirType, PosixFilePath)]
+            -> m [(DirType, PosixPath)]
 #if MIN_VERSION_streamly(0,8,0)
 dirContents = toList . dirContentsStream
 #else

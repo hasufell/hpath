@@ -28,7 +28,7 @@ library
     ghc-options:       -Wall
   exposed-modules:   HPath
                      HPath.Internal
-  build-depends:     filepath >= 2.0.0.0
+  build-depends:     filepath >=1.4.99.5
                    , base >= 4.8 && <5
                    , bytestring >= 0.10.0.0
                    , deepseq

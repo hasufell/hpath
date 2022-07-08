@@ -31,7 +31,7 @@ library
   -- other-modules:
   -- other-extensions:
   c-sources:           cbits/dirutils.c
-  build-depends:         filepath               >= 2.0.0.0
+  build-depends:         filepath >=1.4.99.5
                        , base                   >= 4.8  && <5
                        , bytestring             >= 0.10
                        , hpath-filepath         >= 0.10.4

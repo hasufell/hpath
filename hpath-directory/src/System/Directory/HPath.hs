@@ -81,9 +81,9 @@ module System.Directory.HPath
   )
   where
 
-import           System.Directory.AbstractFilePath (Permissions)
-import qualified System.Directory.AbstractFilePath as AFP
-import           System.File.AbstractFilePath
+import           System.Directory.OsPath (Permissions)
+import qualified System.Directory.OsPath as AFP
+import           System.File.OsPath
 import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile

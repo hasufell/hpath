@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
 
@@ -13,7 +14,12 @@ import           System.IO.Temp
 import           System.Posix.Directory as Posix
 import           System.Posix.Foreign
 import           Test.Hspec
+import           System.OsString.Internal.Types
+import qualified System.OsPath.Posix as P
+import           Data.String
 
+instance IsString PosixString where
+  fromString = either (error . show) id . P.encodeUtf
 
 
 checkDirContents :: FilePath -> IO ()

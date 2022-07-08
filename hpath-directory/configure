@@ -585,7 +585,7 @@ PACKAGE_STRING='Haskell directory package 1.0'
 PACKAGE_BUGREPORT='libraries@haskell.org'
 PACKAGE_URL=''
 
-ac_unique_file="src/System/Directory/AbstractFilePath.hs"
+ac_unique_file="src/System/Directory/OsPath.hs"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>

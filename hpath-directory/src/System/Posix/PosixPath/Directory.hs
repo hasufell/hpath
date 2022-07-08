@@ -1,5 +1,5 @@
 -- |
--- Module      :  System.Posix.PosixFilePath.Directory
+-- Module      :  System.Posix.PosixPath.Directory
 -- Copyright   :  © 2020 Julian Ospald
 -- License     :  BSD3
 --
@@ -25,13 +25,13 @@
 -- unreliable/unsafe. Check the documentation of those functions for details.
 --
 -- Import as:
--- > import System.Posix.PosixFilePath.Directory
+-- > import System.Posix.PosixPath.Directory
 
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE QuasiQuotes      #-}
 {-# LANGUAGE FlexibleContexts #-} -- streamly
 
-module System.Posix.PosixFilePath.Directory
+module System.Posix.PosixPath.Directory
   (
   -- * Types
     FileType(..)
@@ -112,7 +112,7 @@ module System.Posix.PosixFilePath.Directory
 where
 
 
-import           System.File.PlatformFilePath
+import           System.File.PlatformPath
 import           Control.Exception.Safe         ( IOException
                                                 , MonadCatch
                                                 , MonadMask
@@ -170,8 +170,8 @@ import           System.IO.Error                ( catchIOError
                                                 , ioeGetErrorType
                                                 )
 import           System.Posix.ByteString        ( exclusive )
-import           System.Posix.PosixFilePath.Directory.Errors
-import           System.Posix.Directory.PosixFilePath
+import           System.Posix.PosixPath.Directory.Errors
+import           System.Posix.Directory.PosixPath
                                                 ( createDirectory
                                                 , closeDirStream
                                                 , getWorkingDirectory
@@ -208,7 +208,7 @@ import           System.Posix.Types             ( FileMode
                                                 )
 import           System.Posix.Time
 
-import System.AbstractFilePath.Posix
+import System.OsPath.Posix
 import System.OsString.Internal.Types
 import System.Directory.Types
 import System.Directory.Errors
@@ -288,8 +288,8 @@ data FileType = Directory
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyDirRecursive :: PosixFilePath  -- ^ source dir
-                 -> PosixFilePath  -- ^ destination (parent dirs
+copyDirRecursive :: PosixPath  -- ^ source dir
+                 -> PosixPath  -- ^ destination (parent dirs
                                  --   are not automatically created)
                  -> CopyMode
                  -> RecursiveErrorMode
@@ -305,17 +305,17 @@ copyDirRecursive fromp destdirp cm rm = do
          (throwIO . RecursiveFailure $ collectedExceptions)
  where
 #if MIN_VERSION_base(4,9,0)
-  basename :: Fail.MonadFail m => PosixFilePath -> m PosixFilePath
+  basename :: Fail.MonadFail m => PosixPath -> m PosixPath
 #else
-  basename :: Fail.Monad m => PosixFilePath -> m PosixFilePath
+  basename :: Fail.Monad m => PosixPath -> m PosixPath
 #endif
   basename x =
     let b = takeBaseName x
     in  if b == mempty then Fail.fail ("No base name" :: String) else pure b
 
   go :: IORef [(RecursiveFailureHint, IOException)]
-     -> PosixFilePath
-     -> PosixFilePath
+     -> PosixPath
+     -> PosixPath
      -> IO ()
   go ce from destdir = do
 
@@ -396,8 +396,8 @@ copyDirRecursive fromp destdirp cm rm = do
 -- Notes:
 --
 --    - calls `symlink`
-recreateSymlink :: PosixFilePath   -- ^ the old symlink file
-                -> PosixFilePath   -- ^ destination file
+recreateSymlink :: PosixPath   -- ^ the old symlink file
+                -> PosixPath   -- ^ destination file
                 -> CopyMode
                 -> IO ()
 recreateSymlink symsource newsym cm = do
@@ -450,8 +450,8 @@ recreateSymlink symsource newsym cm = do
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyFile :: PosixFilePath   -- ^ source file
-         -> PosixFilePath   -- ^ destination file
+copyFile :: PosixPath   -- ^ source file
+         -> PosixPath   -- ^ destination file
          -> CopyMode
          -> IO ()
 copyFile from to cm = do
@@ -503,8 +503,8 @@ copyFile from to cm = do
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
-easyCopy :: PosixFilePath
-         -> PosixFilePath
+easyCopy :: PosixPath
+         -> PosixPath
          -> CopyMode
          -> RecursiveErrorMode
          -> IO ()
@@ -535,7 +535,7 @@ easyCopy from to cm rm = do
 --    - `PermissionDenied` if the directory cannot be read
 --
 -- Notes: calls `unlink`
-deleteFile :: PosixFilePath -> IO ()
+deleteFile :: PosixPath -> IO ()
 deleteFile = removeLink
 
 
@@ -550,7 +550,7 @@ deleteFile = removeLink
 --    - `PermissionDenied` if we can't open or write to parent directory
 --
 -- Notes: calls `rmdir`
-deleteDir :: PosixFilePath -> IO ()
+deleteDir :: PosixPath -> IO ()
 deleteDir = removeDirectory
 
 
@@ -573,7 +573,7 @@ deleteDir = removeDirectory
 --    - `InappropriateType` for wrong file type (regular file)
 --    - `NoSuchThing` if directory does not exist
 --    - `PermissionDenied` if we can't open or write to parent directory
-deleteDirRecursive :: PosixFilePath -> IO ()
+deleteDirRecursive :: PosixPath -> IO ()
 deleteDirRecursive p = catchErrno [eNOTEMPTY, eEXIST] (deleteDir p) $ do
   files <- getDirsFiles p
   for_ files $ \file -> do
@@ -595,7 +595,7 @@ deleteDirRecursive p = catchErrno [eNOTEMPTY, eEXIST] (deleteDir p) $ do
 --
 --    * examines filetypes explicitly
 --    * calls `deleteDirRecursive` for directories
-easyDelete :: PosixFilePath -> IO ()
+easyDelete :: PosixPath -> IO ()
 easyDelete p = do
   ftype <- getFileType p
   case ftype of
@@ -609,31 +609,31 @@ easyDelete p = do
     --[ File Write ]--
     ------------------
 
-appendExistingFile :: PosixFilePath -> L.ByteString -> IO ()
+appendExistingFile :: PosixPath -> L.ByteString -> IO ()
 appendExistingFile fp contents = withExistingFile fp SIO.AppendMode (`L.hPut` contents)
 
-appendExistingFile' :: PosixFilePath -> BS.ByteString -> IO ()
+appendExistingFile' :: PosixPath -> BS.ByteString -> IO ()
 appendExistingFile' fp contents = withExistingFile fp SIO.AppendMode (`BS.hPut` contents)
 
 
-writeExistingFile :: PosixFilePath -> L.ByteString -> IO ()
+writeExistingFile :: PosixPath -> L.ByteString -> IO ()
 writeExistingFile fp contents = withExistingFile fp SIO.WriteMode (`L.hPut` contents)
 
-writeExistingFile' :: PosixFilePath -> BS.ByteString -> IO ()
+writeExistingFile' :: PosixPath -> BS.ByteString -> IO ()
 writeExistingFile' fp contents = withExistingFile fp SIO.WriteMode (`BS.hPut` contents)
 
     --------------------
     --[ File Reading ]--
     --------------------
 
-readExistingFile :: PosixFilePath -> IO L.ByteString
+readExistingFile :: PosixPath -> IO L.ByteString
 readExistingFile fp = withExistingFile' fp SIO.ReadMode L.hGetContents
 
-readExistingFile' :: PosixFilePath -> IO BS.ByteString
+readExistingFile' :: PosixPath -> IO BS.ByteString
 readExistingFile' fp = withExistingFile fp SIO.ReadMode BS.hGetContents
 
 -- | Read the target of a symbolic link.
-readSymbolicLink :: PosixFilePath -> IO PosixString
+readSymbolicLink :: PosixPath -> IO PosixString
 readSymbolicLink = PF.readSymbolicLink
 
 
@@ -652,7 +652,7 @@ readSymbolicLink = PF.readSymbolicLink
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createRegularFile :: FileMode -> PosixFilePath -> IO ()
+createRegularFile :: FileMode -> PosixPath -> IO ()
 createRegularFile fm destBS = bracket
   (SPI.openFd destBS
               SPI.WriteOnly
@@ -670,7 +670,7 @@ createRegularFile fm destBS = bracket
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDir :: FileMode -> PosixFilePath -> IO ()
+createDir :: FileMode -> PosixPath -> IO ()
 createDir fm destBS = createDirectory destBS fm
 
 -- |Create an empty directory at the given directory with the given filename.
@@ -680,7 +680,7 @@ createDir fm destBS = createDirectory destBS fm
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDirIfMissing :: FileMode -> PosixFilePath -> IO ()
+createDirIfMissing :: FileMode -> PosixPath -> IO ()
 createDirIfMissing fm destBS =
   hideError AlreadyExists $ createDirectory destBS fm
 
@@ -703,10 +703,10 @@ createDirIfMissing fm destBS =
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
-createDirRecursive :: FileMode -> PosixFilePath -> IO ()
+createDirRecursive :: FileMode -> PosixPath -> IO ()
 createDirRecursive fm p = go p
  where
-  go :: PosixFilePath -> IO ()
+  go :: PosixPath -> IO ()
   go dest = do
     catchIOError (createDirectory dest fm) $ \e -> do
       errno <- getErrno
@@ -731,8 +731,8 @@ createDirRecursive fm p = go p
 --      do not exist
 --
 -- Note: calls `symlink`
-createSymlink :: PosixFilePath     -- ^ destination file
-              -> PosixFilePath     -- ^ path the symlink points to
+createSymlink :: PosixPath     -- ^ destination file
+              -> PosixPath     -- ^ path the symlink points to
               -> IO ()
 createSymlink destBS sympoint = createSymbolicLink sympoint destBS
 
@@ -764,7 +764,7 @@ createSymlink destBS sympoint = createSymbolicLink sympoint destBS
 --       (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
-renameFile :: PosixFilePath -> PosixFilePath -> IO ()
+renameFile :: PosixPath -> PosixPath -> IO ()
 renameFile fromf tof = do
   throwSameFile fromf tof
   throwFileDoesExist tof
@@ -803,8 +803,8 @@ renameFile fromf tof = do
 -- Notes:
 --
 --    - calls `rename` (but does not allow to rename over existing files)
-moveFile :: PosixFilePath   -- ^ file to move
-         -> PosixFilePath   -- ^ destination
+moveFile :: PosixPath   -- ^ file to move
+         -> PosixPath   -- ^ destination
          -> CopyMode
          -> IO ()
 moveFile from to cm = do
@@ -875,7 +875,7 @@ newDirPerms =
 -- Does not follow symlinks.
 --
 -- Only eNOENT is catched (and returns False).
-doesExist :: PosixFilePath -> IO Bool
+doesExist :: PosixPath -> IO Bool
 doesExist bs =
   catchErrno
       [eNOENT]
@@ -890,7 +890,7 @@ doesExist bs =
 -- Does not follow symlinks.
 --
 -- Only eNOENT is catched (and returns False).
-doesFileExist :: PosixFilePath -> IO Bool
+doesFileExist :: PosixPath -> IO Bool
 doesFileExist bs =
   catchErrno
       [eNOENT]
@@ -905,7 +905,7 @@ doesFileExist bs =
 -- Does not follow symlinks.
 --
 -- Only eNOENT is catched (and returns False).
-doesDirectoryExist :: PosixFilePath -> IO Bool
+doesDirectoryExist :: PosixPath -> IO Bool
 doesDirectoryExist bs =
   catchErrno
       [eNOENT]
@@ -923,7 +923,7 @@ doesDirectoryExist bs =
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isReadable :: PosixFilePath -> IO Bool
+isReadable :: PosixPath -> IO Bool
 isReadable bs = fileAccess bs True False False
 
 -- |Checks whether a file or folder is writable.
@@ -933,7 +933,7 @@ isReadable bs = fileAccess bs True False False
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isWritable :: PosixFilePath -> IO Bool
+isWritable :: PosixPath -> IO Bool
 isWritable bs = fileAccess bs False True False
 
 
@@ -944,14 +944,14 @@ isWritable bs = fileAccess bs False True False
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isExecutable :: PosixFilePath -> IO Bool
+isExecutable :: PosixPath -> IO Bool
 isExecutable bs = fileAccess bs False False True
 
 
 
 -- |Checks whether the directory at the given path exists and can be
 -- opened. This invokes `openDirStream` which follows symlinks.
-canOpenDirectory :: PosixFilePath -> IO Bool
+canOpenDirectory :: PosixPath -> IO Bool
 canOpenDirectory bs = handleIOError (\_ -> return False) $ do
   bracket (openDirStream bs) closeDirStream (\_ -> return ())
   return True
@@ -964,18 +964,18 @@ canOpenDirectory bs = handleIOError (\_ -> return False) $ do
     ------------------
 
 
-getModificationTime :: PosixFilePath -> IO UTCTime
+getModificationTime :: PosixPath -> IO UTCTime
 getModificationTime bs = do
   fs <- PF.getFileStatus bs
   pure $ posixSecondsToUTCTime $ PF.modificationTimeHiRes fs
 
-setModificationTime :: PosixFilePath -> UTCTime -> IO ()
+setModificationTime :: PosixPath -> UTCTime -> IO ()
 setModificationTime bs t = do
   -- TODO: setFileTimes doesn't allow to pass NULL to utime
   ctime <- epochTime
   PF.setFileTimes bs ctime (fromInteger . floor . utcTimeToPOSIXSeconds $ t)
 
-setModificationTimeHiRes :: PosixFilePath -> POSIXTime -> IO ()
+setModificationTimeHiRes :: PosixPath -> POSIXTime -> IO ()
 setModificationTimeHiRes bs t = do
   -- TODO: setFileTimesHiRes doesn't allow to pass NULL to utimes
   ctime <- getPOSIXTime
@@ -1000,15 +1000,15 @@ setModificationTimeHiRes bs t = do
 --     - `InappropriateType` if file type is wrong (symlink to file)
 --     - `InappropriateType` if file type is wrong (symlink to dir)
 --     - `PermissionDenied` if directory cannot be opened
-getDirsFiles :: PosixFilePath        -- ^ dir to read
-             -> IO [PosixFilePath]
+getDirsFiles :: PosixPath        -- ^ dir to read
+             -> IO [PosixPath]
 getDirsFiles p = do
   contents <- getDirsFiles' p
   pure $ fmap (p </>) contents
 
 
-getDirsFilesRec :: PosixFilePath        -- ^ dir to read
-                -> IO [PosixFilePath]
+getDirsFilesRec :: PosixPath        -- ^ dir to read
+                -> IO [PosixPath]
 getDirsFilesRec p = do
   contents <- getDirsFilesRec' p
   pure $ fmap (p </>) contents
@@ -1016,19 +1016,19 @@ getDirsFilesRec p = do
 
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
-getDirsFiles' :: PosixFilePath        -- ^ dir to read
-              -> IO [PosixFilePath]
+getDirsFiles' :: PosixPath        -- ^ dir to read
+              -> IO [PosixPath]
 getDirsFiles' fp = getDirsFilesStream fp >>= S.toList
 
 
-getDirsFilesRec' :: PosixFilePath        -- ^ dir to read
-                       -> IO [PosixFilePath]
+getDirsFilesRec' :: PosixPath        -- ^ dir to read
+                       -> IO [PosixPath]
 getDirsFilesRec' fp = getDirsFilesStreamRec fp >>= S.toList
 
 
 getDirsFilesStreamRec :: (MonadCatch m, MonadAsync m, MonadMask m)
-                      => PosixFilePath
-                      -> IO (SerialT m PosixFilePath)
+                      => PosixPath
+                      -> IO (SerialT m PosixPath)
 getDirsFilesStreamRec fp = do
   stream <- getDirsFilesStream fp
   pure $ S.concatMapM inner stream
@@ -1045,8 +1045,8 @@ getDirsFilesStreamRec fp = do
 
 -- | Like 'getDirsFiles'', except returning a Stream.
 getDirsFilesStream :: (MonadCatch m, MonadAsync m, MonadMask m)
-                   => PosixFilePath
-                   -> IO (SerialT m PosixFilePath)
+                   => PosixPath
+                   -> IO (SerialT m PosixPath)
 getDirsFilesStream fp = do
   fd <- openFd fp SPI.ReadOnly [SPDF.oNofollow] Nothing
   ds <- SPDT.fdOpendir fd `onException` SPI.closeFd fd
@@ -1057,10 +1057,10 @@ getDirsFilesStream fp = do
     --[ CWD ]--
     -----------
 
-getCurrentDirectory :: IO PosixFilePath
+getCurrentDirectory :: IO PosixPath
 getCurrentDirectory = getWorkingDirectory
 
-setCurrentDirectory :: PosixFilePath -> IO ()
+setCurrentDirectory :: PosixPath -> IO ()
 setCurrentDirectory = changeWorkingDirectory
 
 
@@ -1077,7 +1077,7 @@ setCurrentDirectory = changeWorkingDirectory
 --
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if any part of the path is not accessible
-getFileType :: PosixFilePath -> IO FileType
+getFileType :: PosixPath -> IO FileType
 getFileType fp = do
   fs <- PF.getSymbolicLinkStatus fp
   decide fs
@@ -1105,7 +1105,7 @@ getFileType fp = do
 --
 --    - `NoSuchThing` if the file at the given path does not exist
 --    - `NoSuchThing` if the symlink is broken
-canonicalizePath :: PosixFilePath -> IO PosixFilePath
+canonicalizePath :: PosixPath -> IO PosixPath
 canonicalizePath = SPDT.realpath
 
 
@@ -1114,7 +1114,7 @@ canonicalizePath = SPDT.realpath
 --
 --    - if the path is already an absolute one, just return it
 --    - if it's a relative path, prepend the current directory to it
-toAbs :: PosixFilePath -> IO PosixFilePath
+toAbs :: PosixPath -> IO PosixPath
 toAbs bs = do
   case isAbsolute bs of
     True  -> return bs
@@ -1123,12 +1123,12 @@ toAbs bs = do
       return $ cwd </> bs
 
 
-withExistingFile :: PosixFilePath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
+withExistingFile :: PosixPath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
 withExistingFile fp iomode = bracket
   (openExistingFile fp iomode)
   SIO.hClose
 
-withExistingFile' :: PosixFilePath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
+withExistingFile' :: PosixPath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
 withExistingFile' fp iomode action = do
   h <- openExistingFile fp iomode
   action h

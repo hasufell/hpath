@@ -2,7 +2,7 @@ cabal-version:      >=1.10
 name:               hpath-directory
 version:            0.15.2.2
 synopsis:
-  Alternative to 'directory' package with AbstractFilePath based filepaths
+  Alternative to 'directory' package with OsPath based filepaths
 
 description:
   This provides a safer alternative to the 'directory'
@@ -28,7 +28,7 @@ extra-tmp-files:
 
 extra-source-files:
   ./src/HsDirectoryConfig.h.in
-  ./src/System/Win32/WindowsFilePath/*.h
+  ./src/System/Win32/WindowsPath/*.h
   CHANGELOG.md
 
 tested-with:
@@ -37,7 +37,7 @@ tested-with:
 library
   if os(windows)
     cpp-options:     -DWINDOWS
-    exposed-modules: System.Win32.WindowsFilePath.Directory
+    exposed-modules: System.Win32.WindowsPath.Directory
     build-depends:
         Win32
 
@@ -45,8 +45,8 @@ library
 
   else
     exposed-modules:
-      System.Posix.PosixFilePath.Directory
-      System.Posix.PosixFilePath.Directory.Errors
+      System.Posix.PosixPath.Directory
+      System.Posix.PosixPath.Directory.Errors
 
     build-depends:
         hpath-posix             >=0.14.0
@@ -55,7 +55,7 @@ library
       , unix-bytestring         >=0.3
 
   exposed-modules:
-    System.Directory.AbstractFilePath
+    System.Directory.OsPath
     System.Directory.HPath
     System.Directory.Errors
     System.Directory.Types
@@ -66,7 +66,7 @@ library
       base                     >=4.8   && <5
     , bytestring               >=0.10
     , exceptions               >=0.10
-    , filepath                 >=2.0.0.0
+    , filepath                 >=1.4.99.5
     , file-io
     , IfElse
     , hpath
@@ -138,7 +138,7 @@ test-suite spec
       , unix-bytestring
 
   build-depends:
-      filepath                 >=2.0.0.0
+      filepath                 >=1.4.99.5
     , base
     , bytestring               >=0.10.0.0
     , hpath-directory

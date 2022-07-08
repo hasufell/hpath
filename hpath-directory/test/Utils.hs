@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 
 module Utils where
@@ -34,32 +35,38 @@ import System.IO.Unsafe
   )
 #ifdef WINDOWS
 #else
-import System.Posix.PosixFilePath.Directory
+import System.Posix.PosixPath.Directory
   (
     getFileType
   )
-import System.AbstractFilePath.Posix (PosixFilePath)
+import System.OsPath.Posix (PosixPath)
 #endif
 import Data.ByteString
   (
     ByteString
   )
-import System.AbstractFilePath
+import System.OsPath
 import System.OsString.Internal.Types
-import qualified System.AbstractFilePath as AFP
+import qualified System.OsPath as AFP
+import qualified System.OsPath.Posix as P
 
-import System.Directory.AbstractFilePath hiding ( getFileType )
-import System.File.AbstractFilePath
+import System.Directory.OsPath hiding ( getFileType )
+import System.File.OsPath
+import Data.String (IsString (fromString))
 
 
+instance IsString OsString where
+  fromString = either (error . show) id . AFP.encodeUtf
 
+instance IsString PosixString where
+  fromString = either (error . show) id . P.encodeUtf
 
-baseTmpDir :: IORef (Maybe AbstractFilePath)
+baseTmpDir :: IORef (Maybe OsPath)
 {-# NOINLINE baseTmpDir #-}
 baseTmpDir = unsafePerformIO (newIORef Nothing)
 
 
-tmpDir :: IORef (Maybe AbstractFilePath)
+tmpDir :: IORef (Maybe OsPath)
 {-# NOINLINE tmpDir #-}
 tmpDir = unsafePerformIO (newIORef Nothing)
 
@@ -70,7 +77,7 @@ tmpDir = unsafePerformIO (newIORef Nothing)
     -----------------
 
 
-setTmpDir :: AbstractFilePath -> IO ()
+setTmpDir :: OsPath -> IO ()
 {-# NOINLINE setTmpDir #-}
 setTmpDir bs = do
   tmp <- fromJust <$> readIORef baseTmpDir
@@ -100,19 +107,19 @@ deleteBaseTmpDir = do
   void $ deleteDir tmp
 
 
-withRawTmpDir :: (AbstractFilePath -> IO a) -> IO a
+withRawTmpDir :: (OsPath -> IO a) -> IO a
 {-# NOINLINE withRawTmpDir #-}
 withRawTmpDir f = do
   tmp <- fromJust <$> readIORef tmpDir
   f tmp
 
 
-getRawTmpDir :: IO AbstractFilePath
+getRawTmpDir :: IO OsPath
 {-# NOINLINE getRawTmpDir #-}
-getRawTmpDir = withRawTmpDir (return . packAFP . (++ [unsafeFromChar '/']) . unpackAFP)
+getRawTmpDir = withRawTmpDir (return . pack . (++ [unsafeFromChar '/']) . unpack)
 
 
-withTmpDir :: AbstractFilePath -> (AbstractFilePath -> IO a) -> IO a
+withTmpDir :: OsPath -> (OsPath -> IO a) -> IO a
 {-# NOINLINE withTmpDir #-}
 withTmpDir ip f = do
   tmp <- fromJust <$> readIORef tmpDir
@@ -120,9 +127,9 @@ withTmpDir ip f = do
   f p
 
 
-withTmpDir' :: AbstractFilePath
-            -> AbstractFilePath
-            -> (AbstractFilePath -> AbstractFilePath -> IO a)
+withTmpDir' :: OsPath
+            -> OsPath
+            -> (OsPath -> OsPath -> IO a)
             -> IO a
 {-# NOINLINE withTmpDir' #-}
 withTmpDir' ip1 ip2 f = do
@@ -132,55 +139,55 @@ withTmpDir' ip1 ip2 f = do
   f p1 p2
 
 
-removeFileIfExists :: AbstractFilePath -> IO ()
+removeFileIfExists :: OsPath -> IO ()
 {-# NOINLINE removeFileIfExists #-}
 removeFileIfExists bs =
   withTmpDir bs $ \p -> whenM (doesFileExist p) (deleteFile p)
 
 
-removeDirIfExists :: AbstractFilePath -> IO ()
+removeDirIfExists :: OsPath -> IO ()
 {-# NOINLINE removeDirIfExists #-}
 removeDirIfExists bs =
   withTmpDir bs $ \p -> whenM (doesDirectoryExist p) (deleteDirRecursive p)
 
 
-copyFile' :: AbstractFilePath -> AbstractFilePath -> CopyMode -> IO ()
+copyFile' :: OsPath -> OsPath -> CopyMode -> IO ()
 {-# NOINLINE copyFile' #-}
 copyFile' inputFileP outputFileP cm =
   withTmpDir' inputFileP outputFileP (\p1 p2 -> copyFile p1 p2 cm)
 
 
-copyDirRecursive' :: AbstractFilePath -> AbstractFilePath
+copyDirRecursive' :: OsPath -> OsPath
                   -> CopyMode -> RecursiveErrorMode -> IO ()
 {-# NOINLINE copyDirRecursive' #-}
 copyDirRecursive' inputDirP outputDirP cm rm =
   withTmpDir' inputDirP outputDirP (\p1 p2 -> copyDirRecursive p1 p2 cm rm)
 
 
-createDir' :: AbstractFilePath -> IO ()
+createDir' :: OsPath -> IO ()
 {-# NOINLINE createDir' #-}
 createDir' dest = withTmpDir dest createDir
 
-createDirIfMissing' :: AbstractFilePath -> IO ()
+createDirIfMissing' :: OsPath -> IO ()
 {-# NOINLINE createDirIfMissing' #-}
 createDirIfMissing' dest = withTmpDir dest createDirIfMissing
 
-createDirRecursive' :: AbstractFilePath -> IO ()
+createDirRecursive' :: OsPath -> IO ()
 {-# NOINLINE createDirRecursive' #-}
 createDirRecursive' dest = withTmpDir dest createDirRecursive
 
-createRegularFile' :: AbstractFilePath -> IO ()
+createRegularFile' :: OsPath -> IO ()
 {-# NOINLINE createRegularFile' #-}
 createRegularFile' dest = withTmpDir dest createRegularFile
 
 
-createSymlink' :: AbstractFilePath -> AbstractFilePath -> Bool -> IO ()
+createSymlink' :: OsPath -> OsPath -> Bool -> IO ()
 {-# NOINLINE createSymlink' #-}
 createSymlink' dest sympoint b = withTmpDir dest
   (\x -> createSymlink x sympoint b)
 
 
-renameFile' :: AbstractFilePath -> AbstractFilePath -> IO ()
+renameFile' :: OsPath -> OsPath -> IO ()
 {-# NOINLINE renameFile' #-}
 renameFile' inputFileP outputFileP =
   withTmpDir' inputFileP outputFileP $ \i o -> do
@@ -188,7 +195,7 @@ renameFile' inputFileP outputFileP =
     renameFile o i
 
 
-moveFile' :: AbstractFilePath -> AbstractFilePath -> CopyMode -> IO ()
+moveFile' :: OsPath -> OsPath -> CopyMode -> IO ()
 {-# NOINLINE moveFile' #-}
 moveFile' inputFileP outputFileP cm =
   withTmpDir' inputFileP outputFileP $ \i o -> do
@@ -196,123 +203,123 @@ moveFile' inputFileP outputFileP cm =
     moveFile o i Strict
 
 
-recreateSymlink' :: AbstractFilePath -> AbstractFilePath -> CopyMode -> IO ()
+recreateSymlink' :: OsPath -> OsPath -> CopyMode -> IO ()
 {-# NOINLINE recreateSymlink' #-}
 recreateSymlink' inputFileP outputFileP cm =
   withTmpDir' inputFileP outputFileP (\p1 p2 -> recreateSymlink p1 p2 cm)
 
 
-noWritableDirPerms :: AbstractFilePath -> IO ()
+noWritableDirPerms :: OsPath -> IO ()
 {-# NOINLINE noWritableDirPerms #-}
 noWritableDirPerms path = withTmpDir path $ \p ->
   setPermissions p (setOwnerWritable False newDirPerms)
 
 
-noPerms :: AbstractFilePath -> IO ()
+noPerms :: OsPath -> IO ()
 {-# NOINLINE noPerms #-}
 noPerms path = withTmpDir path $ \p ->
   setPermissions p emptyPermissions
 
 
-normalDirPerms :: AbstractFilePath -> IO ()
+normalDirPerms :: OsPath -> IO ()
 {-# NOINLINE normalDirPerms #-}
 normalDirPerms path =
   withTmpDir path $ \p ->
     setPermissions p newDirPerms
 
 
-normalFilePerms :: AbstractFilePath -> IO ()
+normalFilePerms :: OsPath -> IO ()
 {-# NOINLINE normalFilePerms #-}
 normalFilePerms path =
   withTmpDir path $ \p ->
     setPermissions p newFilePerms
 
 #ifndef WINDOWS
-getFileType' :: PosixFilePath -> IO FileType
+getFileType' :: PosixPath -> IO FileType
 {-# NOINLINE getFileType' #-}
 getFileType' path = withTmpDir (OsString path) $ \(OsString p) -> getFileType p
 #endif
 
 
-getDirsFiles' :: AbstractFilePath -> IO [AbstractFilePath]
+getDirsFiles' :: OsPath -> IO [OsPath]
 {-# NOINLINE getDirsFiles' #-}
 getDirsFiles' path = withTmpDir path getDirsFiles
 
 
-deleteFile' :: AbstractFilePath -> IO ()
+deleteFile' :: OsPath -> IO ()
 {-# NOINLINE deleteFile' #-}
 deleteFile' p = withTmpDir p deleteFile
 
 
-deleteDir' :: AbstractFilePath -> IO ()
+deleteDir' :: OsPath -> IO ()
 {-# NOINLINE deleteDir' #-}
 deleteDir' p = withTmpDir p deleteDir
 
 
-deleteDirRecursive' :: AbstractFilePath -> IO ()
+deleteDirRecursive' :: OsPath -> IO ()
 {-# NOINLINE deleteDirRecursive' #-}
 deleteDirRecursive' p = withTmpDir p deleteDirRecursive
 
 
-canonicalizePath' :: AbstractFilePath -> IO AbstractFilePath
+canonicalizePath' :: OsPath -> IO OsPath
 {-# NOINLINE canonicalizePath' #-}
 canonicalizePath' p = withTmpDir p canonicalizePath
 
 
-writeFile' :: AbstractFilePath -> ByteString -> IO ()
+writeFile' :: OsPath -> ByteString -> IO ()
 {-# NOINLINE writeFile' #-}
 writeFile' ip bs =
-  withTmpDir ip $ \p -> System.File.AbstractFilePath.writeFile' p bs
+  withTmpDir ip $ \p -> System.File.OsPath.writeFile' p bs
 
-writeFileL' :: AbstractFilePath -> BSL.ByteString -> IO ()
+writeFileL' :: OsPath -> BSL.ByteString -> IO ()
 {-# NOINLINE writeFileL' #-}
 writeFileL' ip bs =
   withTmpDir ip $ \p -> writeFile p bs
 
-writeExistingFile' :: AbstractFilePath -> ByteString -> IO ()
+writeExistingFile' :: OsPath -> ByteString -> IO ()
 {-# NOINLINE writeExistingFile' #-}
 writeExistingFile' ip bs =
-  withTmpDir ip $ \p -> System.Directory.AbstractFilePath.writeExistingFile' p bs
+  withTmpDir ip $ \p -> System.Directory.OsPath.writeExistingFile' p bs
 
-writeExistingFileL' :: AbstractFilePath -> BSL.ByteString -> IO ()
+writeExistingFileL' :: OsPath -> BSL.ByteString -> IO ()
 {-# NOINLINE writeExistingFileL' #-}
 writeExistingFileL' ip bs =
   withTmpDir ip $ \p -> writeExistingFile p bs
 
-appendFile' :: AbstractFilePath -> ByteString -> IO ()
+appendFile' :: OsPath -> ByteString -> IO ()
 {-# NOINLINE appendFile' #-}
 appendFile' ip bs =
-  withTmpDir ip $ \p -> System.File.AbstractFilePath.appendFile' p bs
+  withTmpDir ip $ \p -> System.File.OsPath.appendFile' p bs
 
-appendExistingFile' :: AbstractFilePath -> ByteString -> IO ()
+appendExistingFile' :: OsPath -> ByteString -> IO ()
 {-# NOINLINE appendExistingFile' #-}
 appendExistingFile' ip bs =
-  withTmpDir ip $ \p -> System.Directory.AbstractFilePath.appendExistingFile' p bs
+  withTmpDir ip $ \p -> System.Directory.OsPath.appendExistingFile' p bs
 
 
 {-# NOINLINE allDirectoryContents' #-}
-allDirectoryContents' :: AbstractFilePath -> IO [AbstractFilePath]
+allDirectoryContents' :: OsPath -> IO [OsPath]
 allDirectoryContents' ip =
   withTmpDir ip $ \p -> getDirsFilesRec p
 
 
-readFile' :: AbstractFilePath -> IO ByteString
+readFile' :: OsPath -> IO ByteString
 {-# NOINLINE readFile' #-}
-readFile' p = withTmpDir p System.File.AbstractFilePath.readFile'
+readFile' p = withTmpDir p System.File.OsPath.readFile'
 
-readExistingFile' :: AbstractFilePath -> IO ByteString
+readExistingFile' :: OsPath -> IO ByteString
 {-# NOINLINE readExistingFile' #-}
-readExistingFile' p = withTmpDir p System.Directory.AbstractFilePath.readExistingFile'
+readExistingFile' p = withTmpDir p System.Directory.OsPath.readExistingFile'
 
-readFileL :: AbstractFilePath -> IO BSL.ByteString
+readFileL :: OsPath -> IO BSL.ByteString
 {-# NOINLINE readFileL #-}
 readFileL p = withTmpDir p readFile
 
-readExistingFileL :: AbstractFilePath -> IO BSL.ByteString
+readExistingFileL :: OsPath -> IO BSL.ByteString
 {-# NOINLINE readExistingFileL #-}
-readExistingFileL p = withTmpDir p System.Directory.AbstractFilePath.readExistingFile
+readExistingFileL p = withTmpDir p System.Directory.OsPath.readExistingFile
 
-dirExists :: AbstractFilePath -> IO Bool
+dirExists :: OsPath -> IO Bool
 {-# NOINLINE dirExists #-}
 dirExists fp = doesDirectoryExist fp
 

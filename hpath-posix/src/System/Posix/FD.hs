@@ -28,8 +28,8 @@ import Foreign.C.String
 import Foreign.C.Types
 import System.Posix.Foreign
 import qualified System.Posix as Posix
-import System.Posix.PosixFilePath.FilePath
-import System.AbstractFilePath.Types
+import System.Posix.PosixPath.FilePath
+import System.OsPath.Types
 
 
 foreign import ccall unsafe "open"
@@ -64,7 +64,7 @@ open_ str how optional_flags maybe_mode = do
 -- Note that passing @Just x@ as the 4th argument triggers the
 -- `oCreat` status flag, which must be set when you pass in `oExcl`
 -- to the status flags. Also see the manpage for @open(2)@.
-openFd :: PosixFilePath
+openFd :: PosixPath
        -> Posix.OpenMode
        -> [Flags]               -- ^ status flags of @open(2)@
        -> Maybe Posix.FileMode  -- ^ @Just x@ => creates the file with the given modes, Nothing => the file must exist.

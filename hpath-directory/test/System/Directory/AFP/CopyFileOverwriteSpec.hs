@@ -4,7 +4,7 @@ module System.Directory.AFP.CopyFileOverwriteSpec where
 
 
 import Test.Hspec
-import System.Directory.AbstractFilePath hiding (writeFile')
+import System.Directory.OsPath hiding (writeFile')
 import System.IO.Error
   (
     ioeGetErrorType
@@ -16,7 +16,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import System.AbstractFilePath
+import System.OsPath
 
 
 
@@ -69,7 +69,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyFile (Overwrite), output file already exists, all clear" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromAbstractFilePathIO tmpDir'
+      tmpDirS <- decodeFS tmpDir'
       copyFile' "alreadyExists" "alreadyExists.bak" Strict
       copyFile' "inputFile" "alreadyExists" Overwrite
       (system $ "cmp -s " ++ tmpDirS ++ "inputFile" ++ " "
@@ -81,7 +81,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyFile (Overwrite), and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromAbstractFilePathIO tmpDir'
+      tmpDirS <- decodeFS tmpDir'
       copyFile' "inputFile"
                 "outputFile"
                 Overwrite

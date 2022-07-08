@@ -5,7 +5,7 @@ module System.Directory.AFP.CopyFileSpec where
 
 
 import Test.Hspec
-import System.Directory.AbstractFilePath hiding (writeFile')
+import System.Directory.OsPath hiding (writeFile')
 import System.IO.Error
   (
     ioeGetErrorType
@@ -17,7 +17,7 @@ import GHC.IO.Exception
 import System.Exit
 import System.Process
 import Utils
-import System.AbstractFilePath
+import System.OsPath
 
 
 
@@ -68,7 +68,7 @@ spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
 
     it "copyFile (Strict), and compare" $ do
       tmpDir' <- getRawTmpDir
-      tmpDirS <- fromAbstractFilePathIO tmpDir'
+      tmpDirS <- decodeFS tmpDir'
       copyFile' "inputFile"
                 "outputFile"
                 Strict

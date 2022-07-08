@@ -2,7 +2,7 @@ module System.Directory.Types where
 
 import Control.Exception (Exception, IOException)
 import Data.Typeable (Typeable)
-import System.AbstractFilePath.Types
+import System.OsPath.Types
 
 
 
@@ -14,8 +14,8 @@ import System.AbstractFilePath.Types
 
 -- |Additional generic IO exceptions that the posix functions
 -- do not provide.
-data HPathIOException = SameFile AbstractFilePath AbstractFilePath
-                      | DestinationInSource AbstractFilePath AbstractFilePath
+data HPathIOException = SameFile OsPath OsPath
+                      | DestinationInSource OsPath OsPath
                       | RecursiveFailure [(RecursiveFailureHint, IOException)]
   deriving (Eq, Show, Typeable)
 
@@ -26,10 +26,10 @@ data HPathIOException = SameFile AbstractFilePath AbstractFilePath
 --
 -- The first argument to the data constructor is always the
 -- source and the second the destination.
-data RecursiveFailureHint = ReadContentsFailed    AbstractFilePath AbstractFilePath
-                          | CreateDirFailed       AbstractFilePath AbstractFilePath
-                          | CopyFileFailed        AbstractFilePath AbstractFilePath
-                          | RecreateSymlinkFailed AbstractFilePath AbstractFilePath
+data RecursiveFailureHint = ReadContentsFailed    OsPath OsPath
+                          | CreateDirFailed       OsPath OsPath
+                          | CopyFileFailed        OsPath OsPath
+                          | RecreateSymlinkFailed OsPath OsPath
   deriving (Eq, Show)
 
 

@@ -1,5 +1,5 @@
 -- |
--- Module      :  System.Posix.PosixFilePath.Directory.Errors
+-- Module      :  System.Posix.PosixPath.Directory.Errors
 -- Copyright   :  © 2016 Julian Ospald
 -- License     :  BSD3
 --
@@ -13,7 +13,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiWayIf          #-}
 
-module System.Posix.PosixFilePath.Directory.Errors
+module System.Posix.PosixPath.Directory.Errors
   (
   -- * Types
     HPathIOException(..)
@@ -52,7 +52,7 @@ import Foreign.C.Error
     getErrno
   , Errno
   )
-import {-# SOURCE #-} System.Posix.PosixFilePath.Directory
+import {-# SOURCE #-} System.Posix.PosixPath.Directory
   (
     canonicalizePath
   , toAbs
@@ -69,10 +69,10 @@ import System.Posix.Files.PosixString
     getFileStatus
   )
 import qualified System.Posix.Files.PosixString as PF
-import System.AbstractFilePath.Posix
-import qualified System.AbstractFilePath.Posix.Internal as Raw
+import System.OsPath.Posix
+import qualified System.OsPath.Posix.Internal as Raw
 import qualified System.OsString.Internal.Types as Raw
-import qualified System.AbstractFilePath.Data.ByteString.Short as BS
+import qualified System.OsPath.Data.ByteString.Short as BS
 import System.Directory.Types
 import System.OsString.Internal.Types
 
@@ -92,9 +92,9 @@ import System.OsString.Internal.Types
 
 
 -- |Throws `AlreadyExists` `IOError` if file exists.
-throwFileDoesExist :: PosixFilePath -> IO ()
+throwFileDoesExist :: PosixPath -> IO ()
 throwFileDoesExist bs = do
-  locstr <- fromPlatformStringIO bs
+  locstr <- decodeFS bs
   whenM (doesFileExist bs)
         (ioError . mkIOError
                      alreadyExistsErrorType
@@ -105,9 +105,9 @@ throwFileDoesExist bs = do
 
 
 -- |Throws `AlreadyExists` `IOError` if directory exists.
-throwDirDoesExist :: PosixFilePath -> IO ()
+throwDirDoesExist :: PosixPath -> IO ()
 throwDirDoesExist bs = do
-  locstr <- fromPlatformStringIO bs
+  locstr <- decodeFS bs
   whenM (doesDirectoryExist bs)
         (ioError . mkIOError
                      alreadyExistsErrorType
@@ -118,8 +118,8 @@ throwDirDoesExist bs = do
 
 
 -- |Uses `isSameFile` and throws `SameFile` if it returns True.
-throwSameFile :: PosixFilePath
-              -> PosixFilePath
+throwSameFile :: PosixPath
+              -> PosixPath
               -> IO ()
 throwSameFile bs1 bs2 =
   whenM (sameFile bs1 bs2)
@@ -128,7 +128,7 @@ throwSameFile bs1 bs2 =
 
 -- |Check if the files are the same by examining device and file id.
 -- This follows symbolic links.
-sameFile :: PosixFilePath -> PosixFilePath -> IO Bool
+sameFile :: PosixPath -> PosixPath -> IO Bool
 sameFile fp1 fp2 =
   handleIOError (\_ -> return False) $ do
     fs1 <- getFileStatus fp1
@@ -145,8 +145,8 @@ sameFile fp1 fp2 =
 -- within the source directory by comparing the device+file ID of the
 -- source directory with all device+file IDs of the parent directories
 -- of the destination.
-throwDestinationInSource :: PosixFilePath -- ^ source dir
-                         -> PosixFilePath -- ^ full destination, @dirname dest@
+throwDestinationInSource :: PosixPath -- ^ source dir
+                         -> PosixPath -- ^ full destination, @dirname dest@
                                         --   must exist
                          -> IO ()
 throwDestinationInSource sbs dbs = do
@@ -164,7 +164,7 @@ throwDestinationInSource sbs dbs = do
     basename x = let b = takeBaseName x
                  in if b == mempty then Nothing else Just b
 
-    takeAllParents :: PosixFilePath -> [PosixFilePath]
+    takeAllParents :: PosixPath -> [PosixPath]
     takeAllParents p =
       let s = splitDirectories p
       in fmap Raw.PS
@@ -182,7 +182,7 @@ throwDestinationInSource sbs dbs = do
                                                                          )
                                 )
                        ) mempty
-           . fmap Raw.unPFP
+           . fmap Raw.unPS
            $ s
      where
       filterEmptyHead :: [BS.ShortByteString] -> [BS.ShortByteString]

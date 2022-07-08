@@ -10,7 +10,7 @@ module HPath.Internal
   (Path(..))
   where
 
-import System.AbstractFilePath
+import System.OsPath
 import Control.DeepSeq (NFData (..))
 import Data.Data
 import GHC.Generics (Generic)
@@ -38,7 +38,7 @@ import qualified Language.Haskell.TH.Syntax as TH
 --
 -- The constructor is not exposed. Instead, use the smart constructors
 -- 'HPath.parseAbs', 'HPath.parseRel' and 'HPath.parseAny'.
-data Path b = MkPath AbstractFilePath
+data Path b = MkPath OsPath
   deriving (Typeable, Generic, NFData)
 
 -- | ByteString equality.

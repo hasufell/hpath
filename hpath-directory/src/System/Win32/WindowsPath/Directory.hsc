@@ -1,5 +1,5 @@
 -- |
--- Module      :  System.Win32.WindowsFilePath.Directory
+-- Module      :  System.Win32.WindowsPath.Directory
 -- Copyright   :  © 2020 Julian Ospald
 -- License     :  BSD3
 --
@@ -25,14 +25,14 @@
 -- unreliable/unsafe. Check the documentation of those functions for details.
 --
 -- Import as:
--- > import System.Win32.WindowsFilePath.Directory
+-- > import System.Win32.WindowsPath.Directory
 
 {-# LANGUAGE CPP              #-}
 {-# LANGUAGE QuasiQuotes      #-}
 {-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE FlexibleContexts #-} -- streamly
 
-module System.Win32.WindowsFilePath.Directory
+module System.Win32.WindowsPath.Directory
   (
   -- * Types
     FileType(..)
@@ -126,10 +126,10 @@ where
 ##endif
 #include <shlobj.h>
 #include <windows.h>
-#include <System/Win32/WindowsFilePath/utility.h>
-#include <System/Win32/WindowsFilePath/windows_ext.h>
+#include <System/Win32/WindowsPath/utility.h>
+#include <System/Win32/WindowsPath/windows_ext.h>
 
-import           System.File.PlatformFilePath
+import           System.File.PlatformPath
 import           Control.Exception.Safe         ( IOException
                                                 , MonadCatch
                                                 , MonadMask
@@ -143,6 +143,7 @@ import qualified Control.Monad.Fail             as Fail
 import qualified Control.Monad                  as Fail
 #endif
 import           Control.Monad                  ( when
+                                                , forM
                                                 )
 import           Control.Monad.IO.Class         ( liftIO
                                                 , MonadIO
@@ -165,8 +166,7 @@ import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
-                
-import           Streamly (MonadAsync, SerialT)                                
+import           Streamly.Prelude (MonadAsync, SerialT)
 
 import qualified Streamly.Internal.Data.Unfold as SU
 
@@ -176,7 +176,7 @@ import           Streamly.Internal.Data.Unfold.Type
 import qualified Streamly.Internal.Data.Stream.IsStream.Expand as SE
 import qualified Streamly.Prelude              as S
 
-import System.AbstractFilePath.Windows
+import System.OsPath.Windows
 import System.OsString.Internal.Types
 import System.Directory.Types
 import System.Directory.Errors
@@ -193,10 +193,13 @@ import Foreign.Marshal.Alloc
 import Foreign.Marshal.Utils
 import Foreign.Storable
 import Foreign.C.Types
-import System.AbstractFilePath.Data.ByteString.Short.Word16 (packCWStringLen, ShortByteString)
-import qualified System.AbstractFilePath.Data.ByteString.Short.Word16 as W16
+import System.OsPath.Data.ByteString.Short.Word16 (packCWStringLen, ShortByteString)
+import qualified System.OsPath.Data.ByteString.Short.Word16 as W16
 import System.IO.Error
 import Data.Void
+import qualified Data.ByteString.Lazy          as L
+import qualified System.IO                     as SIO
+import qualified Data.ByteString               as BS
 
 
 
@@ -286,8 +289,8 @@ data Win32_REPARSE_DATA_BUFFER
 -- Throws in `Strict` CopyMode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyDirRecursive :: WindowsFilePath  -- ^ source dir
-                 -> WindowsFilePath  -- ^ destination (parent dirs
+copyDirRecursive :: WindowsPath  -- ^ source dir
+                 -> WindowsPath  -- ^ destination (parent dirs
                                  --   are not automatically created)
                  -> CopyMode
                  -> RecursiveErrorMode
@@ -304,17 +307,17 @@ copyDirRecursive fromp destdirp cm rm = do
   --       (throwIO . RecursiveFailure $ collectedExceptions)
  where
 #if MIN_VERSION_base(4,9,0)
-  basename :: Fail.MonadFail m => WindowsFilePath -> m WindowsFilePath
+  basename :: Fail.MonadFail m => WindowsPath -> m WindowsPath
 #else
-  basename :: Fail.Monad m => WindowsFilePath -> m WindowsFilePath
+  basename :: Fail.Monad m => WindowsPath -> m WindowsPath
 #endif
   basename x =
     let b = takeFileName x
     in  if b == mempty then Fail.fail ("No base name" :: String) else pure b
 
   go :: IORef [(RecursiveFailureHint, IOException)]
-     -> WindowsFilePath
-     -> WindowsFilePath
+     -> WindowsPath
+     -> WindowsPath
      -> IO ()
   go ce from destdir = do
 
@@ -394,8 +397,8 @@ copyDirRecursive fromp destdirp cm rm = do
 -- Throws in `Overwrite` mode only:
 --
 --    - `UnsatisfiedConstraints` if destination file is non-empty directory
-recreateSymlink :: WindowsFilePath   -- ^ the old symlink file
-                -> WindowsFilePath   -- ^ destination file
+recreateSymlink :: WindowsPath   -- ^ the old symlink file
+                -> WindowsPath   -- ^ destination file
                 -> CopyMode
                 -> IO ()
 recreateSymlink symsource newsym cm = do
@@ -448,8 +451,8 @@ recreateSymlink symsource newsym cm = do
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyFile :: WindowsFilePath   -- ^ source file
-         -> WindowsFilePath   -- ^ destination file
+copyFile :: WindowsPath   -- ^ source file
+         -> WindowsPath   -- ^ destination file
          -> CopyMode
          -> IO ()
 copyFile from to cm = WS.copyFile from to (cm == Strict)
@@ -463,8 +466,8 @@ copyFile from to cm = WS.copyFile from to (cm == Strict)
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
-easyCopy :: WindowsFilePath
-         -> WindowsFilePath
+easyCopy :: WindowsPath
+         -> WindowsPath
          -> CopyMode
          -> RecursiveErrorMode
          -> IO ()
@@ -495,7 +498,7 @@ easyCopy from to cm rm = do
 --    - `PermissionDenied` if the directory cannot be read
 --
 -- Notes: calls `unlink`
-deleteFile :: WindowsFilePath -> IO ()
+deleteFile :: WindowsPath -> IO ()
 deleteFile = WS.deleteFile
 
 
@@ -508,7 +511,7 @@ deleteFile = WS.deleteFile
 --    - `NoSuchThing` if directory does not exist
 --    - `UnsatisfiedConstraints` if directory is not empty
 --    - `PermissionDenied` if we can't open or write to parent directory
-deleteDir :: WindowsFilePath -> IO ()
+deleteDir :: WindowsPath -> IO ()
 deleteDir = WS.removeDirectory
 
 
@@ -527,7 +530,7 @@ deleteDir = WS.removeDirectory
 --    - `InappropriateType` for wrong file type (regular file)
 --    - `NoSuchThing` if directory does not exist
 --    - `PermissionDenied` if we can't open or write to parent directory
-deleteDirRecursive :: WindowsFilePath -> IO ()
+deleteDirRecursive :: WindowsPath -> IO ()
 deleteDirRecursive p = catchIOError (deleteDir p) $ \e ->
   case ioeGetErrorType e of
     NoSuchThing -> rmRecursive p
@@ -544,7 +547,7 @@ deleteDirRecursive p = catchIOError (deleteDir p) $ \e ->
         DirectoryLink -> deleteDirRecursive file
         File          -> deleteFile file
     deleteDir fp
-    
+
 
 -- |Deletes a file, directory or symlink.
 -- In case of directory, performs recursive deletion. In case of
@@ -554,7 +557,7 @@ deleteDirRecursive p = catchIOError (deleteDir p) $ \e ->
 --
 --    * examines filetypes explicitly
 --    * calls `deleteDirRecursive` for directories
-easyDelete :: WindowsFilePath -> IO ()
+easyDelete :: WindowsPath -> IO ()
 easyDelete p = do
   ftype <- getFileType p
   case ftype of
@@ -569,27 +572,27 @@ easyDelete p = do
     --[ File Write ]--
     ------------------
 
-appendExistingFile :: WindowsFilePath -> L.ByteString -> IO ()
+appendExistingFile :: WindowsPath -> L.ByteString -> IO ()
 appendExistingFile fp contents = withExistingFile fp SIO.AppendMode (`L.hPut` contents)
 
-appendExistingFile' :: WindowsFilePath -> BS.ByteString -> IO ()
+appendExistingFile' :: WindowsPath -> BS.ByteString -> IO ()
 appendExistingFile' fp contents = withExistingFile fp SIO.AppendMode (`BS.hPut` contents)
 
 
-writeExistingFile :: WindowsFilePath -> L.ByteString -> IO ()
+writeExistingFile :: WindowsPath -> L.ByteString -> IO ()
 writeExistingFile fp contents = withExistingFile fp SIO.WriteMode (`L.hPut` contents)
 
-writeExistingFile' :: WindowsFilePath -> BS.ByteString -> IO ()
+writeExistingFile' :: WindowsPath -> BS.ByteString -> IO ()
 writeExistingFile' fp contents = withExistingFile fp SIO.WriteMode (`BS.hPut` contents)
 
     --------------------
     --[ File Reading ]--
     --------------------
 
-readExistingFile :: WindowsFilePath -> IO L.ByteString
+readExistingFile :: WindowsPath -> IO L.ByteString
 readExistingFile fp = withExistingFile' fp SIO.ReadMode L.hGetContents
 
-readExistingFile' :: WindowsFilePath -> IO BS.ByteString
+readExistingFile' :: WindowsPath -> IO BS.ByteString
 readExistingFile' fp = withExistingFile fp SIO.ReadMode BS.hGetContents
 
 
@@ -609,7 +612,7 @@ foreign import WINAPI unsafe "windows.h DeviceIoControl"
 -- | Read the target of a symbolic link.
 --
 -- This is mostly stolen from 'directory' package.
-readSymbolicLink :: WindowsFilePath -> IO WindowsFilePath
+readSymbolicLink :: WindowsPath -> IO WindowsPath
 readSymbolicLink path = WS <$> do
   let open = WS.createFile path 0 maxShareMode Nothing Win32.oPEN_EXISTING
                               (Win32.fILE_FLAG_BACKUP_SEMANTICS .|.
@@ -634,7 +637,7 @@ readSymbolicLink path = WS <$> do
         _ -> throwIO (mkIOError InappropriateType
                                 "readSymbolicLink" Nothing Nothing)
  where
-  strip sn = fromMaybe sn (W16.stripPrefix (unWFP $ fromString "\\??\\") sn)
+  strip sn = fromMaybe sn (W16.stripPrefix (fromString "\\??\\") sn)
 
   win32_iO_REPARSE_TAG_MOUNT_POINT, win32_iO_REPARSE_TAG_SYMLINK :: CULong
   win32_iO_REPARSE_TAG_MOUNT_POINT = (#const IO_REPARSE_TAG_MOUNT_POINT)
@@ -737,7 +740,7 @@ readSymbolicLink path = WS <$> do
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createRegularFile :: Win32.AccessMode -> WindowsFilePath -> IO ()
+createRegularFile :: Win32.AccessMode -> WindowsPath -> IO ()
 createRegularFile mode fp = bracket open close (\_ -> return ())
  where
    open = WS.createFile
@@ -759,7 +762,7 @@ createRegularFile mode fp = bracket open close (\_ -> return ())
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDir :: WindowsFilePath -> IO ()
+createDir :: WindowsPath -> IO ()
 createDir = flip WS.createDirectory Nothing
 
 
@@ -770,7 +773,7 @@ createDir = flip WS.createDirectory Nothing
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDirIfMissing :: WindowsFilePath -> IO ()
+createDirIfMissing :: WindowsPath -> IO ()
 createDirIfMissing = hideError AlreadyExists . createDir
 
 
@@ -793,10 +796,10 @@ createDirIfMissing = hideError AlreadyExists . createDir
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
-createDirRecursive :: WindowsFilePath -> IO ()
+createDirRecursive :: WindowsPath -> IO ()
 createDirRecursive p = go p
  where
-  go :: WindowsFilePath -> IO ()
+  go :: WindowsPath -> IO ()
   go dest = do
     catchIOError (createDir dest) $ \e -> do
       case ioeGetErrorType e of
@@ -818,8 +821,8 @@ createDirRecursive p = go p
 --    - `AlreadyExists` if destination file already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createSymlink :: WindowsFilePath     -- ^ destination file
-              -> WindowsFilePath     -- ^ path the symlink points to
+createSymlink :: WindowsPath     -- ^ destination file
+              -> WindowsPath     -- ^ path the symlink points to
               -> Bool                -- ^ whether this is a directory
               -> IO ()
 createSymlink destBS sympoint dir =
@@ -843,7 +846,7 @@ createSymlink destBS sympoint dir =
 --     - `UnsupportedOperation` if source and destination are on different
 --       devices
 --     - `AlreadyExists` if destination already exists
-renameFile :: WindowsFilePath -> WindowsFilePath -> IO ()
+renameFile :: WindowsPath -> WindowsPath -> IO ()
 renameFile from to =
   WS.moveFileEx from (Just to) 0
 
@@ -866,8 +869,8 @@ renameFile from to =
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
-moveFile :: WindowsFilePath   -- ^ file to move
-         -> WindowsFilePath   -- ^ destination
+moveFile :: WindowsPath   -- ^ file to move
+         -> WindowsPath   -- ^ destination
          -> CopyMode
          -> IO ()
 moveFile from to cm = do
@@ -892,7 +895,7 @@ setWriteMode True  m = m .&. complement Win32.fILE_ATTRIBUTE_READONLY
 
 -- | A restricted form of 'setFileMode' that only sets the permission bits.
 -- For Windows, this means only the "read-only" attribute is affected.
-setFilePermissions :: WindowsFilePath -> Win32.FileAttributeOrFlag -> IO ()
+setFilePermissions :: WindowsPath -> Win32.FileAttributeOrFlag -> IO ()
 setFilePermissions path m = do
   m' <- Win32.bhfiFileAttributes <$> getFileMetadata path
   WS.setFileAttributes path ((m' .&. complement Win32.fILE_ATTRIBUTE_READONLY) .|.
@@ -914,7 +917,7 @@ newFilePerms = Win32.gENERIC_READ .|. Win32.gENERIC_WRITE
 -- |Checks if the given file exists.
 --
 -- Only NoSuchThing is catched (and returns False).
-doesExist :: WindowsFilePath -> IO Bool
+doesExist :: WindowsPath -> IO Bool
 doesExist bs =
   handleIO (\e -> if NoSuchThing == ioeGetErrorType e then pure False else ioError e) $
     (const True) <$> getFileType bs
@@ -924,7 +927,7 @@ doesExist bs =
 -- Does follow symlinks.
 --
 -- Only NoSuchThing is catched (and returns False).
-doesFileExist :: WindowsFilePath -> IO Bool
+doesFileExist :: WindowsPath -> IO Bool
 doesFileExist bs =
   handleIO (\e -> if NoSuchThing == ioeGetErrorType e then pure False else ioError e) $
     (\ft -> ft == File || ft == SymbolicLink) <$> getFileType bs
@@ -935,7 +938,7 @@ doesFileExist bs =
 -- Does follow reparse points.
 --
 -- Only NoSuchThing is catched (and returns False).
-doesDirectoryExist :: WindowsFilePath -> IO Bool
+doesDirectoryExist :: WindowsPath -> IO Bool
 doesDirectoryExist bs = 
   handleIO (\e -> if NoSuchThing == ioeGetErrorType e then pure False else ioError e) $
     (\ft -> ft == Directory || ft == DirectoryLink) <$> getFileType bs
@@ -947,7 +950,7 @@ doesDirectoryExist bs =
 -- Throws:
 --
 --     - `NoSuchThing` if the file or folder does not exist
-isReadable :: WindowsFilePath -> IO Bool
+isReadable :: WindowsPath -> IO Bool
 isReadable bs = (const True) <$> getFileType bs
 
 -- |Checks whether a file or folder is writable.
@@ -955,7 +958,7 @@ isReadable bs = (const True) <$> getFileType bs
 -- Throws:
 --
 --     - `NoSuchThing` if the file or folder does not exist
-isWritable :: WindowsFilePath -> IO Bool
+isWritable :: WindowsPath -> IO Bool
 isWritable bs = do
   fi <- getFileMetadata bs
   pure (hasWriteMode (Win32.bhfiFileAttributes fi))
@@ -970,26 +973,26 @@ isWritable bs = do
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isExecutable :: WindowsFilePath -> IO Bool
+isExecutable :: WindowsPath -> IO Bool
 isExecutable bs = do
   getFileType bs >>= \case
     Directory -> pure False
     DirectoryLink -> pure False
     _ -> do
       let ext = takeExtension bs
-      exeExts <- fmap toPlatformString
-        . (fmap . fmap) toLower
+      exeExts <- (fmap . fmap) toLower
         . (wordsBy (==';'))
         . fromMaybe ""
        <$> lookupEnv "PATHEXT"
-      pure $ ext `elem` exeExts
+      exeExts' <- forM exeExts encodeFS
+      pure $ ext `elem` exeExts'
 
 
 -- |Checks whether the directory at the given path exists and can be
 -- opened. Returns 'False' on non-directories.
-canOpenDirectory :: WindowsFilePath -> IO Bool
+canOpenDirectory :: WindowsPath -> IO Bool
 canOpenDirectory bs = handleIOError (\_ -> return False) $ do
-  let query = bs </> fromString "*"
+  let query = bs </> pack [unsafeFromChar '*']
   bracket
     (WS.findFirstFile query)
     (\(h, _) -> Win32.findClose h)
@@ -1003,18 +1006,18 @@ canOpenDirectory bs = handleIOError (\_ -> return False) $ do
     ------------------
 
 
-getModificationTime :: WindowsFilePath -> IO UTCTime
+getModificationTime :: WindowsPath -> IO UTCTime
 getModificationTime bs = do
   m <- getFileMetadata bs
   pure $ posixSecondsToUTCTime $ windowsToPosixTime $ Win32.bhfiLastWriteTime m
 
-setModificationTime :: WindowsFilePath -> UTCTime -> IO ()
+setModificationTime :: WindowsPath -> UTCTime -> IO ()
 setModificationTime fp t =
   bracket (WS.createFile fp Win32.fILE_WRITE_ATTRIBUTES maxShareMode Nothing Win32.oPEN_EXISTING Win32.fILE_FLAG_BACKUP_SEMANTICS Nothing) Win32.closeHandle $ \h -> do
     Win32.setFileTime h Nothing Nothing (Just . posixToWindowsTime . utcTimeToPOSIXSeconds $ t)
 
 
-setModificationTimeHiRes :: WindowsFilePath -> Win32.FILETIME -> IO ()
+setModificationTimeHiRes :: WindowsPath -> Win32.FILETIME -> IO ()
 setModificationTimeHiRes fp t =
   bracket (WS.createFile fp Win32.fILE_WRITE_ATTRIBUTES maxShareMode Nothing Win32.oPEN_EXISTING Win32.fILE_FLAG_BACKUP_SEMANTICS Nothing) Win32.closeHandle $ \h -> do
     Win32.setFileTime h Nothing Nothing (Just t)
@@ -1046,15 +1049,15 @@ posixToWindowsTime t = Win32.FILETIME $
 --     - `InappropriateType` if file type is wrong (symlink to file)
 --     - `InappropriateType` if file type is wrong (symlink to dir)
 --     - `PermissionDenied` if directory cannot be opened
-getDirsFiles :: WindowsFilePath        -- ^ dir to read
-             -> IO [WindowsFilePath]
+getDirsFiles :: WindowsPath        -- ^ dir to read
+             -> IO [WindowsPath]
 getDirsFiles p = do
   contents <- getDirsFiles' p
   pure $ fmap (p </>) contents
 
 
-getDirsFilesRec :: WindowsFilePath        -- ^ dir to read
-                -> IO [WindowsFilePath]
+getDirsFilesRec :: WindowsPath        -- ^ dir to read
+                -> IO [WindowsPath]
 getDirsFilesRec p = do
   contents <- getDirsFilesRec' p
   pure $ fmap (p </>) contents
@@ -1062,19 +1065,19 @@ getDirsFilesRec p = do
 
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
-getDirsFiles' :: WindowsFilePath        -- ^ dir to read
-              -> IO [WindowsFilePath]
+getDirsFiles' :: WindowsPath        -- ^ dir to read
+              -> IO [WindowsPath]
 getDirsFiles' fp = getDirsFilesStream fp >>= S.toList
 
 
-getDirsFilesRec' :: WindowsFilePath        -- ^ dir to read
-                       -> IO [WindowsFilePath]
+getDirsFilesRec' :: WindowsPath        -- ^ dir to read
+                       -> IO [WindowsPath]
 getDirsFilesRec' fp = getDirsFilesStreamRec fp >>= S.toList
 
 
 getDirsFilesStreamRec :: (MonadCatch m, MonadAsync m, MonadMask m)
-                      => WindowsFilePath
-                      -> IO (SerialT m WindowsFilePath)
+                      => WindowsPath
+                      -> IO (SerialT m WindowsPath)
 getDirsFilesStreamRec fp = do
   stream <- getDirsFilesStream fp
   pure $ S.concatMapM inner stream
@@ -1091,15 +1094,15 @@ getDirsFilesStreamRec fp = do
 
 -- | Like 'getDirsFiles'', except returning a Stream.
 getDirsFilesStream :: (MonadCatch m, MonadAsync m, MonadMask m)
-                   => WindowsFilePath
-                   -> IO (SerialT m WindowsFilePath)
+                   => WindowsPath
+                   -> IO (SerialT m WindowsPath)
 getDirsFilesStream fp = do
-  let query = fp </> fromString "*"
+  let query = fp </> pack [unsafeFromChar '*']
   t <- WS.findFirstFile query
   let stream = S.unfold (SU.finally (liftIO . Win32.findClose . fst) unfoldDirContents) $ (fmap Just t)
   pure stream
  where
-  unfoldDirContents :: MonadIO m => Unfold m (Win32.HANDLE, Maybe Win32.FindData) WindowsFilePath
+  unfoldDirContents :: MonadIO m => Unfold m (Win32.HANDLE, Maybe Win32.FindData) WindowsPath
   unfoldDirContents = Unfold step return
    where
     {-# INLINE [0] step #-}
@@ -1109,8 +1112,8 @@ getDirsFilesStream fp = do
       more <- liftIO $ Win32.findNextFile handle fd
       pure $ case () of
                  _
-                  | [unsafeFromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
-                  | [unsafeFromChar '.', unsafeFromChar '.'] == unpackPlatformString filename -> D.Skip (handle, if more then Just fd else Nothing)
+                  | [unsafeFromChar '.'] == unpack filename -> D.Skip (handle, if more then Just fd else Nothing)
+                  | [unsafeFromChar '.', unsafeFromChar '.'] == unpack filename -> D.Skip (handle, if more then Just fd else Nothing)
                   | otherwise -> D.Yield filename (handle, if more then Just fd else Nothing)
 
 
@@ -1119,10 +1122,10 @@ getDirsFilesStream fp = do
     --[ CWD ]--
     -----------
 
-getCurrentDirectory :: IO WindowsFilePath
+getCurrentDirectory :: IO WindowsPath
 getCurrentDirectory = WS.getCurrentDirectory
 
-setCurrentDirectory :: WindowsFilePath -> IO ()
+setCurrentDirectory :: WindowsPath -> IO ()
 setCurrentDirectory = WS.setCurrentDirectory
 
 
@@ -1138,7 +1141,7 @@ setCurrentDirectory = WS.setCurrentDirectory
 --
 --    - `NoSuchThing` if the file does not exist
 --    - `PermissionDenied` if any part of the path is not accessible
-getFileType :: WindowsFilePath -> IO FileType
+getFileType :: WindowsPath -> IO FileType
 getFileType fp = do
       fi <- getFileMetadata fp
       pure $ decide fi
@@ -1152,7 +1155,7 @@ getFileType fp = do
             | otherwise              = File
 
 
-getFileMetadata :: WindowsFilePath -> IO Win32.BY_HANDLE_FILE_INFORMATION
+getFileMetadata :: WindowsPath -> IO Win32.BY_HANDLE_FILE_INFORMATION
 getFileMetadata fp = do
     bracket (WS.createFile fp 0 maxShareMode Nothing Win32.oPEN_EXISTING Win32.fILE_FLAG_BACKUP_SEMANTICS Nothing)
       Win32.closeHandle $ \h -> Win32.getFileInformationByHandle h
@@ -1171,7 +1174,7 @@ getFileMetadata fp = do
 --
 --    - `NoSuchThing` if the file at the given path does not exist
 --    - `NoSuchThing` if the symlink is broken
-canonicalizePath :: WindowsFilePath -> IO WindowsFilePath
+canonicalizePath :: WindowsPath -> IO WindowsPath
 canonicalizePath = WS.getFullPathName
 
 
@@ -1180,7 +1183,7 @@ canonicalizePath = WS.getFullPathName
 --
 --    - if the path is already an absolute one, just return it
 --    - if it's a relative path, prepend the current directory to it
-toAbs :: WindowsFilePath -> IO WindowsFilePath
+toAbs :: WindowsPath -> IO WindowsPath
 toAbs bs = do
   case isAbsolute bs of
     True  -> return bs
@@ -1190,12 +1193,12 @@ toAbs bs = do
 
 
 
-withExistingFile :: WindowsFilePath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
+withExistingFile :: WindowsPath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
 withExistingFile fp iomode = bracket
   (openExistingFile fp iomode)
   SIO.hClose
 
-withExistingFile' :: WindowsFilePath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
+withExistingFile' :: WindowsPath -> SIO.IOMode -> (SIO.Handle -> IO r) -> IO r
 withExistingFile' fp iomode action = do
   h <- openExistingFile fp iomode
   action h

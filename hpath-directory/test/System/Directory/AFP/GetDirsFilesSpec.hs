@@ -7,7 +7,7 @@ import Data.List
   (
     sort
   )
-import System.Directory.AbstractFilePath hiding (getDirsFiles')
+import System.Directory.OsPath hiding (getDirsFiles')
 import Test.Hspec
 import System.IO.Error
   (
@@ -18,7 +18,7 @@ import GHC.IO.Exception
     IOErrorType(..)
   )
 import Utils
-import System.AbstractFilePath
+import System.OsPath
 
 
 upTmpDir :: IO ()

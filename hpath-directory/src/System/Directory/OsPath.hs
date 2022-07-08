@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module System.Directory.AbstractFilePath
+module System.Directory.OsPath
   (
   -- * Types
     module System.Directory.Types
@@ -88,24 +88,24 @@ module System.Directory.AbstractFilePath
   )
   where
 
-import           System.File.AbstractFilePath
+import           System.File.OsPath
 import           Prelude                 hiding ( appendFile
                                                 , readFile
                                                 , writeFile
                                                 )
 import System.Directory.Types
 #ifdef WINDOWS
-import qualified System.Win32.WindowsFilePath.Directory as Dir
+import qualified System.Win32.WindowsPath.Directory as Dir
 #else
 import Data.Bits
-import qualified System.Posix.PosixFilePath.Directory as Dir
+import qualified System.Posix.PosixPath.Directory as Dir
 import qualified System.Posix as Posix (FileMode)
 import qualified System.Posix.Files.ByteString as Posix
 import qualified Data.ByteString.Short as SBS
 #endif
 import qualified Data.ByteString               as BS
 import qualified Data.ByteString.Lazy          as L
-import System.AbstractFilePath.Types
+import System.OsPath.Types
 import System.OsString.Internal.Types
 import           Data.Time.Clock
 import           Data.Time.Clock.POSIX
@@ -193,7 +193,7 @@ newDirPerms = Permissions {
 --   permissions, or
 --
 -- * 'isDoesNotExistError' if the file or directory does not exist.
-getPermissions :: AbstractFilePath -> IO Permissions
+getPermissions :: OsPath -> IO Permissions
 #ifdef WINDOWS
 getPermissions (OsString path) = do
   t <- Dir.getFileType path
@@ -222,10 +222,10 @@ getPermissions (OsString (PS path')) = do
        }
 #endif
 
-getFileType :: AbstractFilePath -> IO Dir.FileType
+getFileType :: OsPath -> IO Dir.FileType
 getFileType (OsString path) = Dir.getFileType path
 
-setPermissions :: AbstractFilePath -> Permissions -> IO ()
+setPermissions :: OsPath -> Permissions -> IO ()
 #ifdef WINDOWS
 setPermissions (OsString path) Permissions{writable = w} = do
   Dir.setFilePermissions path (Dir.setWriteMode w 0)
@@ -250,8 +250,8 @@ setPermissions (OsString (PS path')) (Permissions r w e s) = do
     --------------------
 
 
-copyDirRecursive :: AbstractFilePath  -- ^ source dir
-                 -> AbstractFilePath  -- ^ destination (parent dirs
+copyDirRecursive :: OsPath  -- ^ source dir
+                 -> OsPath  -- ^ destination (parent dirs
                                  --   are not automatically created)
                  -> CopyMode
                  -> RecursiveErrorMode
@@ -288,8 +288,8 @@ copyDirRecursive (OsString fromp) (OsString destdirp) cm rm =
 -- Notes:
 --
 --    - calls `symlink`
-recreateSymlink :: AbstractFilePath   -- ^ the old symlink file
-                -> AbstractFilePath   -- ^ destination file
+recreateSymlink :: OsPath   -- ^ the old symlink file
+                -> OsPath   -- ^ destination file
                 -> CopyMode
                 -> IO ()
 recreateSymlink (OsString symsource) (OsString newsym) cm =
@@ -330,8 +330,8 @@ recreateSymlink (OsString symsource) (OsString newsym) cm =
 -- Throws in `Strict` mode only:
 --
 --    - `AlreadyExists` if destination already exists
-copyFile :: AbstractFilePath   -- ^ source file
-         -> AbstractFilePath   -- ^ destination file
+copyFile :: OsPath   -- ^ source file
+         -> OsPath   -- ^ destination file
          -> CopyMode
          -> IO ()
 copyFile (OsString from) (OsString to) cm =
@@ -346,8 +346,8 @@ copyFile (OsString from) (OsString to) cm =
 --
 --    * examines filetypes explicitly
 --    * calls `copyDirRecursive` for directories
-easyCopy :: AbstractFilePath
-         -> AbstractFilePath
+easyCopy :: OsPath
+         -> OsPath
          -> CopyMode
          -> RecursiveErrorMode
          -> IO ()
@@ -373,7 +373,7 @@ easyCopy (OsString from) (OsString to) cm rm =
 --    - `PermissionDenied` if the directory cannot be read
 --
 -- Notes: calls `unlink`
-deleteFile :: AbstractFilePath -> IO ()
+deleteFile :: OsPath -> IO ()
 deleteFile (OsString fp) =
   Dir.deleteFile fp
 
@@ -389,7 +389,7 @@ deleteFile (OsString fp) =
 --    - `PermissionDenied` if we can't open or write to parent directory
 --
 -- Notes: calls `rmdir`
-deleteDir :: AbstractFilePath -> IO ()
+deleteDir :: OsPath -> IO ()
 deleteDir (OsString fp) = Dir.deleteDir fp
 
 
@@ -412,7 +412,7 @@ deleteDir (OsString fp) = Dir.deleteDir fp
 --    - `InappropriateType` for wrong file type (regular file)
 --    - `NoSuchThing` if directory does not exist
 --    - `PermissionDenied` if we can't open or write to parent directory
-deleteDirRecursive :: AbstractFilePath -> IO ()
+deleteDirRecursive :: OsPath -> IO ()
 deleteDirRecursive (OsString p) = Dir.deleteDirRecursive p
 
 
@@ -425,7 +425,7 @@ deleteDirRecursive (OsString p) = Dir.deleteDirRecursive p
 --
 --    * examines filetypes explicitly
 --    * calls `deleteDirRecursive` for directories
-easyDelete :: AbstractFilePath -> IO ()
+easyDelete :: OsPath -> IO ()
 easyDelete (OsString p) = Dir.easyDelete p
 
 
@@ -444,7 +444,7 @@ easyDelete (OsString p) = Dir.easyDelete p
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createRegularFile :: AbstractFilePath -> IO ()
+createRegularFile :: OsPath -> IO ()
 createRegularFile (OsString destBS) = Dir.createRegularFile Dir.newFilePerms destBS
 
 
@@ -456,7 +456,7 @@ createRegularFile (OsString destBS) = Dir.createRegularFile Dir.newFilePerms des
 --    - `AlreadyExists` if destination already exists
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDir :: AbstractFilePath -> IO ()
+createDir :: OsPath -> IO ()
 createDir (OsString destBS) =
 #if WINDOWS
   Dir.createDir destBS
@@ -471,7 +471,7 @@ createDir (OsString destBS) =
 --    - `PermissionDenied` if output directory cannot be written to
 --    - `NoSuchThing` if any of the parent components of the path
 --      do not exist
-createDirIfMissing :: AbstractFilePath -> IO ()
+createDirIfMissing :: OsPath -> IO ()
 createDirIfMissing (OsString destBS) =
 #if WINDOWS
   Dir.createDirIfMissing destBS
@@ -498,7 +498,7 @@ createDirIfMissing (OsString destBS) =
 --      exist and cannot be written to
 --    - `AlreadyExists` if destination already exists and
 --      is *not* a directory
-createDirRecursive :: AbstractFilePath -> IO ()
+createDirRecursive :: OsPath -> IO ()
 createDirRecursive (OsString p) =
 #if WINDOWS
   Dir.createDirRecursive p
@@ -517,8 +517,8 @@ createDirRecursive (OsString p) =
 --      do not exist
 --
 -- Note: calls `symlink`
-createSymlink :: AbstractFilePath     -- ^ destination file
-              -> AbstractFilePath     -- ^ path the symlink points to
+createSymlink :: OsPath     -- ^ destination file
+              -> OsPath     -- ^ path the symlink points to
               -> Bool                 -- ^ whether this is a dir (irrelevant on posix)
               -> IO ()
 #if WINDOWS
@@ -557,7 +557,7 @@ createSymlink (OsString destBS) (OsString sympoint) _ =
 --       (`HPathIOException`)
 --
 -- Note: calls `rename` (but does not allow to rename over existing files)
-renameFile :: AbstractFilePath -> AbstractFilePath -> IO ()
+renameFile :: OsPath -> OsPath -> IO ()
 renameFile (OsString fromf) (OsString tof) = Dir.renameFile fromf tof
 
 
@@ -592,8 +592,8 @@ renameFile (OsString fromf) (OsString tof) = Dir.renameFile fromf tof
 -- Notes:
 --
 --    - calls `rename` (but does not allow to rename over existing files)
-moveFile :: AbstractFilePath   -- ^ file to move
-         -> AbstractFilePath   -- ^ destination
+moveFile :: OsPath   -- ^ file to move
+         -> OsPath   -- ^ destination
          -> CopyMode
          -> IO ()
 moveFile (OsString from) (OsString to) cm = Dir.moveFile from to cm
@@ -603,31 +603,31 @@ moveFile (OsString from) (OsString to) cm = Dir.moveFile from to cm
     --[ File Write ]--
     ------------------
 
-appendExistingFile :: AbstractFilePath -> L.ByteString -> IO ()
+appendExistingFile :: OsPath -> L.ByteString -> IO ()
 appendExistingFile (OsString fp) = Dir.appendExistingFile fp
 
-appendExistingFile' :: AbstractFilePath -> BS.ByteString -> IO ()
+appendExistingFile' :: OsPath -> BS.ByteString -> IO ()
 appendExistingFile' (OsString fp) = Dir.appendExistingFile' fp
 
 
-writeExistingFile :: AbstractFilePath -> L.ByteString -> IO ()
+writeExistingFile :: OsPath -> L.ByteString -> IO ()
 writeExistingFile (OsString fp) = Dir.writeExistingFile fp
 
-writeExistingFile' :: AbstractFilePath -> BS.ByteString -> IO ()
+writeExistingFile' :: OsPath -> BS.ByteString -> IO ()
 writeExistingFile' (OsString fp) = Dir.writeExistingFile' fp
 
     --------------------
     --[ File Reading ]--
     --------------------
 
-readExistingFile :: AbstractFilePath -> IO L.ByteString
+readExistingFile :: OsPath -> IO L.ByteString
 readExistingFile (OsString fp) = Dir.readExistingFile fp
 
-readExistingFile' :: AbstractFilePath -> IO BS.ByteString
+readExistingFile' :: OsPath -> IO BS.ByteString
 readExistingFile' (OsString fp) = Dir.readExistingFile' fp
 
 -- | Read the target of a symbolic link.
-readSymbolicLink :: AbstractFilePath -> IO AbstractFilePath
+readSymbolicLink :: OsPath -> IO OsPath
 readSymbolicLink (OsString fp) = OsString <$> Dir.readSymbolicLink fp
 
 
@@ -642,7 +642,7 @@ readSymbolicLink (OsString fp) = OsString <$> Dir.readSymbolicLink fp
 -- Does not follow symlinks.
 --
 -- Only eNOENT is catched (and returns False).
-doesExist :: AbstractFilePath -> IO Bool
+doesExist :: OsPath -> IO Bool
 doesExist (OsString bs) = Dir.doesExist bs
 
 
@@ -650,7 +650,7 @@ doesExist (OsString bs) = Dir.doesExist bs
 -- Does not follow symlinks.
 --
 -- Only eNOENT is catched (and returns False).
-doesFileExist :: AbstractFilePath -> IO Bool
+doesFileExist :: OsPath -> IO Bool
 doesFileExist (OsString bs) = Dir.doesFileExist bs
 
 
@@ -658,7 +658,7 @@ doesFileExist (OsString bs) = Dir.doesFileExist bs
 -- Does not follow symlinks.
 --
 -- Only eNOENT is catched (and returns False).
-doesDirectoryExist :: AbstractFilePath -> IO Bool
+doesDirectoryExist :: OsPath -> IO Bool
 doesDirectoryExist (OsString bs) = Dir.doesDirectoryExist bs
 
 
@@ -669,7 +669,7 @@ doesDirectoryExist (OsString bs) = Dir.doesDirectoryExist bs
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isReadable :: AbstractFilePath -> IO Bool
+isReadable :: OsPath -> IO Bool
 isReadable (OsString bs) = Dir.isReadable bs
 
 -- |Checks whether a file or folder is writable.
@@ -679,7 +679,7 @@ isReadable (OsString bs) = Dir.isReadable bs
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isWritable :: AbstractFilePath -> IO Bool
+isWritable :: OsPath -> IO Bool
 isWritable (OsString bs) = Dir.isWritable bs
 
 
@@ -690,14 +690,14 @@ isWritable (OsString bs) = Dir.isWritable bs
 -- Throws:
 --
 --     - `NoSuchThing` if the file does not exist
-isExecutable :: AbstractFilePath -> IO Bool
+isExecutable :: OsPath -> IO Bool
 isExecutable (OsString bs) = Dir.isExecutable bs
 
 
 
 -- |Checks whether the directory at the given path exists and can be
 -- opened. This invokes `openDirStream` which follows symlinks.
-canOpenDirectory :: AbstractFilePath -> IO Bool
+canOpenDirectory :: OsPath -> IO Bool
 canOpenDirectory (OsString bs) = Dir.canOpenDirectory bs
 
 
@@ -708,13 +708,13 @@ canOpenDirectory (OsString bs) = Dir.canOpenDirectory bs
     ------------------
 
 
-getModificationTime :: AbstractFilePath -> IO UTCTime
+getModificationTime :: OsPath -> IO UTCTime
 getModificationTime (OsString bs) = Dir.getModificationTime bs
 
-setModificationTime :: AbstractFilePath -> UTCTime -> IO ()
+setModificationTime :: OsPath -> UTCTime -> IO ()
 setModificationTime (OsString bs) t = Dir.setModificationTime bs t
 
-setModificationTimeHiRes :: AbstractFilePath -> POSIXTime -> IO ()
+setModificationTimeHiRes :: OsPath -> POSIXTime -> IO ()
 setModificationTimeHiRes (OsString bs) t =
 #ifdef WINDOWS
   Dir.setModificationTimeHiRes bs (Dir.posixToWindowsTime t)
@@ -741,38 +741,38 @@ setModificationTimeHiRes (OsString bs) t =
 --     - `InappropriateType` if file type is wrong (symlink to file)
 --     - `InappropriateType` if file type is wrong (symlink to dir)
 --     - `PermissionDenied` if directory cannot be opened
-getDirsFiles :: AbstractFilePath        -- ^ dir to read
-             -> IO [AbstractFilePath]
+getDirsFiles :: OsPath        -- ^ dir to read
+             -> IO [OsPath]
 getDirsFiles (OsString p) = fmap OsString <$> Dir.getDirsFiles p
 
 
-getDirsFilesRec :: AbstractFilePath        -- ^ dir to read
-                -> IO [AbstractFilePath]
+getDirsFilesRec :: OsPath        -- ^ dir to read
+                -> IO [OsPath]
 getDirsFilesRec (OsString p) = fmap OsString <$> Dir.getDirsFilesRec p
 
 
 -- | Like 'getDirsFiles', but returns the filename only, instead
 -- of prepending the base path.
-getDirsFiles' :: AbstractFilePath        -- ^ dir to read
-              -> IO [AbstractFilePath]
+getDirsFiles' :: OsPath        -- ^ dir to read
+              -> IO [OsPath]
 getDirsFiles' (OsString fp) = fmap OsString <$> Dir.getDirsFiles' fp
 
 
-getDirsFilesRec' :: AbstractFilePath        -- ^ dir to read
-                 -> IO [AbstractFilePath]
+getDirsFilesRec' :: OsPath        -- ^ dir to read
+                 -> IO [OsPath]
 getDirsFilesRec' (OsString p) = fmap OsString <$> Dir.getDirsFilesRec' p
 
 
 getDirsFilesStreamRec :: (MonadCatch m, MonadAsync m, MonadMask m)
-                      => AbstractFilePath
-                      -> IO (SerialT m AbstractFilePath)
+                      => OsPath
+                      -> IO (SerialT m OsPath)
 getDirsFilesStreamRec (OsString fp) = fmap OsString <$> Dir.getDirsFilesStreamRec fp
 
 
 -- | Like 'getDirsFiles'', except returning a Stream.
 getDirsFilesStream :: (MonadCatch m, MonadAsync m, MonadMask m)
-                   => AbstractFilePath
-                   -> IO (SerialT m AbstractFilePath)
+                   => OsPath
+                   -> IO (SerialT m OsPath)
 getDirsFilesStream (OsString fp) = fmap OsString <$> Dir.getDirsFilesStream fp
 
 
@@ -780,10 +780,10 @@ getDirsFilesStream (OsString fp) = fmap OsString <$> Dir.getDirsFilesStream fp
     --[ CWD ]--
     -----------
 
-getCurrentDirectory :: IO AbstractFilePath
+getCurrentDirectory :: IO OsPath
 getCurrentDirectory = OsString <$> Dir.getCurrentDirectory
 
-setCurrentDirectory :: AbstractFilePath -> IO ()
+setCurrentDirectory :: OsPath -> IO ()
 setCurrentDirectory (OsString fp) = Dir.setCurrentDirectory fp
 
 
@@ -801,7 +801,7 @@ setCurrentDirectory (OsString fp) = Dir.setCurrentDirectory fp
 --
 --    - `NoSuchThing` if the file at the given path does not exist
 --    - `NoSuchThing` if the symlink is broken
-canonicalizePath :: AbstractFilePath -> IO AbstractFilePath
+canonicalizePath :: OsPath -> IO OsPath
 canonicalizePath (OsString fp) = OsString <$> Dir.canonicalizePath fp
 
 
@@ -810,6 +810,6 @@ canonicalizePath (OsString fp) = OsString <$> Dir.canonicalizePath fp
 --
 --    - if the path is already an absolute one, just return it
 --    - if it's a relative path, prepend the current directory to it
-toAbs :: AbstractFilePath -> IO AbstractFilePath
+toAbs :: OsPath -> IO OsPath
 toAbs (OsString bs) = OsString <$> Dir.toAbs bs
 

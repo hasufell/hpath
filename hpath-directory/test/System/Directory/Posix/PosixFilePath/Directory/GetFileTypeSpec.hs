@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module System.Directory.Posix.PosixFilePath.Directory.GetFileTypeSpec where
 
@@ -7,7 +8,8 @@ import Test.Hspec
 
 #ifndef WINDOWS
 
-import "hpath-directory" System.Posix.PosixFilePath.Directory
+import System.OsPath
+import "hpath-directory" System.Posix.PosixPath.Directory
 import System.IO.Error
   (
     ioeGetErrorType
