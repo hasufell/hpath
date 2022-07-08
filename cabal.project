@@ -1,8 +1,23 @@
 packages: ./hpath
           ./hpath-directory
-          ./hpath-filepath
-          ./hpath-io
           ./hpath-posix
+          ./streamly-posix
+          https://hackage.haskell.org/package/filepath-1.4.99.5/candidate/filepath-1.4.99.5.tar.gz
+
+source-repository-package
+    type: git
+    location: https://github.com/hasufell/unix.git
+    tag: f3b8ff89e1166df51ae02ce405fc1b3efe3c590f
+
+source-repository-package
+    type: git
+    location: https://github.com/hasufell/Win32.git
+    tag: 766234a476e9f7b88c72fe13b51e0012f95837e9
+
+source-repository-package
+    type: git
+    location: https://github.com/hasufell/file-io.git
+    tag: fbf71938823f98610c4d7f8e647bb4d26c5d0c20
 
 package hpath-io
     ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
@@ -10,3 +25,5 @@ package hpath-io
 -- https://github.com/composewell/streamly/blob/master/docs/Build.md
 package streamly
     ghc-options: -O2 -fspec-constr-recursive=16 -fmax-worker-args=16
+
+allow-newer: filepath, Win32, unix

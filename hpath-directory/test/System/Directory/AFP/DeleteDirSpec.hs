@@ -1,0 +1,106 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module System.Directory.AFP.DeleteDirSpec where
+
+
+import Test.Hspec
+import System.IO.Error
+  (
+    ioeGetErrorType
+  )
+import GHC.IO.Exception
+  (
+    IOErrorType(..)
+  )
+import Utils
+
+
+
+
+upTmpDir :: IO ()
+upTmpDir = do
+  setTmpDir "DeleteDirSpec"
+  createTmpDir
+
+
+setupFiles :: IO ()
+setupFiles = do
+  createRegularFile' "file"
+  createDir' "dir"
+  createRegularFile' "dir/.keep"
+  createSymlink' "dirSym" "dir/" True
+  createDir' "noPerms"
+  createRegularFile' "noPerms/.keep"
+  createDir' "noWritable"
+  createRegularFile' "noWritable/.keep"
+
+
+cleanupFiles :: IO ()
+cleanupFiles = do
+  deleteFile' "file"
+  deleteFile' "dir/.keep"
+  deleteDir' "dir"
+  deleteFile' "dirSym"
+  deleteFile' "noPerms/.keep"
+  deleteDir' "noPerms"
+  deleteFile' "noWritable/.keep"
+  deleteDir' "noWritable"
+
+
+spec :: Spec
+spec = beforeAll_ (upTmpDir >> setupFiles) $ afterAll_ cleanupFiles $
+  describe "System.Posix.PosixFilePath.Directory.deleteDir" $ do
+
+    -- successes --
+    it "deleteDir, empty directory, all fine" $ do
+      createDir' "testDir"
+      deleteDir' "testDir"
+      dirExists "testDir" >>= (`shouldBe` False)
+
+    it "deleteDir, directory with null permissions, all fine" $ do
+      createDir' "noPerms/testDir"
+      noPerms "noPerms/testDir"
+      deleteDir' "noPerms/testDir"
+      dirExists "testDir" >>= (`shouldBe` False)
+
+    -- posix failures --
+    it "deleteDir, wrong file type (symlink to directory)" $
+      deleteDir' "dirSym"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == InappropriateType)
+
+    it "deleteDir, wrong file type (regular file)" $
+      deleteDir' "file"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == InappropriateType)
+
+    it "deleteDir, directory does not exist" $
+      deleteDir' "doesNotExist"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == NoSuchThing)
+
+    it "deleteDir, directory not empty" $
+      deleteDir' "dir"
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == UnsatisfiedConstraints)
+
+    it "deleteDir, can't open parent directory" $ do
+      createDir' "noPerms/foo"
+      noPerms "noPerms"
+      (deleteDir' "noPerms/foo")
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
+      normalDirPerms "noPerms"
+      deleteDir' "noPerms/foo"
+
+    it "deleteDir, can't write to parent directory, still fine" $ do
+      createDir' "noWritable/foo"
+      noWritableDirPerms "noWritable"
+      (deleteDir' "noWritable/foo")
+        `shouldThrow`
+        (\e -> ioeGetErrorType e == PermissionDenied)
+      normalDirPerms "noWritable"
+      deleteDir' "noWritable/foo"
+
+
+

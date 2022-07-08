@@ -1,16 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 
-import qualified Data.ByteString as BS
 import Data.IORef
 import Test.Hspec
 import Test.Hspec.Runner
 import Test.Hspec.Formatters
 import qualified Spec
 import Utils
-import System.Posix.Temp.ByteString (mkdtemp)
-import System.Posix.Env.ByteString (getEnvDefault)
-import System.Posix.FilePath ((</>))
-import "hpath-directory" System.Posix.RawFilePath.Directory
+#ifdef WINDOWS
+import System.Win32.WindowsString.Info
+#else
+import System.Posix.Temp.PosixString (mkdtemp)
+import System.Posix.Env.PosixString (getEnvDefault)
+#endif
+import System.Directory.OsPath
+import System.OsPath
+import System.OsString.Internal.Types
 
 
 -- TODO: chardev, blockdev, namedpipe, socket
@@ -18,9 +23,14 @@ import "hpath-directory" System.Posix.RawFilePath.Directory
 
 main :: IO ()
 main = do
-  tmpdir <- getEnvDefault "TMPDIR" "/tmp" >>= canonicalizePath
-  tmpBase <- mkdtemp (tmpdir </> "hpath-directory")
-  writeIORef baseTmpDir (Just (tmpBase `BS.append` "/"))
+#ifdef WINDOWS
+  tmpBase <- fmap ((</> "hpath-directory") . OsString) getTemporaryDirectory
+  createDirRecursive tmpBase
+#else
+  (OsString tmpdir) <- fmap (</> "hpath-directory") (getEnvDefault "TMPDIR" "/tmp" >>= canonicalizePath . OsString)
+  tmpBase <- OsString <$> mkdtemp tmpdir
+#endif
+  writeIORef baseTmpDir (Just (tmpBase <> "/"))
   putStrLn $ ("Temporary test directory at: " ++ show tmpBase)
   hspecWith
     defaultConfig { configFormatter = Just progress }

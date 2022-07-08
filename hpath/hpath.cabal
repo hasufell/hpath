@@ -1,5 +1,5 @@
 name:                hpath
-version:             0.12.1
+version:             0.13.1
 synopsis:            Support for well-typed paths
 description:         Support for well-typed paths, utilizing ByteString under the hood.
 license:             BSD3
@@ -20,9 +20,6 @@ extra-source-files:  README.md
                      CHANGELOG
 
 library
-  if os(windows)
-    build-depends: unbuildable<0
-    buildable: False
   hs-source-dirs:    src/
   default-language:  Haskell2010
   if impl(ghc >= 8.0)
@@ -30,12 +27,12 @@ library
   else
     ghc-options:       -Wall
   exposed-modules:   HPath
-  other-modules:     HPath.Internal
-  build-depends:     base >= 4.8 && <5
+                     HPath.Internal
+  build-depends:     filepath >=1.4.99.5
+                   , base >= 4.8 && <5
                    , bytestring >= 0.10.0.0
                    , deepseq
                    , exceptions
-                   , hpath-filepath >= 0.10 && < 0.11
                    , template-haskell
                    , utf8-string
                    , word8
